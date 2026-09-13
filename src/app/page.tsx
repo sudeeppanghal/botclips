@@ -59,7 +59,7 @@ export default function HomePage() {
   const allProofs = [
     {
       id: 1,
-      src: "/proofs/whop-lockscreen-payouts.jpg",
+      src: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/whop-lockscreen-payouts.jpg",
       platform: "Whop Notifications",
       payout: "$1,487+",
       views: "Daily Payout Stream",
@@ -74,7 +74,7 @@ export default function HomePage() {
     },
     {
       id: 2,
-      src: "/proofs/content-reward-300-approved.jpg",
+      src: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/content-reward-300-approved.jpg",
       platform: "Content Rewards",
       payout: "$300.00",
       views: "3,866,908 Views",
@@ -89,7 +89,7 @@ export default function HomePage() {
     },
     {
       id: 3,
-      src: "/proofs/admin-caught-vs-passed.jpg",
+      src: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/admin-caught-vs-passed.jpg",
       platform: "Moderation Console",
       payout: "$1,459.06",
       views: "User Audit Panel",
@@ -104,7 +104,7 @@ export default function HomePage() {
     },
     {
       id: 4,
-      src: "/proofs/whop-earning-5230.jpg",
+      src: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/whop-earning-5230.jpg",
       platform: "Whop Business",
       payout: "$5,230.44",
       views: "Top Clipper",
@@ -118,7 +118,7 @@ export default function HomePage() {
     },
     {
       id: 5,
-      src: "/proofs/whop-earning-3860.jpg",
+      src: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/whop-earning-3860.jpg",
       platform: "Whop Business",
       payout: "$3,860.48",
       views: "100M+ Views",
@@ -132,7 +132,7 @@ export default function HomePage() {
     },
     {
       id: 6,
-      src: "/proofs/content-reward-69-approved.jpg",
+      src: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/content-reward-69-approved.jpg",
       platform: "Instagram Reels",
       payout: "$69.08",
       views: "138,162 Views",
@@ -146,7 +146,7 @@ export default function HomePage() {
     },
     {
       id: 7,
-      src: "/proofs/tier1-usa-audience.jpg",
+      src: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/tier1-usa-audience.jpg",
       platform: "Audience Analytics",
       payout: "Tier 1 Geo",
       views: "48.4% USA",
@@ -160,7 +160,7 @@ export default function HomePage() {
     },
     {
       id: 8,
-      src: "/proofs/payout-received-breakdown.jpg",
+      src: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/payout-received-breakdown.jpg",
       platform: "Content Rewards",
       payout: "$63.97",
       views: "Payment Timeline",
@@ -174,7 +174,7 @@ export default function HomePage() {
     },
     {
       id: 9,
-      src: "/screenshots/1.jpg",
+      src: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/screenshots/1.jpg",
       platform: "TikTok",
       payout: "$5.78",
       views: "1,900+ Views",
@@ -188,7 +188,7 @@ export default function HomePage() {
     },
     {
       id: 10,
-      src: "/screenshots/8.jpg",
+      src: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/screenshots/8.jpg",
       platform: "X (Twitter)",
       payout: "$113.43",
       views: "56,714 Views",
@@ -211,7 +211,7 @@ export default function HomePage() {
   // 4 Core Campaign Dashboards from public/screenshots
   const campaignDashboards = [
     {
-      src: "/screenshots/campaign-1.png",
+      src: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/screenshots/campaign-1.png",
       title: "Whop Campaign: Approved Submission ($5.17)",
       subtitle: "alexjaat • Bot Score 20 (Significantly Low)",
       views: "1,476 Views",
@@ -220,7 +220,7 @@ export default function HomePage() {
       caption: "Real Whop campaign audit screen: Approved status, zero fraud flags, clean retention graph, and payout transferred directly to wallet."
     },
     {
-      src: "/proofs/content-reward-review-console.jpg",
+      src: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/content-reward-review-console.jpg",
       title: "Content Rewards: 3.86M Views Review Screen",
       subtitle: "Full Algorithmic Telemetry Inspection",
       views: "3,866,908 Views",
@@ -229,7 +229,7 @@ export default function HomePage() {
       caption: "Campaign submission review showing steady hourly delivery, authentic residential IP distribution, and Approve/Reject moderation."
     },
     {
-      src: "/screenshots/campaign-3.png",
+      src: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/screenshots/campaign-3.png",
       title: "Algorithmic Growth & Retention Consistency",
       subtitle: "Smooth Parabolic Velocity Tracking",
       views: "18,523 Views",
@@ -238,7 +238,7 @@ export default function HomePage() {
       caption: "Zero dropoff curve over 7 days. Automated fraud monitors classify the clip as 100% organic user traffic."
     },
     {
-      src: "/screenshots/campaign-4.png",
+      src: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/screenshots/campaign-4.png",
       title: "Reward Panel Compliance Audit",
       subtitle: "Multi-Tier Anti-Fraud Verification",
       views: "56,714 Views",
@@ -252,7 +252,7 @@ export default function HomePage() {
   const demoVideos = [
     {
       id: 1,
-      src: "/videos/video-1.mp4",
+      src: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/videos/video-1.mp4",
       title: "Whop Campaign Payout Clearance & Bot Score Verification",
       caption: "Real-time recording of Whop creator dashboard verifying approved payout, green shield Bot Score (20/100), and clean retention profile.",
       tag: "Whop Approved",
@@ -265,7 +265,7 @@ export default function HomePage() {
     },
     {
       id: 2,
-      src: "/videos/video-2.mp4",
+      src: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/videos/video-2.mp4",
       title: "Live Submission Verification & Balance Distribution",
       caption: "Inspection of submission review portal demonstrating instant order processing, zero manual flags, and automated reward clearance.",
       tag: "Portal Review",
@@ -278,7 +278,7 @@ export default function HomePage() {
     },
     {
       id: 3,
-      src: "/videos/video-3.mp4",
+      src: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/videos/video-3.mp4",
       title: "Algorithmic Jitter Delivery & Zero-Drop Retention",
       caption: "Demonstration of organic randomized micro-time jitter and coordinated likes/comments pacing passing moderation audits.",
       tag: "Jitter Engine",
@@ -509,12 +509,11 @@ export default function HomePage() {
 
                 {/* Real Admin Screenshot: Goalkeeper_go caught with 37% Trust Score */}
                 <div 
-                  onClick={() => setSelectedImageModal("/proofs/admin-caught-vs-passed.jpg")}
+                  onClick={() => setSelectedImageModal("https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/admin-caught-vs-passed.jpg")}
                   className="rounded-2xl overflow-hidden border border-red-500/30 bg-neutral-950 relative group cursor-pointer mb-5 shadow-lg"
                 >
                   <div className="aspect-[16/10] overflow-hidden relative">
-                    <img 
-                      src="/proofs/admin-caught-vs-passed.jpg" 
+                    <img loading="lazy" decoding="async" src="https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/admin-caught-vs-passed.jpg" 
                       alt="Admin POV: Caught Botted Clipper" 
                       className="w-full h-full object-cover object-bottom group-hover:scale-105 transition-transform duration-300"
                     />
@@ -579,12 +578,11 @@ export default function HomePage() {
 
                 {/* Real Approved Screenshot: Whop Lockscreen Payouts or $300 Approved */}
                 <div 
-                  onClick={() => setSelectedImageModal("/proofs/whop-lockscreen-payouts.jpg")}
+                  onClick={() => setSelectedImageModal("https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/whop-lockscreen-payouts.jpg")}
                   className="rounded-2xl overflow-hidden border border-emerald-500/30 bg-neutral-950 relative group cursor-pointer mb-5 shadow-lg"
                 >
                   <div className="aspect-[16/10] overflow-hidden relative">
-                    <img 
-                      src="/proofs/whop-lockscreen-payouts.jpg" 
+                    <img loading="lazy" decoding="async" src="https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/whop-lockscreen-payouts.jpg" 
                       alt="Whop Lockscreen Payout Stream" 
                       className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
                     />
@@ -648,13 +646,12 @@ export default function HomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
             {/* Card 1: Whop Lockscreen Stream */}
             <div 
-              onClick={() => setSelectedImageModal("/proofs/whop-lockscreen-payouts.jpg")}
+              onClick={() => setSelectedImageModal("https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/whop-lockscreen-payouts.jpg")}
               className="rounded-2xl border border-neutral-200 bg-white p-3.5 shadow-xs hover:shadow-xl transition-all cursor-pointer group flex flex-col justify-between"
             >
               <div>
                 <div className="aspect-[9/14] rounded-xl overflow-hidden bg-black relative mb-3">
-                  <img 
-                    src="/proofs/whop-lockscreen-payouts.jpg" 
+                  <img loading="lazy" decoding="async" src="https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/whop-lockscreen-payouts.jpg" 
                     alt="Whop Lockscreen Payouts" 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
                   />
@@ -673,13 +670,12 @@ export default function HomePage() {
 
             {/* Card 2: $300 Approved Campaign */}
             <div 
-              onClick={() => setSelectedImageModal("/proofs/content-reward-300-approved.jpg")}
+              onClick={() => setSelectedImageModal("https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/content-reward-300-approved.jpg")}
               className="rounded-2xl border border-neutral-200 bg-white p-3.5 shadow-xs hover:shadow-xl transition-all cursor-pointer group flex flex-col justify-between"
             >
               <div>
                 <div className="aspect-[9/14] rounded-xl overflow-hidden bg-black relative mb-3">
-                  <img 
-                    src="/proofs/content-reward-300-approved.jpg" 
+                  <img loading="lazy" decoding="async" src="https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/content-reward-300-approved.jpg" 
                     alt="Content Rewards $300 Approved" 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
                   />
@@ -698,13 +694,12 @@ export default function HomePage() {
 
             {/* Card 3: ak47boss $5,230 Earned */}
             <div 
-              onClick={() => setSelectedImageModal("/proofs/whop-earning-5230.jpg")}
+              onClick={() => setSelectedImageModal("https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/whop-earning-5230.jpg")}
               className="rounded-2xl border border-neutral-200 bg-white p-3.5 shadow-xs hover:shadow-xl transition-all cursor-pointer group flex flex-col justify-between"
             >
               <div>
                 <div className="aspect-[9/14] rounded-xl overflow-hidden bg-black relative mb-3">
-                  <img 
-                    src="/proofs/whop-earning-5230.jpg" 
+                  <img loading="lazy" decoding="async" src="https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/whop-earning-5230.jpg" 
                     alt="ak47boss $5,230 Earned" 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
                   />
@@ -723,13 +718,12 @@ export default function HomePage() {
 
             {/* Card 4: Tier 1 Audience USA */}
             <div 
-              onClick={() => setSelectedImageModal("/proofs/tier1-usa-audience.jpg")}
+              onClick={() => setSelectedImageModal("https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/tier1-usa-audience.jpg")}
               className="rounded-2xl border border-neutral-200 bg-white p-3.5 shadow-xs hover:shadow-xl transition-all cursor-pointer group flex flex-col justify-between"
             >
               <div>
                 <div className="aspect-[9/14] rounded-xl overflow-hidden bg-black relative mb-3">
-                  <img 
-                    src="/proofs/tier1-usa-audience.jpg" 
+                  <img loading="lazy" decoding="async" src="https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/tier1-usa-audience.jpg" 
                     alt="Tier 1 USA Audience" 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
                   />
@@ -868,7 +862,7 @@ export default function HomePage() {
                   controls
                   playsInline
                   className="w-full h-full object-contain"
-                  preload="metadata"
+                  preload="none"
                 >
                   <source src={demoVideos[activeVideoTab].src} type="video/mp4" />
                   Your browser does not support the video tag.
@@ -1019,8 +1013,7 @@ export default function HomePage() {
 
                   {/* Image Container with Hover Overlay */}
                   <div className="overflow-hidden rounded-xl aspect-[16/10] bg-neutral-950 flex items-center justify-center relative shadow-inner">
-                    <img 
-                      src={item.src} 
+                    <img loading="lazy" decoding="async" src={item.src} 
                       alt={item.title}
                       className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
                       loading="lazy"
@@ -1310,8 +1303,7 @@ export default function HomePage() {
 
             {/* Modal Image Display */}
             <div className="relative bg-black flex items-center justify-center p-2 max-h-[65vh] overflow-hidden">
-              <img 
-                src={allProofs[selectedProofIndex].src} 
+              <img loading="lazy" decoding="async" src={allProofs[selectedProofIndex].src} 
                 alt={allProofs[selectedProofIndex].title} 
                 className="max-h-[60vh] w-auto max-w-full rounded-lg shadow-xl object-contain" 
               />
@@ -1372,8 +1364,7 @@ export default function HomePage() {
               </button>
             </div>
             <div className="relative bg-black flex items-center justify-center p-3 max-h-[75vh] overflow-hidden">
-              <img 
-                src={selectedImageModal} 
+              <img loading="lazy" decoding="async" src={selectedImageModal} 
                 alt="Full Screenshot Inspection" 
                 className="max-h-[70vh] w-auto max-w-full rounded-lg shadow-2xl object-contain" 
               />

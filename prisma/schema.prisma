@@ -143,6 +143,8 @@ model Order {
   runs            Int           @default(1)
   intervalMinutes Int           @default(0) @map("interval_minutes")
   curveStyle      String?       @default("ORGANIC") @map("curve_style")
+  isCombo         Boolean       @default(false) @map("is_combo")
+  comboData       String?       @map("combo_data") @db.Text
 
   // Upstream tracking
   providerOrderId String?       @map("provider_order_id")
@@ -270,6 +272,7 @@ model AdminSettings {
   cloudinaryApiSecret String?   @map("cloudinary_api_secret")
   maintenanceMode Boolean       @default(false) @map("maintenance_mode")
   maintenanceMessage String?    @map("maintenance_message")
+  comboDefaults   String?       @map("combo_defaults") @db.Text
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
   @@map("admin_settings")

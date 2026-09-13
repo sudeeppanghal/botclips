@@ -52,6 +52,10 @@ export async function POST(request: NextRequest) {
       deliveryGraphId,
       deliveryGraphName,
       durationHours,
+      isCombo = false,
+      comboData,
+      jitterSchedule,
+      platform,
     } = body;
 
     if (!link || !quantity || Number(quantity) <= 0) {
@@ -151,6 +155,70 @@ export async function POST(request: NextRequest) {
         order,
         balance: dbUser.balance,
         message: "Order dispatched directly via your connected SMM Panel API!",
+      });
+    }
+
+    // ──────────────── MODE 3: WHOP CLIPPERS MULTI-SIGNAL VIRAL COMBO WITH JITTER ────────────────
+    if (isCombo) {
+      const totalCost = Number(charge || 0);
+
+      if (dbUser.balance < totalCost) {
+        return NextResponse.json(
+          {
+            error: `Insufficient wallet balance. Total combo cost is ₹${totalCost.toFixed(2)}, but you only have ₹${dbUser.balance.toFixed(2)}. Please add funds on your Wallet page.`,
+          },
+          { status: 400 }
+        );
+      }
+
+      // Auto-deduct wallet balance
+      const updatedUser = await prisma.user.update({
+        where: { id: dbUser.id },
+        data: {
+          balance: { decrement: totalCost },
+          totalSpent: { increment: totalCost },
+        },
+      });
+
+      // Find default service and active panel
+      const panel = await prisma.panel.findFirst({ where: { isActive: true } });
+      const defaultService = (await prisma.adminService.findFirst({
+        where: {
+          platform: (platform as any) || "INSTAGRAM",
+          isActive: true,
+        },
+      })) || (await prisma.adminService.findFirst());
+
+      const numBatches = Number(comboData?.batches || runs || 12);
+      const windowHours = Number(durationHours || 24);
+
+      // Record combo order in database with non-linear jitter schedule
+      const order = await prisma.order.create({
+        data: {
+          userId: dbUser.id,
+          serviceId: defaultService ? defaultService.id : "srv_ig_106",
+          panelId: panel?.id || null,
+          link,
+          quantity: Number(quantity),
+          charge: totalCost,
+          runs: numBatches,
+          intervalMinutes: Math.max(5, Math.round((windowHours * 60) / numBatches)),
+          curveStyle: deliveryGraphName ? `${deliveryGraphName} (${deliveryGraphId || "whop_clipper_organic_signature"})` : (deliveryGraphId || "WHOP_COMBO"),
+          isCombo: true,
+          comboData: JSON.stringify({
+            ...comboData,
+            jitterSchedulePreview: jitterSchedule ? jitterSchedule.slice(0, 15) : [],
+          }),
+          status: "PROCESSING",
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        mode: "WHOP_COMBO",
+        order,
+        balance: updatedUser.balance,
+        message: `Whop Multi-Signal Combo launched successfully! ₹${totalCost.toFixed(2)} deducted. Jitter delivery active.`,
       });
     }
 

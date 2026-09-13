@@ -27,11 +27,17 @@ import {
   Trash2,
   Zap,
   CheckCircle2,
-  DownloadCloud
+  DownloadCloud,
+  Sparkles,
+  Flame,
+  Share2,
+  Bookmark,
+  Heart,
+  MessageSquare
 } from "lucide-react";
 import BotClipsLogo from "@/components/BotClipsLogo";
 
-type AdminTab = "OVERVIEW" | "ORDERS" | "USERS" | "PANELS" | "SERVICES" | "PAYMENTS" | "SETTINGS";
+type AdminTab = "OVERVIEW" | "ORDERS" | "USERS" | "PANELS" | "SERVICES" | "COMBOS" | "PAYMENTS" | "SETTINGS";
 
 export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>("OVERVIEW");
@@ -169,12 +175,56 @@ export default function AdminDashboardPage() {
 
   const [savingMaintenance, setSavingMaintenance] = useState(false);
 
+  // ── State for Whop & Combo Settings ──
+  const [comboPlatform, setComboPlatform] = useState<"INSTAGRAM" | "TIKTOK" | "YOUTUBE">("INSTAGRAM");
+  const [comboConfig, setComboConfig] = useState<any>(null);
+  const [availableComboServices, setAvailableComboServices] = useState<any[]>([]);
+  const [loadingCombos, setLoadingCombos] = useState(false);
+  const [savingCombos, setSavingCombos] = useState(false);
+
   useEffect(() => {
     loadRealPayments();
     loadMaintenanceStatus();
     loadPanels();
     loadServices();
+    loadComboSettings();
   }, []);
+
+  async function loadComboSettings() {
+    setLoadingCombos(true);
+    try {
+      const res = await fetch("/api/admin/combo-settings");
+      const data = await res.json();
+      if (data.success) {
+        if (data.comboSettings) setComboConfig(data.comboSettings);
+        if (Array.isArray(data.availableServices)) setAvailableComboServices(data.availableServices);
+      }
+    } catch {} finally {
+      setLoadingCombos(false);
+    }
+  }
+
+  async function handleSaveComboSettings() {
+    if (!comboConfig) return;
+    setSavingCombos(true);
+    try {
+      const res = await fetch("/api/admin/combo-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comboSettings: comboConfig }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify("Whop & Combo mapping saved successfully! All user combos will route through these services.");
+      } else {
+        notify(data.error || "Failed to save combo settings");
+      }
+    } catch {
+      notify("Error saving combo configuration");
+    } finally {
+      setSavingCombos(false);
+    }
+  }
 
   async function loadPanels() {
     setLoadingPanels(true);
@@ -580,6 +630,7 @@ export default function AdminDashboardPage() {
           { id: "USERS", label: "Users & Balances", icon: Users },
           { id: "PANELS", label: "Upstream SMM APIs", icon: Server },
           { id: "SERVICES", label: "Services & Markups", icon: Layers },
+          { id: "COMBOS", label: "Whop & Combos Config", icon: Sparkles },
           { id: "PAYMENTS", label: "UPI & Screenshot Queue", icon: CreditCard, badge: payments.filter(p => p.status === "PENDING").length },
           { id: "SETTINGS", label: "Site & Cloudinary", icon: Settings },
         ].map((tab) => {
@@ -999,6 +1050,228 @@ export default function AdminDashboardPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────── TAB: WHOP CLIPPERS & COMBO CONFIGURATION ──────────────── */}
+      {activeTab === "COMBOS" && (
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-md shadow-amber-500/20">
+                  <Flame className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                    Whop Clippers & Multi-Signal Combo Configuration
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Map which upstream provider services power Views, Likes, Shares, Saves & Comments for each platform.
+                  </p>
+                </div>
+              </div>
+
+              {/* Platform Selector */}
+              <div className="flex items-center gap-2 p-1 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold">
+                {(["INSTAGRAM", "TIKTOK", "YOUTUBE"] as const).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setComboPlatform(p)}
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                      comboPlatform === p
+                        ? "bg-amber-500 text-white shadow-xs"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    }`}
+                  >
+                    {p.charAt(0) + p.slice(1).toLowerCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {loadingCombos ? (
+              <div className="p-8 text-center text-slate-400 text-xs font-bold">
+                Loading combo settings...
+              </div>
+            ) : (
+              <div className="space-y-4 text-xs">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Views Mapping */}
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                        <Eye className="w-4 h-4 text-cyan-400" />
+                        <span>Default Views Service ({comboPlatform})</span>
+                      </span>
+                    </div>
+                    <select
+                      value={comboConfig?.[comboPlatform]?.viewsServiceId || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setComboConfig((prev: any) => ({
+                          ...prev,
+                          [comboPlatform]: {
+                            ...prev?.[comboPlatform],
+                            viewsServiceId: val
+                          }
+                        }));
+                      }}
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-medium outline-hidden"
+                    >
+                      <option value="">Select Default Service...</option>
+                      {availableComboServices.filter(s => s.platform === comboPlatform).map(s => (
+                        <option key={s.id} value={s.id}>
+                          [{s.serviceId}] {s.name} - ₹{s.customRate}/1k
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Likes Mapping */}
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                        <Heart className="w-4 h-4 text-pink-400" />
+                        <span>Default Likes Service ({comboPlatform})</span>
+                      </span>
+                    </div>
+                    <select
+                      value={comboConfig?.[comboPlatform]?.likesServiceId || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setComboConfig((prev: any) => ({
+                          ...prev,
+                          [comboPlatform]: {
+                            ...prev?.[comboPlatform],
+                            likesServiceId: val
+                          }
+                        }));
+                      }}
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-medium outline-hidden"
+                    >
+                      <option value="">Select Default Service...</option>
+                      {availableComboServices.filter(s => s.platform === comboPlatform).map(s => (
+                        <option key={s.id} value={s.id}>
+                          [{s.serviceId}] {s.name} - ₹{s.customRate}/1k
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Shares Mapping */}
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                        <Share2 className="w-4 h-4 text-amber-400" />
+                        <span>Default Shares Service ({comboPlatform})</span>
+                      </span>
+                    </div>
+                    <select
+                      value={comboConfig?.[comboPlatform]?.sharesServiceId || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setComboConfig((prev: any) => ({
+                          ...prev,
+                          [comboPlatform]: {
+                            ...prev?.[comboPlatform],
+                            sharesServiceId: val
+                          }
+                        }));
+                      }}
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-medium outline-hidden"
+                    >
+                      <option value="">Select Default Service...</option>
+                      {availableComboServices.filter(s => s.platform === comboPlatform).map(s => (
+                        <option key={s.id} value={s.id}>
+                          [{s.serviceId}] {s.name} - ₹{s.customRate}/1k
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Saves Mapping */}
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                        <Bookmark className="w-4 h-4 text-purple-400" />
+                        <span>Default Saves Service ({comboPlatform})</span>
+                      </span>
+                    </div>
+                    <select
+                      value={comboConfig?.[comboPlatform]?.savesServiceId || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setComboConfig((prev: any) => ({
+                          ...prev,
+                          [comboPlatform]: {
+                            ...prev?.[comboPlatform],
+                            savesServiceId: val
+                          }
+                        }));
+                      }}
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-medium outline-hidden"
+                    >
+                      <option value="">Select Default Service...</option>
+                      {availableComboServices.filter(s => s.platform === comboPlatform).map(s => (
+                        <option key={s.id} value={s.id}>
+                          [{s.serviceId}] {s.name} - ₹{s.customRate}/1k
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Comments Mapping */}
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 space-y-2 md:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                        <MessageSquare className="w-4 h-4 text-emerald-400" />
+                        <span>Default Comments Service ({comboPlatform})</span>
+                      </span>
+                    </div>
+                    <select
+                      value={comboConfig?.[comboPlatform]?.commentsServiceId || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setComboConfig((prev: any) => ({
+                          ...prev,
+                          [comboPlatform]: {
+                            ...prev?.[comboPlatform],
+                            commentsServiceId: val
+                          }
+                        }));
+                      }}
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-medium outline-hidden"
+                    >
+                      <option value="">Select Default Service...</option>
+                      {availableComboServices.filter(s => s.platform === comboPlatform).map(s => (
+                        <option key={s.id} value={s.id}>
+                          [{s.serviceId}] {s.name} - ₹{s.customRate}/1k
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-slate-400 text-xs">
+                    <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                    <span>Non-linear jitter and organic pacing applied automatically across all combo orders</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveComboSettings}
+                    disabled={savingCombos}
+                    className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-md shadow-amber-500/20 transition-all flex items-center gap-2 cursor-pointer"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>{savingCombos ? "Saving Configuration..." : "Save Whop & Combo Settings"}</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

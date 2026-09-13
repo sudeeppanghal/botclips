@@ -1,7 +1,7 @@
 export interface DeliveryCurve {
   id: string;
   name: string;
-  category: "VIRAL" | "ORGANIC_SAFE" | "MULTI_WAVE" | "ALGORITHM_TRIGGER" | "TIME_TARGETED";
+  category: "WHOP_CLIPPERS" | "VIRAL" | "ORGANIC_SAFE" | "MULTI_WAVE" | "ALGORITHM_TRIGGER" | "TIME_TARGETED";
   description: string;
   durationHours: number;
   velocityType: string;
@@ -12,7 +12,8 @@ export interface DeliveryCurve {
 }
 
 export const DELIVERY_CATEGORIES = [
-  { key: "ALL", label: "All Curves (60)" },
+  { key: "ALL", label: "All Curves (62)" },
+  { key: "WHOP_CLIPPERS", label: "🔥 Whop Clippers (Signature)" },
   { key: "VIRAL", label: "Viral & Spikes (12)" },
   { key: "ORGANIC_SAFE", label: "Organic & Safe (12)" },
   { key: "MULTI_WAVE", label: "Multi-Wave (12)" },
@@ -21,6 +22,30 @@ export const DELIVERY_CATEGORIES = [
 ] as const;
 
 export const DELIVERY_GRAPHS: DeliveryCurve[] = [
+  {
+    "id": "whop_clipper_organic_signature",
+    "name": "👑 Whop Clipper Signature Multi-Signal Organic Curve",
+    "category": "WHOP_CLIPPERS",
+    "description": "Engineered exclusively for Whop clippers and short-form affiliate channels. Seeds organic micro-hook views first, then triggers TikTok/Reels FYP via proportional bursts of saves, shares, and high-retention likes with non-linear time jitter.",
+    "durationHours": 24,
+    "velocityType": "Multi-Signal Algorithm Sync",
+    "recommendedFor": "Whop Creators, TikTok FYP, Reels Virality",
+    "safetyRating": 100.0,
+    "dataPoints": [0, 8, 22, 48, 75, 89, 96, 100],
+    "svgPath": "M 0,95 Q 15,92 28,78 T 55,42 T 80,18 T 100,5"
+  },
+  {
+    "id": "whop_affiliate_stealth_wave",
+    "name": "⚡ Whop Clipper Stealth Jitter Pacing",
+    "category": "WHOP_CLIPPERS",
+    "description": "Staggers views, likes, comments, and saves in 12 non-robotic micro-waves with pseudo-random delay intervals (6-18 mins) so anti-spam filters see 100% human browse behavior.",
+    "durationHours": 48,
+    "velocityType": "Stealth Micro-Jitter Wave",
+    "recommendedFor": "High-Ticket Whop Offers & YouTube Shorts",
+    "safetyRating": 100.0,
+    "dataPoints": [0, 12, 28, 45, 62, 78, 91, 100],
+    "svgPath": "M 0,95 Q 20,85 35,65 T 65,35 T 100,5"
+  },
   {
     "id": "viral_exp_takeoff",
     "name": "Viral Algorithm Surge (Exponential)",
@@ -1236,3 +1261,105 @@ export const DELIVERY_GRAPHS: DeliveryCurve[] = [
 export function getDeliveryGraphById(id: string): DeliveryCurve {
   return DELIVERY_GRAPHS.find(g => g.id === id) || DELIVERY_GRAPHS[0];
 }
+
+export interface JitterBatch {
+  batchNumber: number;
+  timeOffsetMinutes: number;
+  timeFormatted: string;
+  views: number;
+  likes: number;
+  shares: number;
+  saves: number;
+  comments: number;
+  batchPercent: number;
+}
+
+export function generateJitterSchedule(params: {
+  totalViews: number;
+  totalLikes: number;
+  totalShares: number;
+  totalSaves: number;
+  totalComments: number;
+  durationHours: number;
+  batchesCount?: number;
+}): JitterBatch[] {
+  const {
+    totalViews = 0,
+    totalLikes = 0,
+    totalShares = 0,
+    totalSaves = 0,
+    totalComments = 0,
+    durationHours = 24,
+  } = params;
+
+  // Choose batch count between 8 and 14 based on duration
+  const numBatches = params.batchesCount || Math.min(14, Math.max(8, Math.round(durationHours * 0.75)));
+  const totalMinutes = durationHours * 60;
+  
+  // Weights array with natural organic bell/growth curve + random pseudo-jitter
+  const rawWeights: number[] = [];
+  for (let i = 0; i < numBatches; i++) {
+    const x = (i + 1) / numBatches;
+    // Base organic shape (Gaussian + slight exponential)
+    const baseWeight = Math.sin(x * Math.PI) * 0.7 + Math.pow(x, 1.4) * 0.5 + 0.3;
+    // Jitter: random factor between 0.75 and 1.25
+    const pseudoRandom = 0.78 + ((Math.sin(i * 3.7 + 1.2) + 1) / 2) * 0.44;
+    rawWeights.push(baseWeight * pseudoRandom);
+  }
+
+  const sumWeights = rawWeights.reduce((a, b) => a + b, 0);
+  const normalizedWeights = rawWeights.map(w => w / sumWeights);
+
+  const batches: JitterBatch[] = [];
+  let allocatedViews = 0;
+  let allocatedLikes = 0;
+  let allocatedShares = 0;
+  let allocatedSaves = 0;
+  let allocatedComments = 0;
+
+  let currentMinutes = 0;
+  const avgInterval = totalMinutes / numBatches;
+
+  for (let i = 0; i < numBatches; i++) {
+    const isLast = i === numBatches - 1;
+    const w = normalizedWeights[i];
+
+    // Calculate quantities with non-linear realistic numbers (e.g. 72, 63, 99, 101)
+    const v = isLast ? Math.max(0, totalViews - allocatedViews) : Math.max(1, Math.round(totalViews * w));
+    const l = isLast ? Math.max(0, totalLikes - allocatedLikes) : (totalLikes > 0 ? Math.max(0, Math.round(totalLikes * w)) : 0);
+    const s = isLast ? Math.max(0, totalShares - allocatedShares) : (totalShares > 0 ? Math.max(0, Math.round(totalShares * w)) : 0);
+    const sv = isLast ? Math.max(0, totalSaves - allocatedSaves) : (totalSaves > 0 ? Math.max(0, Math.round(totalSaves * w)) : 0);
+    const c = isLast ? Math.max(0, totalComments - allocatedComments) : (totalComments > 0 ? Math.max(0, Math.round(totalComments * w)) : 0);
+
+    allocatedViews += v;
+    allocatedLikes += l;
+    allocatedShares += s;
+    allocatedSaves += sv;
+    allocatedComments += c;
+
+    // Time jitter: interval * (0.65 to 1.35)
+    const intervalJitter = 0.7 + ((Math.cos(i * 4.3 + 2.1) + 1) / 2) * 0.6;
+    const stepInterval = Math.max(4, Math.round(avgInterval * intervalJitter));
+    currentMinutes += (i === 0 ? Math.max(4, Math.round(stepInterval * 0.45)) : stepInterval);
+    if (isLast && currentMinutes > totalMinutes) currentMinutes = totalMinutes;
+
+    const hrs = Math.floor(currentMinutes / 60);
+    const mins = currentMinutes % 60;
+    const timeFormatted = hrs > 0 ? `+${hrs}h ${mins.toString().padStart(2, "0")}m` : `+${mins}m`;
+
+    batches.push({
+      batchNumber: i + 1,
+      timeOffsetMinutes: currentMinutes,
+      timeFormatted,
+      views: v,
+      likes: l,
+      shares: s,
+      saves: sv,
+      comments: c,
+      batchPercent: Math.round(w * 100),
+    });
+  }
+
+  return batches;
+}
+

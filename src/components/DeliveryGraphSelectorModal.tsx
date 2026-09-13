@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import { 
@@ -12,7 +12,8 @@ import {
   Check, 
   SlidersHorizontal,
   ArrowRight,
-  Activity
+  Activity,
+  Flame
 } from "lucide-react";
 import { 
   DELIVERY_GRAPHS, 
@@ -20,6 +21,7 @@ import {
   DeliveryCurve, 
   getDeliveryGraphById 
 } from "@/lib/delivery-graphs";
+import AnimatedDeliveryCanvas from "@/components/AnimatedDeliveryCanvas";
 
 interface DeliveryGraphSelectorModalProps {
   isOpen: boolean;
@@ -31,7 +33,7 @@ interface DeliveryGraphSelectorModalProps {
 export default function DeliveryGraphSelectorModal({
   isOpen,
   onClose,
-  selectedGraphId = "viral_exp_takeoff",
+  selectedGraphId = "whop_clipper_organic_signature",
   onSelectGraph,
 }: DeliveryGraphSelectorModalProps) {
   const [search, setSearch] = useState("");
@@ -59,12 +61,13 @@ export default function DeliveryGraphSelectorModal({
 
   const getCategoryColor = (cat: string) => {
     switch (cat) {
-      case "VIRAL": return "text-amber-500 bg-amber-500/10 border-amber-500/30";
-      case "ORGANIC_SAFE": return "text-emerald-500 bg-emerald-500/10 border-emerald-500/30";
-      case "MULTI_WAVE": return "text-purple-500 bg-purple-500/10 border-purple-500/30";
-      case "ALGORITHM_TRIGGER": return "text-blue-500 bg-blue-500/10 border-blue-500/30";
-      case "TIME_TARGETED": return "text-rose-500 bg-rose-500/10 border-rose-500/30";
-      default: return "text-slate-500 bg-slate-500/10 border-slate-500/30";
+      case "WHOP_CLIPPERS": return "text-amber-400 bg-amber-500/20 border-amber-500/40 ring-1 ring-amber-500/30";
+      case "VIRAL": return "text-red-400 bg-red-500/10 border-red-500/30";
+      case "ORGANIC_SAFE": return "text-emerald-400 bg-emerald-500/10 border-emerald-500/30";
+      case "MULTI_WAVE": return "text-purple-400 bg-purple-500/10 border-purple-500/30";
+      case "ALGORITHM_TRIGGER": return "text-cyan-400 bg-cyan-500/10 border-cyan-500/30";
+      case "TIME_TARGETED": return "text-rose-400 bg-rose-500/10 border-rose-500/30";
+      default: return "text-slate-400 bg-slate-500/10 border-slate-500/30";
     }
   };
 
@@ -124,6 +127,35 @@ export default function DeliveryGraphSelectorModal({
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Active Highlighted Curve Live Animated Simulation */}
+        <div className="px-4 pt-3 pb-2 sm:px-6 sm:pt-3 bg-slate-950/90 border-b border-slate-800">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                Live 60fps Curve Simulation:
+              </span>
+              <span className="text-xs font-black text-white">
+                {highlightedGraph.name}
+              </span>
+            </div>
+            <button
+              onClick={() => handleApply(highlightedGraph)}
+              className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <Check className="w-3.5 h-3.5" />
+              <span>Select Preset</span>
+            </button>
+          </div>
+          <AnimatedDeliveryCanvas
+            curve={highlightedGraph}
+            height={130}
+            showControls={true}
+            showEngagementLayer={true}
+            accentColor={highlightedGraph.category === "WHOP_CLIPPERS" ? "#f59e0b" : "#06b6d4"}
+            durationHours={highlightedGraph.durationHours}
+          />
         </div>
 
         {/* Curve Grid & Details */}

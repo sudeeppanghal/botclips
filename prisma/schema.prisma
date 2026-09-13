@@ -30,6 +30,7 @@ model User {
   planActive      Boolean       @default(false) @map("plan_active")
   planType        String?       @map("plan_type") // "WEEKLY" or "MONTHLY"
   planExpiresAt   DateTime?     @map("plan_expires_at")
+  defaultServices String?       @map("default_services") // JSON string of default service IDs
 
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")

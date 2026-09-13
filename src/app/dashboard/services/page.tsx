@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Search, ShoppingCart, Filter, ArrowUpRight } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Search, ShoppingCart, Filter, ArrowUpRight, Sparkles } from "lucide-react";
 import NewOrderModal from "@/components/NewOrderModal";
 import { PlatformType } from "@/lib/types";
 
@@ -10,25 +10,43 @@ export default function ServicesPage() {
   const [activePlatform, setActivePlatform] = useState<PlatformType | "ALL">("ALL");
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<any>(null);
+  const [services, setServices] = useState<any[]>([]);
+  const [userBalance, setUserBalance] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
 
-  const mockServices = [
-    { id: 1024, platform: "INSTAGRAM", cat: "Instagram Followers", name: "Instagram Real HQ Followers [Instant, 30 Days Refill]", rate: 180, min: 50, max: 100000 },
-    { id: 1025, platform: "INSTAGRAM", cat: "Instagram Likes", name: "Instagram High Retention Likes [Real Active Users]", rate: 45, min: 50, max: 500000 },
-    { id: 1026, platform: "INSTAGRAM", cat: "Instagram Views", name: "Instagram Reels Views [Fast Viral Algorithm Boost]", rate: 15, min: 100, max: 10000000 },
-    { id: 2011, platform: "YOUTUBE", cat: "YouTube Views", name: "YouTube High Retention Views [Monetizable, Safe for Ads]", rate: 240, min: 500, max: 2000000 },
-    { id: 2012, platform: "YOUTUBE", cat: "YouTube Subscribers", name: "YouTube Real Non-Drop Subscribers [Gradual Delivery]", rate: 1200, min: 50, max: 20000 },
-    { id: 3015, platform: "TIKTOK", cat: "TikTok Followers", name: "TikTok Real Followers [Guaranteed No Drop]", rate: 190, min: 100, max: 50000 },
-    { id: 3016, platform: "TIKTOK", cat: "TikTok Views", name: "TikTok Video Views [Instant Delivery + Viral Push]", rate: 20, min: 100, max: 5000000 },
-    { id: 4010, platform: "TELEGRAM", cat: "Telegram Members", name: "Telegram Channel Members [Global Non-Drop 60D]", rate: 120, min: 100, max: 100000 },
-    { id: 4011, platform: "TELEGRAM", cat: "Telegram Views", name: "Telegram Post Views [1-5 Recent Posts Autoview]", rate: 10, min: 100, max: 500000 },
-    { id: 5001, platform: "TWITTER", cat: "Twitter (X) Followers", name: "Twitter (X) Followers [Real Profiles with PFP]", rate: 350, min: 50, max: 50000 },
-    { id: 5002, platform: "TWITTER", cat: "Twitter (X) Likes", name: "Twitter (X) High Speed Likes & Retweets", rate: 110, min: 50, max: 100000 },
-    { id: 6001, platform: "FACEBOOK", cat: "Facebook Page Likes", name: "Facebook Page Followers & Likes [Real Indian Profiles]", rate: 290, min: 100, max: 50000 },
-  ];
+  useEffect(() => {
+    loadServices();
+    loadUserBalance();
+  }, []);
 
-  const filtered = mockServices.filter(s => {
+  async function loadServices() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/services");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.services)) {
+        setServices(data.services);
+      }
+    } catch {}
+    setLoading(false);
+  }
+
+  async function loadUserBalance() {
+    try {
+      const res = await fetch("/api/auth/me");
+      const data = await res.json();
+      if (data.success && data.user) {
+        setUserBalance(Number(data.user.balance || 0));
+      }
+    } catch {}
+  }
+
+  const filtered = services.filter(s => {
     const matchPlat = activePlatform === "ALL" || s.platform === activePlatform;
-    const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) || s.cat.toLowerCase().includes(search.toLowerCase()) || String(s.id).includes(search);
+    const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) || 
+      (s.cat && s.cat.toLowerCase().includes(search.toLowerCase())) || 
+      String(s.id).includes(search) ||
+      String(s.serviceId || "").includes(search);
     return matchPlat && matchSearch;
   });
 
@@ -41,8 +59,15 @@ export default function ServicesPage() {
             Services & Pricing
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Browse our full catalog of high-speed SMM services.
+            Browse our full catalog of high-speed clipping and social media growth services.
           </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
+            <span className="text-[11px] text-slate-400 font-semibold block">Available Wallet Balance</span>
+            <span className="text-lg font-black text-slate-900 dark:text-white">₹{userBalance.toFixed(2)}</span>
+          </div>
         </div>
       </div>
 
@@ -56,7 +81,7 @@ export default function ServicesPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by service name, category, or ID..."
-            className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 outline-hidden focus:border-blue-500"
+            className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-blue-500"
           />
         </div>
 
@@ -92,35 +117,52 @@ export default function ServicesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
-              {filtered.map((s) => (
-                <tr key={s.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
-                  <td className="py-4 px-2 font-mono font-bold text-slate-700 dark:text-slate-300">
-                    #{s.id}
-                  </td>
-                  <td className="py-4 px-2">
-                    <div className="font-bold text-slate-900 dark:text-white">{s.name}</div>
-                    <div className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold mt-0.5">{s.cat}</div>
-                  </td>
-                  <td className="py-4 px-2 font-black text-slate-900 dark:text-white">
-                    ₹{s.rate}
-                  </td>
-                  <td className="py-4 px-2 text-slate-500 dark:text-slate-400">
-                    {s.min.toLocaleString()} / {s.max.toLocaleString()}
-                  </td>
-                  <td className="py-4 px-2 text-right">
-                    <button
-                      onClick={() => {
-                        setSelectedService(s);
-                        setModalOpen(true);
-                      }}
-                      className="px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white font-bold transition-all cursor-pointer inline-flex items-center gap-1 text-xs"
-                    >
-                      <span>Order</span>
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </button>
-                  </td>
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-slate-400">Loading catalog...</td>
                 </tr>
-              ))}
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-slate-400">No matching services found.</td>
+                </tr>
+              ) : (
+                filtered.map((s) => (
+                  <tr key={s.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
+                    <td className="py-4 px-2 font-mono font-bold text-slate-700 dark:text-slate-300">
+                      #{s.serviceId || s.id}
+                    </td>
+                    <td className="py-4 px-2">
+                      <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <span>{s.name}</span>
+                        {s.rate <= 50 && (
+                          <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 text-[10px] font-bold flex items-center gap-0.5">
+                            <Sparkles className="w-2.5 h-2.5" /> High Retention
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-0.5 font-medium">{s.cat}</div>
+                    </td>
+                    <td className="py-4 px-2">
+                      <span className="font-black text-slate-900 dark:text-white text-sm">₹{Number(s.rate).toFixed(2)}</span>
+                    </td>
+                    <td className="py-4 px-2 text-slate-500 font-mono text-[11px]">
+                      {Number(s.min).toLocaleString()} / {Number(s.max).toLocaleString()}
+                    </td>
+                    <td className="py-4 px-2 text-right">
+                      <button
+                        onClick={() => {
+                          setSelectedService(s);
+                          setModalOpen(true);
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white font-bold transition-all cursor-pointer inline-flex items-center gap-1 text-xs"
+                      >
+                        <span>Order</span>
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -129,9 +171,15 @@ export default function ServicesPage() {
       {modalOpen && (
         <NewOrderModal
           isOpen={modalOpen}
-          onClose={() => setModalOpen(false)}
+          onClose={() => {
+            setModalOpen(false);
+            loadUserBalance();
+          }}
           defaultPlatform={selectedService?.platform || "INSTAGRAM"}
-          walletBalance={520.00}
+          walletBalance={userBalance}
+          onOrderSuccess={() => {
+            loadUserBalance();
+          }}
         />
       )}
     </div>

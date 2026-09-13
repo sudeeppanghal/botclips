@@ -16,7 +16,11 @@ import {
   RefreshCw, 
   AlertCircle,
   ArrowRight,
-  Crown
+  Crown,
+  Search,
+  Check,
+  Sliders,
+  Database
 } from "lucide-react";
 
 export default function AutomationPage() {
@@ -24,6 +28,7 @@ export default function AutomationPage() {
   const [profileLink, setProfileLink] = useState("");
   const [curveStyle, setCurveStyle] = useState("ORGANIC_VIRAL");
   const [targetViews, setTargetViews] = useState(10000);
+  const [selectedPlatform, setSelectedPlatform] = useState("TIKTOK");
   const [savedSuccess, setSavedSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,32 +39,59 @@ export default function AutomationPage() {
   const [planExpiresAt, setPlanExpiresAt] = useState<string | null>(null);
   const [userBalance, setUserBalance] = useState(0);
 
-  // Custom API configuration
+  // Custom SMM Panel API Configuration
   const [customApiUrl, setCustomApiUrl] = useState("");
   const [customApiKey, setCustomApiKey] = useState("");
+  const [hasSavedKey, setHasSavedKey] = useState(false);
   const [testingApi, setTestingApi] = useState(false);
-  const [apiBalanceInfo, setApiBalanceInfo] = useState<string | null>(null);
+  const [apiBalance, setApiBalance] = useState<number | null>(null);
+  const [apiCurrency, setApiCurrency] = useState("INR");
+  const [panelStatus, setPanelStatus] = useState("DISCONNECTED");
+
+  // Batch-fetched services from subscriber's SMM panel
+  const [fetchingServices, setFetchingServices] = useState(false);
+  const [upstreamServices, setUpstreamServices] = useState<any[]>([]);
+  const [serviceSearch, setServiceSearch] = useState("");
+  const [defaultServices, setDefaultServices] = useState<Record<string, string>>({
+    TIKTOK: "",
+    INSTAGRAM: "",
+    YOUTUBE: "",
+    DEFAULT: "",
+  });
 
   useEffect(() => {
-    loadPlanStatus();
+    loadPlanAndApiStatus();
   }, []);
 
-  async function loadPlanStatus() {
+  async function loadPlanAndApiStatus() {
     try {
-      const res = await fetch("/api/automation/plan");
+      const res = await fetch("/api/automation/byo-api");
       const data = await res.json();
-      if (data.success && data.plan) {
-        setPlanActive(data.plan.planActive);
-        setPlanType(data.plan.planType);
-        setPlanExpiresAt(data.plan.planExpiresAt);
-        setActiveMode(data.plan.automationMode || "MANAGED");
-        setCustomApiUrl(data.plan.customApiUrl || "");
-        setUserBalance(Number(data.plan.balance || 0));
+      if (data.success) {
+        setPlanActive(data.planActive);
+        setPlanType(data.planType);
+        setPlanExpiresAt(data.planExpiresAt);
+        setActiveMode(data.automationMode || (data.planActive ? "CUSTOM_API" : "MANAGED"));
+        setCustomApiUrl(data.customApiUrl || "");
+        setHasSavedKey(data.hasApiKey);
+        setApiBalance(data.connectedPanelBalance);
+        setApiCurrency(data.connectedPanelCurrency || "INR");
+        setPanelStatus(data.panelStatus || "DISCONNECTED");
+        if (data.defaultServices) {
+          setDefaultServices(prev => ({ ...prev, ...data.defaultServices }));
+        }
+      }
+
+      // Also get wallet balance
+      const planRes = await fetch("/api/automation/plan");
+      const planData = await planRes.json();
+      if (planData.success && planData.plan) {
+        setUserBalance(Number(planData.plan.balance || 0));
       }
     } catch {}
   }
 
-  // Subscribe to Weekly ($5 / ₹440) or Monthly ($25 / ₹2,200) Plan
+  // Subscribe to Weekly ($5 / ₹480) or Monthly ($25 / ₹2,400) Plan
   const handleSubscribe = async (type: "WEEKLY" | "MONTHLY") => {
     setPlanLoading(true);
     setError(null);
@@ -78,7 +110,7 @@ export default function AutomationPage() {
       }
 
       setSavedSuccess(data.message);
-      await loadPlanStatus();
+      await loadPlanAndApiStatus();
     } catch (err: any) {
       setError(err.message || "Subscription failed");
     } finally {
@@ -86,76 +118,163 @@ export default function AutomationPage() {
     }
   };
 
-  // Test Custom API connection & balance
-  const handleTestConnection = async () => {
-    if (!customApiUrl || !customApiKey) {
-      setError("Please enter both SMM Panel API URL and API Key.");
+  // Test connection & auto-fetch live balance from connected SMM panel
+  const handleFetchBalance = async () => {
+    if (!customApiUrl || (!customApiKey && !hasSavedKey)) {
+      setError("Please enter your SMM Panel API URL and API Key.");
       return;
     }
 
     setTestingApi(true);
     setError(null);
-    setApiBalanceInfo(null);
 
     try {
-      const res = await fetch("/api/automation/plan", {
-        method: "PUT",
+      const res = await fetch("/api/automation/byo-api", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customApiUrl,
-          customApiKey,
-          testConnection: true,
+          action: "balance",
+          apiUrl: customApiUrl,
+          apiKey: customApiKey,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "API Connection failed");
+        throw new Error(data.error || "Failed to reach SMM Panel API");
       }
 
-      setApiBalanceInfo(`Connected! Upstream Balance: ${data.balance} ${data.currency}`);
-      setSavedSuccess("API connection verified successfully.");
+      setApiBalance(data.balance);
+      setApiCurrency(data.currency || "USD");
+      setPanelStatus("CONNECTED");
+      setSavedSuccess(`Connected! Live Balance: ${data.currency === "INR" ? "₹" : "$"}${data.balance.toFixed(2)}`);
     } catch (err: any) {
-      setError(err.message || "Failed to test SMM API");
+      setError(err.message);
+      setPanelStatus("ERROR");
     } finally {
       setTestingApi(false);
     }
   };
 
-  // Save BYO API settings
-  const handleSaveApiSettings = async () => {
+  // Auto-batch and fetch all services from subscriber's SMM panel
+  const handleFetchBatchServices = async () => {
+    if (!customApiUrl || (!customApiKey && !hasSavedKey)) {
+      setError("Please enter your SMM Panel API URL and API Key first.");
+      return;
+    }
+
+    setFetchingServices(true);
     setError(null);
+
     try {
-      const res = await fetch("/api/automation/plan", {
-        method: "PUT",
+      const res = await fetch("/api/automation/byo-api", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customApiUrl,
-          customApiKey,
-          automationMode: activeMode,
+          action: "services",
+          apiUrl: customApiUrl,
+          apiKey: customApiKey,
         }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to save settings");
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to fetch services from SMM panel");
+      }
 
-      setSavedSuccess("Automation settings saved successfully!");
-      setTimeout(() => setSavedSuccess(null), 4000);
+      if (Array.isArray(data.services)) {
+        setUpstreamServices(data.services);
+        setSavedSuccess(`Auto-batched ${data.services.length} services from your SMM Panel! You can now set your default service IDs below.`);
+      }
     } catch (err: any) {
-      setError(err.message || "Failed to save settings");
+      setError(err.message);
+    } finally {
+      setFetchingServices(false);
     }
   };
 
-  const handleLaunchCampaign = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!profileLink) {
-      setError("Please enter target video or post URL.");
+  // Save SMM Panel API credentials & default service IDs
+  const handleSaveApiAndDefaults = async () => {
+    if (!customApiUrl) {
+      setError("Please provide your SMM Panel API URL.");
       return;
     }
+
+    setTestingApi(true);
     setError(null);
-    setSavedSuccess(`Automation campaign queued successfully via ${activeMode === "CUSTOM_API" ? "Your Custom Connected SMM API" : "BotClips Managed High-Speed Engine"}!`);
-    setTimeout(() => setSavedSuccess(null), 5000);
+
+    try {
+      const res = await fetch("/api/automation/byo-api", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "save",
+          apiUrl: customApiUrl,
+          apiKey: customApiKey,
+          defaultServices,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to save SMM panel configuration");
+      }
+
+      setSavedSuccess("SMM Panel credentials & default service IDs saved successfully!");
+      if (data.balance !== null && data.balance !== undefined) {
+        setApiBalance(data.balance);
+        setApiCurrency(data.currency || "INR");
+        setPanelStatus("CONNECTED");
+      }
+      setHasSavedKey(true);
+      await loadPlanAndApiStatus();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setTestingApi(false);
+    }
   };
+
+  // Launch Automated Campaign
+  const handleLaunchCampaign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSavedSuccess(null);
+
+    try {
+      const activeServiceId = defaultServices[selectedPlatform] || defaultServices.DEFAULT || "1";
+
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          link: profileLink,
+          quantity: targetViews,
+          category: selectedPlatform,
+          serviceId: activeServiceId,
+          service: `Automated ${selectedPlatform} Campaign (${curveStyle})`,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to launch automated campaign");
+      }
+
+      setSavedSuccess(data.message || "Automated campaign launched successfully!");
+      setProfileLink("");
+      await loadPlanAndApiStatus();
+    } catch (err: any) {
+      setError(err.message || "Campaign launch failed");
+    }
+  };
+
+  const filteredUpstream = upstreamServices.filter(s => {
+    const q = serviceSearch.toLowerCase();
+    return String(s.service || s.id || "").includes(q) ||
+      (s.name && s.name.toLowerCase().includes(q)) ||
+      (s.category && s.category.toLowerCase().includes(q));
+  });
 
   return (
     <div className="space-y-6">
@@ -163,232 +282,427 @@ export default function AutomationPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="p-1 rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-              <Zap className="w-4 h-4 fill-current" />
+            <span className="p-1 rounded-md bg-blue-600/10 text-blue-600">
+              <Zap className="w-5 h-5 stroke-[2.2]" />
             </span>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-              AI Automation & Custom SMM API
+              AI Pacing & API Automation
             </h1>
           </div>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Choose between BotClips Managed AI Delivery or connect your Own Upstream SMM Panel API.
+            Choose between BotClips Managed Viewfarm or Connect Your Own SMM Panel API (BYO-API).
           </p>
         </div>
 
-        {/* Available Balance chip */}
-        <div className="px-4 py-2 rounded-xl bg-white dark:bg-[#131b2e] border border-slate-200 dark:border-slate-800 text-xs flex items-center gap-2 shadow-xs">
-          <span className="text-slate-400 font-semibold">Wallet:</span>
-          <span className="font-black text-slate-900 dark:text-white">₹{userBalance.toFixed(2)}</span>
-          <Link href="/dashboard/wallet" className="text-blue-600 font-bold hover:underline ml-1">+ Add Funds</Link>
+        <div className="flex items-center gap-3">
+          <div className="px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
+            <span className="text-[11px] text-slate-400 font-semibold block">BotClips Wallet Balance</span>
+            <span className="text-lg font-black text-slate-900 dark:text-white">₹{userBalance.toFixed(2)}</span>
+          </div>
         </div>
       </div>
 
       {savedSuccess && (
         <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center gap-2">
-          <CheckCircle2 className="w-5 h-5 shrink-0" />
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{savedSuccess}</span>
         </div>
       )}
 
       {error && (
-        <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center gap-2">
-          <AlertCircle className="w-5 h-5 shrink-0" />
+        <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs font-semibold text-rose-600 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* 2 Operating Modes Tabs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Mode 1 Card */}
+      {/* ── MODE SELECTOR CARDS ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Mode 1: BotClips Managed Delivery */}
         <div 
           onClick={() => setActiveMode("MANAGED")}
-          className={`p-5 rounded-2xl border-2 transition-all cursor-pointer ${
+          className={`p-5 rounded-2xl border-2 transition-all cursor-pointer relative ${
             activeMode === "MANAGED"
-              ? "border-blue-600 bg-white dark:bg-[#131b2e] shadow-md ring-2 ring-blue-500/20"
-              : "border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-[#131b2e]/60 hover:border-slate-300"
+              ? "border-blue-600 bg-blue-50/40 dark:bg-blue-950/20 shadow-sm"
+              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] hover:border-slate-300"
           }`}
         >
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-blue-600" />
-              <h3 className="font-black text-sm text-slate-900 dark:text-white">Mode 1: Managed AI Automation</h3>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
+                M1
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">BotClips Managed Viewfarm</h3>
+                <span className="text-[10px] text-slate-400">Zero-Config • Deducts from Wallet Balance</span>
+              </div>
             </div>
             {activeMode === "MANAGED" && (
-              <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 text-[10px] font-bold">Active</span>
+              <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                <Check className="w-3.5 h-3.5" />
+              </span>
             )}
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-            Deposit in your BotClips wallet (Min ₹50) and place orders. Our background SMM engine handles dispatch and delivery pacing automatically.
+            Uses our private hardware viewfarm with 20,000+ smartphones. Simply deposit via UPI or USDT and orders auto-deduct according to catalog pricing.
           </p>
         </div>
 
-        {/* Mode 2 Card */}
+        {/* Mode 2: Bring Your Own API */}
         <div 
           onClick={() => setActiveMode("CUSTOM_API")}
-          className={`p-5 rounded-2xl border-2 transition-all cursor-pointer ${
+          className={`p-5 rounded-2xl border-2 transition-all cursor-pointer relative ${
             activeMode === "CUSTOM_API"
-              ? "border-purple-600 bg-white dark:bg-[#131b2e] shadow-md ring-2 ring-purple-500/20"
-              : "border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-[#131b2e]/60 hover:border-slate-300"
+              ? "border-purple-600 bg-purple-50/40 dark:bg-purple-950/20 shadow-sm"
+              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] hover:border-slate-300"
           }`}
         >
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Crown className="w-5 h-5 text-purple-600" />
-              <h3 className="font-black text-sm text-slate-900 dark:text-white">Mode 2: Premium BYO-API Mode</h3>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-xs">
+                M2
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">Bring Your Own SMM Panel API</h3>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-purple-100 text-purple-700 uppercase">
+                    Subscription
+                  </span>
+                </div>
+                <span className="text-[10px] text-slate-400">Connect ANY SMM Panel • Auto-Batch Services</span>
+              </div>
             </div>
-            {planActive ? (
-              <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold">Subscribed</span>
-            ) : (
-              <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 text-[10px] font-bold">$5/wk or $25/mo</span>
+            {activeMode === "CUSTOM_API" && (
+              <span className="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center">
+                <Check className="w-3.5 h-3.5" />
+              </span>
             )}
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-            Connect your OWN upstream SMM Panel API. All automated campaigns dispatch directly via your API key using your upstream balance at 0% markup.
+            Connect your own external SMM panel API key. Our system auto-fetches your panel balance and batches all service IDs so orders route through your provider account.
           </p>
         </div>
       </div>
 
-      {/* Mode 2 Subscription Paywall Banner if Not Active */}
+      {/* Subscription Paywall Box (if Mode 2 selected and plan NOT active) */}
       {activeMode === "CUSTOM_API" && !planActive && (
-        <div className="bg-gradient-to-r from-purple-900/90 to-indigo-900/90 rounded-2xl p-6 text-white border border-purple-500/30 shadow-xl">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-purple-200 text-xs font-bold uppercase tracking-wider">
-                <Crown className="w-3.5 h-3.5 text-amber-400" />
-                <span>Premium BYO-API Automation</span>
+        <div className="p-6 rounded-2xl bg-gradient-to-br from-purple-900/20 via-slate-900 to-slate-900 border border-purple-500/30 text-white space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-xs font-bold mb-2">
+                <Crown className="w-3.5 h-3.5" />
+                <span>Mode 2 Automation License Required</span>
               </div>
-              <h2 className="text-xl sm:text-2xl font-black">Unlock Custom SMM Panel API Connection</h2>
-              <p className="text-xs sm:text-sm text-purple-200 max-w-xl leading-relaxed">
-                Run unlimited organic curves, bulk drip-feeds, and account automation directly through your own SMM panel provider with no middleman margins.
+              <h2 className="text-xl font-black text-white">Unlock Custom SMM Panel Automation</h2>
+              <p className="text-xs text-slate-400 mt-1 max-w-xl">
+                Connect your own SMM panel API, auto-fetch panel balances, batch services, and automate order dispatching with your provider.
               </p>
             </div>
-
-            {/* Plan Cards */}
-            <div className="flex flex-col sm:flex-row gap-3 shrink-0">
-              {/* Weekly Plan */}
-              <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/15 text-center min-w-[170px]">
-                <div className="text-xs font-bold text-purple-200">Weekly Pass</div>
-                <div className="text-2xl font-black mt-1">$5 <span className="text-xs font-normal text-purple-200">(₹480)</span></div>
-                <div className="text-[10px] text-purple-300 mt-0.5">7 Days Active Access</div>
-                <button
-                  onClick={() => handleSubscribe("WEEKLY")}
-                  disabled={planLoading}
-                  className="mt-3 w-full py-2 bg-white text-purple-900 hover:bg-purple-50 rounded-lg text-xs font-bold transition-all shadow-md cursor-pointer disabled:opacity-60"
-                >
-                  {planLoading ? "Activating..." : "Unlock Weekly"}
-                </button>
-              </div>
-
-              {/* Monthly Plan */}
-              <div className="bg-white/20 backdrop-blur-md rounded-xl p-4 border border-amber-400/40 text-center min-w-[170px] relative">
-                <span className="absolute -top-2.5 right-3 bg-amber-400 text-slate-900 text-[9px] font-black px-2 py-0.5 rounded-full shadow-xs">
-                  POPULAR
-                </span>
-                <div className="text-xs font-bold text-amber-300">Monthly Pro</div>
-                <div className="text-2xl font-black mt-1">$25 <span className="text-xs font-normal text-purple-200">(₹2,400)</span></div>
-                <div className="text-[10px] text-purple-300 mt-0.5">30 Days Active Access</div>
-                <button
-                  onClick={() => handleSubscribe("MONTHLY")}
-                  disabled={planLoading}
-                  className="mt-3 w-full py-2 bg-amber-400 text-slate-950 hover:bg-amber-300 rounded-lg text-xs font-black transition-all shadow-md cursor-pointer disabled:opacity-60"
-                >
-                  {planLoading ? "Activating..." : "Unlock Monthly"}
-                </button>
-              </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => handleSubscribe("WEEKLY")}
+                disabled={planLoading}
+                className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30 transition-all cursor-pointer"
+              >
+                {planLoading ? "Processing..." : "Weekly Plan ($5 / ₹480)"}
+              </button>
+              <button
+                onClick={() => handleSubscribe("MONTHLY")}
+                disabled={planLoading}
+                className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-xs shadow-lg transition-all cursor-pointer"
+              >
+                {planLoading ? "Processing..." : "Monthly Plan ($25 / ₹2,400)"}
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Main Campaign Configuration Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Col: Setup & Configuration */}
-        <div className="lg:col-span-7 bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-6">
-          
-          {/* If Mode 2 is selected and plan is active, show API connection fields */}
-          {activeMode === "CUSTOM_API" && planActive && (
-            <div className="p-4 rounded-xl bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900/40 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Server className="w-4 h-4 text-purple-600" />
-                  <span className="text-xs font-bold text-slate-800 dark:text-white">Your Custom SMM Panel API</span>
+      {/* ── MODE 2: CONNECTED SMM PANEL CONFIGURATION & BATCH SERVICES ── */}
+      {activeMode === "CUSTOM_API" && planActive && (
+        <div className="space-y-6">
+          {/* API Connection & Live Balance Card */}
+          <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-600 flex items-center justify-center font-bold">
+                  <Server className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-bold text-purple-600 bg-purple-100 dark:bg-purple-900/50 px-2 py-0.5 rounded-md">
-                  Plan Expires: {planExpiresAt ? new Date(planExpiresAt).toLocaleDateString() : "Active"}
-                </span>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white">Your Connected SMM Panel API</h2>
+                  <p className="text-xs text-slate-400">Enter your SMM panel endpoint & API Key. We auto-fetch remaining balance and all services.</p>
+                </div>
               </div>
 
+              {/* Live Panel Balance Display */}
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Connected Panel Balance</span>
+                  <span className="text-base font-black text-emerald-600 font-mono">
+                    {apiBalance !== null ? `${apiCurrency === "INR" ? "₹" : "$"}${apiBalance.toFixed(2)}` : "Click Test"}
+                  </span>
+                </div>
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                  panelStatus === "CONNECTED"
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    : "bg-slate-100 text-slate-600"
+                }`}>
+                  {panelStatus === "CONNECTED" ? "● CONNECTED" : "DISCONNECTED"}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1">
-                  API URL (Standard v2 endpoint)
+                <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  SMM Panel API URL (Standard v2 API)
                 </label>
                 <input
                   type="url"
                   placeholder="https://your-panel-provider.com/api/v2"
                   value={customApiUrl}
                   onChange={(e) => setCustomApiUrl(e.target.value)}
-                  className="w-full px-3 py-2 text-xs font-mono bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white outline-none focus:border-purple-500"
+                  className="w-full px-3.5 py-2 text-xs font-mono bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:border-purple-500"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                   API Key
                 </label>
                 <input
                   type="password"
-                  placeholder="••••••••••••••••••••••••••••••••"
+                  placeholder={hasSavedKey ? "•••••••••••••••••••••••• (Saved)" : "Enter API Key from your provider"}
                   value={customApiKey}
                   onChange={(e) => setCustomApiKey(e.target.value)}
-                  className="w-full px-3 py-2 text-xs font-mono bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white outline-none focus:border-purple-500"
+                  className="w-full px-3.5 py-2 text-xs font-mono bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:border-purple-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleFetchBalance}
+                  disabled={testingApi}
+                  className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${testingApi ? "animate-spin" : ""}`} />
+                  <span>{testingApi ? "Checking..." : "Auto-Fetch Panel Balance"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleFetchBatchServices}
+                  disabled={fetchingServices}
+                  className="px-3.5 py-2 rounded-xl bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 text-purple-700 dark:text-purple-300 font-bold text-xs transition-all flex items-center gap-1.5 border border-purple-200 dark:border-purple-800 cursor-pointer"
+                >
+                  <Database className={`w-3.5 h-3.5 ${fetchingServices ? "animate-spin" : ""}`} />
+                  <span>{fetchingServices ? "Batching Services..." : "Auto-Batch All Services from Panel"}</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSaveApiAndDefaults}
+                disabled={testingApi}
+                className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer"
+              >
+                Save Panel Credentials
+              </button>
+            </div>
+          </div>
+
+          {/* Default Service IDs Mapping Card */}
+          <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Sliders className="w-4 h-4 text-purple-600" />
+                  <span>Default Service IDs for Your Campaigns</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Specify which Service ID on your connected panel should be triggered for each campaign type.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSaveApiAndDefaults}
+                className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer"
+              >
+                Save Default IDs
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
+                  TikTok Views Service ID
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 3016"
+                  value={defaultServices.TIKTOK || ""}
+                  onChange={(e) => setDefaultServices({ ...defaultServices, TIKTOK: e.target.value })}
+                  className="w-full px-3 py-2 text-xs font-mono bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white outline-none focus:border-purple-500"
                 />
               </div>
 
-              <div className="flex items-center justify-between pt-1">
-                <button
-                  type="button"
-                  onClick={handleTestConnection}
-                  disabled={testingApi}
-                  className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold hover:border-purple-500 text-slate-700 dark:text-slate-200 transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${testingApi ? "animate-spin" : ""}`} />
-                  <span>{testingApi ? "Verifying..." : "Test Connection & Balance"}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleSaveApiSettings}
-                  className="px-3.5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition-all cursor-pointer"
-                >
-                  Save API Key
-                </button>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
+                  Instagram Views Service ID
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 1026"
+                  value={defaultServices.INSTAGRAM || ""}
+                  onChange={(e) => setDefaultServices({ ...defaultServices, INSTAGRAM: e.target.value })}
+                  className="w-full px-3 py-2 text-xs font-mono bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white outline-none focus:border-purple-500"
+                />
               </div>
 
-              {apiBalanceInfo && (
-                <div className="text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 p-2 rounded-lg">
-                  {apiBalanceInfo}
-                </div>
-              )}
-            </div>
-          )}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
+                  YouTube Views Service ID
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 2011"
+                  value={defaultServices.YOUTUBE || ""}
+                  onChange={(e) => setDefaultServices({ ...defaultServices, YOUTUBE: e.target.value })}
+                  className="w-full px-3 py-2 text-xs font-mono bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white outline-none focus:border-purple-500"
+                />
+              </div>
 
-          {/* Campaign Form */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
+                  General Default Service ID
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 1024"
+                  value={defaultServices.DEFAULT || ""}
+                  onChange={(e) => setDefaultServices({ ...defaultServices, DEFAULT: e.target.value })}
+                  className="w-full px-3 py-2 text-xs font-mono bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white outline-none focus:border-purple-500"
+                />
+              </div>
+            </div>
+
+            {/* If services were batched, show interactive picker table */}
+            {upstreamServices.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Batched Services from Your SMM Panel ({upstreamServices.length} found)
+                  </span>
+                  <div className="relative w-64">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Search batched services..."
+                      value={serviceSearch}
+                      onChange={(e) => setServiceSearch(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
+                    />
+                  </div>
+                </div>
+
+                <div className="max-h-60 overflow-y-auto border border-slate-100 dark:border-slate-800 rounded-xl divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
+                  {filteredUpstream.slice(0, 50).map((srv: any) => {
+                    const sId = String(srv.service || srv.id);
+                    return (
+                      <div key={sId} className="p-2.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40 gap-3">
+                        <div className="truncate">
+                          <span className="font-mono font-bold text-purple-600 mr-2">#{sId}</span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">{srv.name}</span>
+                          <span className="text-[10px] text-slate-400 ml-2">({srv.category})</span>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-mono text-slate-600 dark:text-slate-400 text-[11px]">
+                            {srv.rate ? `Cost: ${srv.rate}` : ""}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDefaultServices(prev => ({ ...prev, [selectedPlatform]: sId }));
+                              setSavedSuccess(`Set Service #${sId} as default for ${selectedPlatform}! Click 'Save Default IDs' to apply.`);
+                            }}
+                            className="px-2 py-1 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded text-[10px] font-bold cursor-pointer"
+                          >
+                            Use as {selectedPlatform}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Main Campaign Configuration & Waveform Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Col: Setup & Configuration */}
+        <div className="lg:col-span-7 bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-6">
           <form onSubmit={handleLaunchCampaign} className="space-y-4">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-              Campaign Pacing & Curve Settings
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Zap className="w-4 h-4 text-blue-600" />
+              <span>Launch Campaign with Real Pacing</span>
             </h3>
+
+            {/* Platform Selection */}
+            <div>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">
+                Platform
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {["TIKTOK", "INSTAGRAM", "YOUTUBE"].map((plat) => (
+                  <button
+                    key={plat}
+                    type="button"
+                    onClick={() => setSelectedPlatform(plat)}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                      selectedPlatform === plat
+                        ? "border-blue-600 bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400 shadow-xs"
+                        : "border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                    }`}
+                  >
+                    {plat}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-                Target Post / Reel / Channel URL
+                Target Post / Reel / Video URL
               </label>
               <input
                 type="text"
                 required
                 value={profileLink}
                 onChange={(e) => setProfileLink(e.target.value)}
-                placeholder="https://instagram.com/reel/C... or YouTube link"
+                placeholder="https://tiktok.com/@clip/... or Instagram reel link"
                 className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                Target Views Volume
+              </label>
+              <input
+                type="number"
+                min="50"
+                step="50"
+                value={targetViews}
+                onChange={(e) => setTargetViews(Number(e.target.value))}
+                className="w-full px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:border-blue-500 font-mono"
               />
             </div>
 
@@ -426,7 +740,11 @@ export default function AutomationPage() {
               className="w-full py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Zap className="w-4 h-4 fill-current" />
-              <span>Launch Automated Campaign</span>
+              <span>
+                {activeMode === "CUSTOM_API" 
+                  ? "Launch via Connected SMM Panel API" 
+                  : "Launch Managed Viewfarm Campaign"}
+              </span>
             </button>
           </form>
         </div>
@@ -450,35 +768,33 @@ export default function AutomationPage() {
                 <path
                   d={
                     curveStyle === "ORGANIC_VIRAL"
-                      ? "M 10 95 C 50 85, 70 65, 110 25 C 150 15, 190 45, 240 70 C 270 85, 290 92, 300 95"
+                      ? "M 10 90 C 50 85, 70 65, 110 20 C 150 10, 190 40, 240 70 C 270 85, 290 92, 300 95"
                       : curveStyle === "STEADY_DRIP"
-                      ? "M 10 95 L 300 25"
-                      : "M 10 95 C 30 15, 60 15, 120 40 C 180 60, 240 80, 300 90"
+                      ? "M 10 90 L 300 20"
+                      : "M 10 90 C 20 15, 60 15, 120 35 C 180 50, 240 75, 300 85"
                   }
                   fill="none"
                   stroke="#2563eb"
-                  strokeWidth="4"
+                  strokeWidth="3.5"
                   strokeLinecap="round"
-                  className="transition-all duration-300"
                 />
               </svg>
             </div>
 
-            <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 pt-3 border-t border-slate-100 dark:border-slate-800">
-              <span>Warmup</span>
-              <span className="text-blue-600 font-bold">Peak Engagement</span>
-              <span>Organic Decay</span>
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span>Anti-Drop Algorithm:</span>
+                <span className="font-bold text-emerald-600">Active (0% view loss)</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Device Fingerprints:</span>
+                <span className="font-bold text-slate-700 dark:text-slate-300">20k+ Physical Phones</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Average Retention:</span>
+                <span className="font-bold text-slate-700 dark:text-slate-300">3–7 Seconds / View</span>
+              </div>
             </div>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs text-slate-500 space-y-2">
-            <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>Anti-Shadowban Guarantee</span>
-            </div>
-            <p className="leading-relaxed text-[11px]">
-              Platform algorithms flag abrupt spikes from flat bot panels. Our curves simulate organic human discovery to protect and boost your accounts safely.
-            </p>
           </div>
         </div>
       </div>

@@ -19,17 +19,173 @@ import {
   Activity,
   Layers,
   Sparkles,
-  Award
+  Award,
+  ChevronLeft,
+  ChevronRight,
+  DollarSign,
+  Filter,
+  Flame,
+  CheckCircle
 } from "lucide-react";
 import BotClipsLogo from "@/components/BotClipsLogo";
 
 export default function HomePage() {
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedProofIndex, setSelectedProofIndex] = useState<number | null>(null);
+  const [proofFilter, setProofFilter] = useState<string>("ALL");
 
   const toggleFaq = (idx: number) => {
     setFaqOpen(faqOpen === idx ? null : idx);
   };
+
+  const proofScreenshots = [
+    {
+      id: 1,
+      src: "/screenshots/1.jpg",
+      platform: "TikTok",
+      payout: "$5.78",
+      views: "1,900+ Views",
+      botScore: "0 / 100",
+      status: "APPROVED",
+      category: "TIKTOK",
+      title: "Content Rewards — TikTok Campaign Approval",
+      caption: "Brand Galactic on Content Rewards approved submission mopiofficial. Organic curve with zero bot flags.",
+      badge: "Verified Approval",
+      likes: "11 Likes"
+    },
+    {
+      id: 2,
+      src: "/screenshots/2.jpg",
+      platform: "YouTube Shorts",
+      payout: "$10.20",
+      views: "6,800 Views",
+      botScore: "0 / 100",
+      status: "APPROVED",
+      category: "SHORTS_TIKTOK",
+      title: "YouTube Shorts Viral Spike & Payout",
+      caption: "Creator reward submission approved with $10.20 estimated payout. 6,800 views, 70 likes and sustained retention.",
+      badge: "Approved Payout",
+      likes: "70 Likes"
+    },
+    {
+      id: 3,
+      src: "/screenshots/3.jpg",
+      platform: "Instagram Reels",
+      payout: "$27.87",
+      views: "18,583 Views",
+      botScore: "0 / 100",
+      status: "APPROVED",
+      category: "REELS",
+      title: "Instagram Reel Sustained Retention",
+      caption: "18,583 views with zero post-delivery dropoff. Linear organic growth curve clearing platform review.",
+      badge: "Clean Retention Curve",
+      likes: "25 Likes"
+    },
+    {
+      id: 4,
+      src: "/screenshots/4.jpg",
+      platform: "Instagram Reels",
+      payout: "$37.00",
+      views: "24,665 Views",
+      botScore: "0 / 100",
+      status: "APPROVED",
+      category: "REELS",
+      title: "High-Engagement Instagram Submission",
+      caption: "24,665 views and 885 likes. Status approved by brand manager with zero bot detection flags and $37 payout.",
+      badge: "Approved Payout",
+      likes: "885 Likes"
+    },
+    {
+      id: 5,
+      src: "/screenshots/5.jpg",
+      platform: "Instagram Reels",
+      payout: "$73.29",
+      views: "48,862 Views",
+      botScore: "0 / 100",
+      status: "APPROVED",
+      category: "REELS",
+      title: "Multi-Day Viral Distribution",
+      caption: "48,862 views with natural multi-day parabolic velocity. Approved payout of $73.29 without manual flags.",
+      badge: "High Earner ($73+)",
+      likes: "298 Likes"
+    },
+    {
+      id: 6,
+      src: "/screenshots/6.jpg",
+      platform: "Instagram Reels",
+      payout: "$7.75",
+      views: "5,166 Views",
+      botScore: "0 / 100",
+      status: "APPROVED",
+      category: "REELS",
+      title: "Paced Hourly Delivery Profile",
+      caption: "5,166 views distributed across 9 days with natural stair-step pacing to match organic FYP algorithmic tests.",
+      badge: "Organic Pacing",
+      likes: "24 Likes"
+    },
+    {
+      id: 7,
+      src: "/screenshots/7.jpg",
+      platform: "Instagram Reels",
+      payout: "$37.05",
+      views: "18,523 Views",
+      botScore: "0 / 100",
+      status: "APPROVED",
+      category: "REELS",
+      title: "Podcast Clipping Viral Breakthrough",
+      caption: "18,523 views on Elon Musk podcast clip ($2.00 / 1k views campaign). 0 Bot Risk Score (green shield) and instant approval.",
+      badge: "0 Bot Risk Score",
+      likes: "124 Likes"
+    },
+    {
+      id: 8,
+      src: "/screenshots/8.jpg",
+      platform: "X (Twitter)",
+      payout: "$113.43",
+      views: "56,714 Views",
+      botScore: "0 / 100",
+      status: "APPROVED",
+      category: "X",
+      title: "Top-Tier Payout: $113.43 on X Clipping",
+      caption: "56,714 views, 65 likes, 4 retweets. Flawless S-curve growth triggering a three-figure payout approval.",
+      badge: "Top Earner ($113.43)",
+      likes: "65 Likes"
+    },
+    {
+      id: 9,
+      src: "/screenshots/9.jpg",
+      platform: "Instagram Reels",
+      payout: "$31.46",
+      views: "6,292 Views",
+      botScore: "0 / 100",
+      status: "APPROVED",
+      category: "REELS",
+      title: "Business Campaign Payout Approved",
+      caption: "Business Basics campaign ($2 CPM). 0 Bot Risk rating, $31.46 payout approved by creator sponsor.",
+      badge: "Approved Payout",
+      likes: "15 Likes"
+    },
+    {
+      id: 10,
+      src: "/screenshots/10.jpg",
+      platform: "Instagram Reels",
+      payout: "$33.21",
+      views: "6,600+ Views",
+      botScore: "0 / 100",
+      status: "APPROVED",
+      category: "REELS",
+      title: "Verified Clean Audit & Fast Clearance",
+      caption: "Zero bot risk shield rating, $33.21 earnings verified on moderation panel with full payout guarantee.",
+      badge: "0 Bot Score Shield",
+      likes: "Engagement OK"
+    }
+  ];
+
+  const filteredProofs = proofFilter === "ALL" 
+    ? proofScreenshots 
+    : proofFilter === "PAYOUTS"
+    ? proofScreenshots.filter(p => parseFloat(p.payout.replace("$", "")) >= 30)
+    : proofScreenshots.filter(p => p.category === proofFilter);
 
   const screenshots = [
     {
@@ -329,53 +485,197 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── PROOFS & ANALYTICS SHOWCASE ── */}
+      {/* ── PROOFS & REAL-WORLD EARNINGS SHOWCASE (10 VERIFIED CLIENT PROOFS) ── */}
       <section id="analytics" className="py-24 bg-[#f7f7f8] border-y border-[#e9e9ec]">
         <div className="max-w-[1180px] mx-auto px-6">
-          <div className="text-center max-w-3xl mx-auto mb-14">
-            <div className="text-xs font-black uppercase tracking-wider text-[#246bfe]">
-              Dashboard Transparency
+          <div className="text-center max-w-3xl mx-auto mb-10">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-black uppercase tracking-wider mb-3">
+              <CheckCircle className="w-3.5 h-3.5 text-blue-600" />
+              <span>Real Client Submissions & Payouts</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#111214] mt-2.5">
-              What Whop and ContentReward see in your submission.
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#111214]">
+              What Whop, ContentReward & Brands See.
             </h2>
             <p className="text-[#6b7078] mt-3 text-base leading-relaxed">
-              Below are verified campaign submissions demonstrating smooth delivery curves, sustained watchtime, and clean anti-fraud audits.
+              10 verified submissions directly from client campaigns across TikTok, Instagram Reels, YouTube Shorts, and X. Every order delivered with 3–7s retention, 0-drop stability, and 0 bot risk rating.
             </p>
           </div>
 
-          {/* Screenshots Grid (4 Real Campaign Images) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {screenshots.map((item, idx) => (
+          {/* Quick Metrics Ribbon */}
+          <div className="mb-10 grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+            <div className="text-center p-3 border-r border-slate-100 last:border-0">
+              <div className="text-2xl font-black text-emerald-600">$349.00+</div>
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Sample Approved Payouts</div>
+            </div>
+            <div className="text-center p-3 border-r border-slate-100 last:border-0">
+              <div className="text-2xl font-black text-blue-600">100%</div>
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Audit Pass Rate</div>
+            </div>
+            <div className="text-center p-3 border-r border-slate-100 last:border-0">
+              <div className="text-2xl font-black text-slate-900">0 / 100</div>
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Automated Bot Flags</div>
+            </div>
+            <div className="text-center p-3">
+              <div className="text-2xl font-black text-purple-600">0% Drop</div>
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Retention Guarantee</div>
+            </div>
+          </div>
+
+          {/* Proof Filter Pills */}
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
+            <button
+              onClick={() => setProofFilter("ALL")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                proofFilter === "ALL"
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              All 10 Proofs
+            </button>
+            <button
+              onClick={() => setProofFilter("PAYOUTS")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                proofFilter === "PAYOUTS"
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-50"
+              }`}
+            >
+              <DollarSign className="w-3.5 h-3.5" />
+              <span>Top Payouts ($30+)</span>
+            </button>
+            <button
+              onClick={() => setProofFilter("REELS")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                proofFilter === "REELS"
+                  ? "bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-sm"
+                  : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              Instagram Reels
+            </button>
+            <button
+              onClick={() => setProofFilter("SHORTS_TIKTOK")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                proofFilter === "SHORTS_TIKTOK"
+                  ? "bg-red-600 text-white shadow-sm"
+                  : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              TikTok & Shorts
+            </button>
+            <button
+              onClick={() => setProofFilter("X")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                proofFilter === "X"
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              X / Twitter
+            </button>
+          </div>
+
+          {/* 10 Real Proofs Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filteredProofs.map((item, idx) => (
               <div 
-                key={idx}
-                onClick={() => setSelectedImage(item.src)}
-                className="group cursor-pointer bg-neutral-900 rounded-2xl p-2.5 shadow-lg shadow-neutral-900/10 hover:shadow-2xl transition-all duration-300 border border-neutral-800"
+                key={item.id}
+                onClick={() => setSelectedProofIndex(proofScreenshots.findIndex(p => p.id === item.id))}
+                className="group cursor-pointer bg-white dark:bg-neutral-900 rounded-2xl p-3 shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-200 dark:border-neutral-800 flex flex-col justify-between"
               >
-                <div className="overflow-hidden rounded-xl aspect-[16/10] bg-neutral-950 flex items-center justify-center relative">
-                  <img 
-                    src={item.src} 
-                    alt={item.title}
-                    className="w-full h-full object-cover object-top group-hover:scale-[1.02] transition-transform duration-300"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1.5 rounded-lg bg-black/75 text-white text-xs font-bold backdrop-blur-sm">
-                      Click to expand
+                <div>
+                  {/* Top Badge Row */}
+                  <div className="flex items-center justify-between gap-2 mb-2 px-1">
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                      item.platform.includes("Instagram")
+                        ? "bg-pink-50 text-pink-700 border border-pink-200"
+                        : item.platform.includes("YouTube")
+                        ? "bg-red-50 text-red-700 border border-red-200"
+                        : item.platform.includes("TikTok")
+                        ? "bg-cyan-50 text-cyan-700 border border-cyan-200"
+                        : "bg-slate-100 text-slate-800 border border-slate-300"
+                    }`}>
+                      {item.platform}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-mono font-bold text-[11px] border border-emerald-200 flex items-center gap-1">
+                      <span>{item.payout}</span>
                     </span>
                   </div>
+
+                  {/* Image Container with Hover Overlay */}
+                  <div className="overflow-hidden rounded-xl aspect-[16/10] bg-neutral-950 flex items-center justify-center relative shadow-inner">
+                    <img 
+                      src={item.src} 
+                      alt={item.title}
+                      className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1.5 rounded-lg bg-black/80 text-white text-xs font-bold backdrop-blur-sm shadow-md flex items-center gap-1.5">
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Inspect Full Proof</span>
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="px-3 pt-3.5 pb-2 text-white">
-                  <h4 className="font-bold text-sm text-neutral-100 flex items-center justify-between">
-                    <span>{item.title}</span>
-                    <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-neutral-800 text-neutral-400">Proof #{idx + 1}</span>
-                  </h4>
-                  <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
+
+                {/* Details Footer */}
+                <div className="pt-3 px-1">
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="font-bold text-slate-900 dark:text-white truncate max-w-[200px]">{item.title}</span>
+                    <span className="text-[10px] font-mono text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">
+                      {item.badge}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
                     {item.caption}
                   </p>
+                  <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-neutral-800 flex items-center justify-between text-[10px] text-slate-400 font-mono font-bold">
+                    <span>{item.views}</span>
+                    <span>{item.likes}</span>
+                    <span className="text-emerald-600">Shield 0</span>
+                  </div>
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* System Architecture Showcase Section */}
+          <div className="mt-16 pt-12 border-t border-slate-200">
+            <div className="text-center max-w-2xl mx-auto mb-8">
+              <h3 className="text-xl font-extrabold text-slate-900">
+                Unified Campaign Tracking Dashboard
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                How BotClips presents deep submission telemetry, velocity metrics, and delivery curves
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {screenshots.map((item, idx) => (
+                <div 
+                  key={idx}
+                  onClick={() => setSelectedProofIndex(idx)}
+                  className="cursor-pointer bg-neutral-900 rounded-xl p-2 shadow-md hover:shadow-lg transition-all border border-neutral-800 group"
+                >
+                  <div className="overflow-hidden rounded-lg aspect-[16/10] bg-neutral-950 relative">
+                    <img 
+                      src={item.src} 
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                      <span className="opacity-0 group-hover:opacity-100 text-[10px] text-white font-bold bg-black/70 px-2 py-1 rounded">Zoom</span>
+                    </div>
+                  </div>
+                  <div className="p-2 text-white">
+                    <div className="text-xs font-bold truncate">{item.title}</div>
+                    <div className="text-[10px] text-neutral-400 mt-0.5 line-clamp-1">{item.caption}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Risk Score Comparison Box */}
@@ -621,24 +921,96 @@ export default function HomePage() {
         </div>
       </footer>
 
-      {/* ── IMAGE MODAL PREVIEW ── */}
-      {selectedImage && (
+      {/* ── INTERACTIVE LIGHTBOX MODAL WITH PROOF TELEMETRY & CONTROLS ── */}
+      {selectedProofIndex !== null && proofScreenshots[selectedProofIndex] && (
         <div 
-          onClick={() => setSelectedImage(null)}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm p-4 flex items-center justify-center cursor-pointer"
+          onClick={() => setSelectedProofIndex(null)}
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md p-4 flex items-center justify-center cursor-pointer animate-in fade-in duration-200"
         >
-          <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center">
-            <button 
-              onClick={() => setSelectedImage(null)}
-              className="absolute -top-10 right-0 text-white hover:text-neutral-300 p-2 text-xl font-bold"
-            >
-              ✕ Close
-            </button>
-            <img 
-              src={selectedImage} 
-              alt="Campaign Screenshot" 
-              className="max-h-[85vh] w-auto max-w-full rounded-xl shadow-2xl object-contain" 
-            />
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-4xl w-full bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col cursor-default"
+          >
+            {/* Modal Top Header Bar */}
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-800 bg-slate-950/60">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-mono font-bold text-slate-400">
+                  Proof {selectedProofIndex + 1} of {proofScreenshots.length}
+                </span>
+                <span className="h-4 w-px bg-slate-700" />
+                <span className="text-xs font-bold text-white">
+                  {proofScreenshots[selectedProofIndex].platform}
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-mono font-bold text-xs border border-emerald-500/30">
+                  {proofScreenshots[selectedProofIndex].payout} Approved
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSelectedProofIndex((selectedProofIndex - 1 + proofScreenshots.length) % proofScreenshots.length)}
+                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center gap-1 cursor-pointer transition-colors"
+                  title="Previous Proof (Left Arrow)"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setSelectedProofIndex((selectedProofIndex + 1) % proofScreenshots.length)}
+                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center gap-1 cursor-pointer transition-colors"
+                  title="Next Proof (Right Arrow)"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                <button 
+                  onClick={() => setSelectedProofIndex(null)}
+                  className="ml-2 p-1.5 rounded-lg bg-slate-800 hover:bg-red-900/60 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  title="Close (Esc)"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Image Display */}
+            <div className="relative bg-black flex items-center justify-center p-2 max-h-[65vh] overflow-hidden">
+              <img 
+                src={proofScreenshots[selectedProofIndex].src} 
+                alt={proofScreenshots[selectedProofIndex].title} 
+                className="max-h-[60vh] w-auto max-w-full rounded-lg shadow-xl object-contain" 
+              />
+            </div>
+
+            {/* Modal Bottom Details Bar */}
+            <div className="p-4 bg-slate-950 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="space-y-1">
+                <div className="font-bold text-white text-sm flex items-center gap-2">
+                  <span>{proofScreenshots[selectedProofIndex].title}</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+                    {proofScreenshots[selectedProofIndex].badge}
+                  </span>
+                </div>
+                <p className="text-slate-400 text-xs leading-relaxed max-w-2xl">
+                  {proofScreenshots[selectedProofIndex].caption}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="text-right">
+                  <div className="font-mono font-bold text-slate-200">
+                    {proofScreenshots[selectedProofIndex].views}
+                  </div>
+                  <div className="text-[10px] text-slate-500">
+                    {proofScreenshots[selectedProofIndex].likes} • 0 Bot Risk
+                  </div>
+                </div>
+                <Link
+                  href="/signup"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs transition-all cursor-pointer"
+                >
+                  Start Campaign
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -22,7 +22,12 @@ import {
   AlertTriangle,
   Eye,
   ExternalLink,
-  Crown
+  Crown,
+  Edit2,
+  Trash2,
+  Zap,
+  CheckCircle2,
+  DownloadCloud
 } from "lucide-react";
 import BotClipsLogo from "@/components/BotClipsLogo";
 
@@ -49,7 +54,7 @@ export default function AdminDashboardPage() {
   ]);
 
   // ── State for Panels (including smmsocialmedia.in and yoyomedia) ──
-  const [panels, setPanels] = useState([
+  const [panels, setPanels] = useState<any[]>([
     { 
       id: "panel_smmsocialmedia", 
       name: "SMMSocialMedia (Primary)", 
@@ -83,13 +88,44 @@ export default function AdminDashboardPage() {
   ]);
 
   // ── State for Services ──
-  const [services, setServices] = useState([
-    { id: "1024", platform: "INSTAGRAM", name: "Instagram Real HQ Followers", originalRate: 35, customRate: 180, active: true },
-    { id: "1025", platform: "INSTAGRAM", name: "Instagram High Retention Likes", originalRate: 10, customRate: 45, active: true },
-    { id: "2011", platform: "YOUTUBE", name: "YouTube High Retention Views", originalRate: 60, customRate: 240, active: true },
-    { id: "3015", platform: "TIKTOK", name: "TikTok Real Followers", originalRate: 40, customRate: 190, active: true },
-    { id: "4010", platform: "TELEGRAM", name: "Telegram Channel Members", originalRate: 25, customRate: 120, active: true },
+  const [services, setServices] = useState<any[]>([
+    { id: "srv_ig_hq", platform: "INSTAGRAM", name: "Instagram Real HQ Followers", serviceId: "1024", originalRate: 35, customRate: 180, active: true },
+    { id: "srv_ig_likes", platform: "INSTAGRAM", name: "Instagram High Retention Likes", serviceId: "1025", originalRate: 10, customRate: 45, active: true },
+    { id: "srv_yt_views", platform: "YOUTUBE", name: "YouTube High Retention Views", serviceId: "2011", originalRate: 60, customRate: 240, active: true },
+    { id: "srv_tt_followers", platform: "TIKTOK", name: "TikTok Real Followers", serviceId: "3015", originalRate: 40, customRate: 190, active: true },
+    { id: "srv_tg_members", platform: "TELEGRAM", name: "Telegram Channel Members", serviceId: "4010", originalRate: 25, customRate: 120, active: true },
   ]);
+
+  // ── Modals & Interactive States ──
+  const [loadingPanels, setLoadingPanels] = useState(false);
+  const [checkingPanelId, setCheckingPanelId] = useState<string | null>(null);
+  const [loadingServices, setLoadingServices] = useState(false);
+  const [editingService, setEditingService] = useState<any | null>(null);
+  const [showAddServiceModal, setShowAddServiceModal] = useState(false);
+  const [showAddPanelModal, setShowAddPanelModal] = useState(false);
+  const [showUpstreamModal, setShowUpstreamModal] = useState(false);
+  const [upstreamServices, setUpstreamServices] = useState<any[]>([]);
+  const [fetchingUpstream, setFetchingUpstream] = useState(false);
+  const [upstreamSearch, setUpstreamSearch] = useState<string>("");
+
+  const [newPanelForm, setNewPanelForm] = useState({
+    name: "",
+    apiUrl: "",
+    apiKey: "",
+    currency: "INR",
+  });
+
+  const [newServiceForm, setNewServiceForm] = useState({
+    panelId: "",
+    platform: "INSTAGRAM",
+    category: "General",
+    name: "",
+    serviceId: "",
+    originalRate: 1.0,
+    customRate: 5.0,
+    minQuantity: 10,
+    maxQuantity: 100000,
+  });
 
   // ── State for Payments (with 2 Proof Screenshots) ──
   const [payments, setPayments] = useState<any[]>([
@@ -136,7 +172,224 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     loadRealPayments();
     loadMaintenanceStatus();
+    loadPanels();
+    loadServices();
   }, []);
+
+  async function loadPanels() {
+    setLoadingPanels(true);
+    try {
+      const res = await fetch("/api/admin/panels");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.panels) && data.panels.length > 0) {
+        setPanels(data.panels.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          url: p.apiUrl,
+          apiKey: p.apiKeyEncrypted,
+          balance: `${p.currency === "INR" ? "₹" : "$"}${Number(p.balance || 0).toFixed(2)}`,
+          status: p.status || "ONLINE",
+          active: p.isActive,
+          description: p.id.includes("smmsocial") 
+            ? "Background upstream provider for Instagram & YouTube"
+            : p.id.includes("yoyo") 
+            ? "Background upstream provider for TikTok, Telegram & X"
+            : "SMM upstream API provider",
+        })));
+      }
+    } catch {} finally {
+      setLoadingPanels(false);
+    }
+  }
+
+  async function handleCheckPanelBalance(panelId: string, url?: string, key?: string) {
+    setCheckingPanelId(panelId);
+    try {
+      const res = await fetch("/api/admin/panels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "check-balance",
+          panelId,
+          apiUrl: url,
+          apiKey: key,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPanels(prev => prev.map(p => p.id === panelId ? {
+          ...p,
+          balance: data.formatted || `₹${Number(data.balance).toFixed(2)}`,
+          status: "ONLINE",
+        } : p));
+        notify(`Live balance fetched: ${data.formatted || `₹${Number(data.balance).toFixed(2)}`}`);
+      } else {
+        notify(data.error || "Failed to fetch live balance");
+      }
+    } catch (err: any) {
+      notify("Network error while checking balance");
+    } finally {
+      setCheckingPanelId(null);
+    }
+  }
+
+  async function handleSavePanelCredentials(panelId: string, name: string, apiUrl: string, apiKey: string) {
+    try {
+      const res = await fetch("/api/admin/panels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ panelId, name, apiUrl, apiKey }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(`Saved credentials for ${name}`);
+        loadPanels();
+      } else {
+        notify(data.error || "Failed to save credentials");
+      }
+    } catch {
+      notify("Error saving panel credentials");
+    }
+  }
+
+  async function handleCreatePanel() {
+    if (!newPanelForm.name || !newPanelForm.apiUrl || !newPanelForm.apiKey) {
+      notify("Please fill all panel fields");
+      return;
+    }
+    try {
+      const res = await fetch("/api/admin/panels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newPanelForm),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(`Added panel ${newPanelForm.name}!`);
+        setShowAddPanelModal(false);
+        setNewPanelForm({ name: "", apiUrl: "", apiKey: "", currency: "INR" });
+        loadPanels();
+      } else {
+        notify(data.error || "Failed to add panel");
+      }
+    } catch {
+      notify("Network error adding panel");
+    }
+  }
+
+  async function loadServices() {
+    setLoadingServices(true);
+    try {
+      const res = await fetch("/api/admin/services");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.services) && data.services.length > 0) {
+        setServices(data.services.map((s: any) => ({
+          id: s.id,
+          platform: s.platform,
+          name: s.name,
+          serviceId: s.serviceId,
+          originalRate: s.originalRate,
+          customRate: s.customRate,
+          panelId: s.panelId,
+          panelName: s.panel?.name || "Default Panel",
+          minQuantity: s.minQuantity,
+          maxQuantity: s.maxQuantity,
+          active: s.isActive,
+        })));
+      }
+    } catch {} finally {
+      setLoadingServices(false);
+    }
+  }
+
+  async function handleSaveService(srvData: any) {
+    try {
+      const res = await fetch("/api/admin/services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(srvData),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(`Service "${srvData.name}" updated successfully!`);
+        setEditingService(null);
+        setShowAddServiceModal(false);
+        loadServices();
+      } else {
+        notify(data.error || "Failed to save service");
+      }
+    } catch {
+      notify("Error saving service");
+    }
+  }
+
+  async function handleDeleteService(id: string) {
+    if (!confirm("Are you sure you want to delete this service?")) return;
+    try {
+      const res = await fetch(`/api/admin/services?id=${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        notify("Service deleted");
+        setServices(prev => prev.filter(s => s.id !== id));
+      } else {
+        notify(data.error || "Failed to delete");
+      }
+    } catch {
+      notify("Error deleting service");
+    }
+  }
+
+  async function handleFetchUpstreamServices(targetPanelId?: string) {
+    setFetchingUpstream(true);
+    setUpstreamServices([]);
+    try {
+      const res = await fetch("/api/admin/services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "fetch-upstream-services",
+          panelId: targetPanelId || panels[0]?.id,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.services)) {
+        setUpstreamServices(data.services);
+        setShowUpstreamModal(true);
+        notify(`Loaded ${data.count} services from upstream provider!`);
+      } else {
+        notify(data.error || "Could not fetch services from upstream SMM panel");
+      }
+    } catch {
+      notify("Failed to connect to upstream panel");
+    } finally {
+      setFetchingUpstream(false);
+    }
+  }
+
+  function handleQuickImportUpstream(rawSrv: any) {
+    const origCost = parseFloat(String(rawSrv.rate || 1));
+    const suggestedSell = Math.round(origCost * 3.5) || 5;
+    let detectedPlatform = "INSTAGRAM";
+    const nameLower = (rawSrv.name || "").toLowerCase();
+    if (nameLower.includes("tiktok")) detectedPlatform = "TIKTOK";
+    else if (nameLower.includes("youtube") || nameLower.includes("shorts")) detectedPlatform = "YOUTUBE";
+    else if (nameLower.includes("telegram")) detectedPlatform = "TELEGRAM";
+    else if (nameLower.includes("twitter") || nameLower.includes("x ")) detectedPlatform = "X";
+
+    setNewServiceForm({
+      panelId: panels[0]?.id || "",
+      platform: detectedPlatform,
+      category: rawSrv.category || "General",
+      name: rawSrv.name || "",
+      serviceId: String(rawSrv.service || ""),
+      originalRate: origCost,
+      customRate: suggestedSell,
+      minQuantity: parseInt(rawSrv.min || 10),
+      maxQuantity: parseInt(rawSrv.max || 100000),
+    });
+    setShowUpstreamModal(false);
+    setShowAddServiceModal(true);
+  }
 
   async function loadMaintenanceStatus() {
     try {
@@ -520,107 +773,226 @@ export default function AdminDashboardPage() {
       {activeTab === "PANELS" && (
         <div className="space-y-4">
           <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-4 gap-3">
               <div>
-                <h2 className="text-base font-bold text-slate-900 dark:text-white">Background Upstream Providers</h2>
-                <p className="text-xs text-slate-400">Configured provider APIs used in Mode 1. Completely hidden from regular users.</p>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span>Connected Upstream SMM Panels</span>
+                  <span className="text-xs px-2 py-0.5 rounded-md bg-blue-50 text-blue-600 font-mono font-bold">Mode 1 Background</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Orders placed by regular users auto-dispatch to these background APIs. Upstream panel names are 100% hidden from regular users.
+                </p>
               </div>
-              <button
-                onClick={() => notify("Configure new provider API below")}
-                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add SMM Provider</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={loadPanels}
+                  disabled={loadingPanels}
+                  className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer flex items-center gap-1.5"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingPanels ? "animate-spin" : ""}`} />
+                  <span>Refresh</span>
+                </button>
+                <button
+                  onClick={() => setShowAddPanelModal(true)}
+                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add SMM Provider</span>
+                </button>
+              </div>
             </div>
 
-            <div className="space-y-3">
-              {panels.map((p) => (
-                <div key={p.id} className="p-4 rounded-xl border border-slate-100 dark:border-slate-800 space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                        <span>{p.name}</span>
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[10px] font-bold">ACTIVE</span>
+            <div className="space-y-4">
+              {panels.map((p) => {
+                const isChecking = checkingPanelId === p.id;
+                return (
+                  <div key={p.id} className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                          <span>{p.name}</span>
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                            p.status === "ONLINE" ? "bg-emerald-50 text-emerald-600 border border-emerald-200" : "bg-rose-50 text-rose-600 border border-rose-200"
+                          }`}>
+                            {p.status}
+                          </span>
+                        </div>
+                        <div className="text-xs font-mono text-slate-500 mt-1">{p.url}</div>
+                        <div className="text-xs text-slate-400 mt-0.5">{p.description}</div>
                       </div>
-                      <div className="text-xs font-mono text-slate-400 mt-0.5">{p.url}</div>
-                      <div className="text-xs text-slate-500 mt-1">{p.description}</div>
+
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <div className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-right">
+                          <span className="text-[10px] uppercase font-bold text-emerald-600 block">Live SMM Balance</span>
+                          <span className="text-sm font-black font-mono text-emerald-600">{p.balance}</span>
+                        </div>
+                        <button
+                          onClick={() => handleCheckPanelBalance(p.id, p.url, p.apiKey)}
+                          disabled={isChecking}
+                          className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer flex items-center gap-1.5 shadow-xs"
+                          title="Query SMM provider balance"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${isChecking ? "animate-spin text-blue-600" : ""}`} />
+                          <span>{isChecking ? "Checking..." : "Check Balance"}</span>
+                        </button>
+                        <button
+                          onClick={() => handleFetchUpstreamServices(p.id)}
+                          disabled={fetchingUpstream}
+                          className="px-3 py-2 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 rounded-xl text-xs font-bold hover:bg-blue-100 cursor-pointer flex items-center gap-1.5 shadow-xs"
+                        >
+                          <DownloadCloud className="w-3.5 h-3.5" />
+                          <span>Catalog</span>
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-emerald-600 px-3 py-1 bg-emerald-50 rounded-lg">
-                        Balance: {p.balance}
-                      </span>
-                      <button
-                        onClick={() => notify(`Connection to ${p.name} OK! Ping: 88ms`)}
-                        className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-slate-100 cursor-pointer flex items-center gap-1.5"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        <span>Test Ping</span>
-                      </button>
+                    {/* API Credentials Row */}
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 pt-3 border-t border-slate-200 dark:border-slate-800 text-xs">
+                      <div className="sm:col-span-4">
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">API Endpoint URL</label>
+                        <input
+                          type="text"
+                          defaultValue={p.url}
+                          id={`url_${p.id}`}
+                          className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-mono text-xs text-slate-800 dark:text-slate-200"
+                        />
+                      </div>
+                      <div className="sm:col-span-6">
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">Provider API Key</label>
+                        <input
+                          type="password"
+                          defaultValue={p.apiKey}
+                          id={`key_${p.id}`}
+                          className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-mono text-xs text-slate-800 dark:text-slate-200"
+                        />
+                      </div>
+                      <div className="sm:col-span-2 flex items-end">
+                        <button
+                          onClick={() => {
+                            const urlVal = (document.getElementById(`url_${p.id}`) as HTMLInputElement)?.value;
+                            const keyVal = (document.getElementById(`key_${p.id}`) as HTMLInputElement)?.value;
+                            handleSavePanelCredentials(p.id, p.name, urlVal, keyVal);
+                          }}
+                          className="w-full py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+                        >
+                          Save Credentials
+                        </button>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
-                    <span className="text-slate-400 font-semibold">API Key:</span>
-                    <input
-                      type="password"
-                      defaultValue={p.apiKey}
-                      className="px-2.5 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-mono text-xs w-64"
-                    />
-                    <button
-                      onClick={() => notify(`Updated API key for ${p.name}`)}
-                      className="px-3 py-1 rounded-lg bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 cursor-pointer"
-                    >
-                      Save Key
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
       )}
 
-      {/* ──────────────── TAB 5: SERVICES & MARKUPS ──────────────── */}
+      {/* ──────────────── TAB 5: SERVICES & CUSTOM RATE PRICING ──────────────── */}
       {activeTab === "SERVICES" && (
-        <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
-          <div className="flex items-center justify-between pb-4">
+        <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">Service Profit Margins</h2>
-              <p className="text-xs text-slate-400">Original Provider Cost vs Client Price (Calculates automated margin)</p>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span>Service Profit Margins & SMM Mapping</span>
+                <span className="text-xs px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 font-mono font-bold">Custom Rates</span>
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Set custom prices for regular users. E.g. Upstream SMM costs ₹1/1k → Set your selling price to ₹5/1k to pocket ₹4 profit automatically.
+              </p>
             </div>
-            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg">Average Margin: 3.8x (380%)</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleFetchUpstreamServices()}
+                disabled={fetchingUpstream}
+                className="px-3.5 py-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs hover:bg-emerald-100"
+              >
+                <DownloadCloud className={`w-4 h-4 ${fetchingUpstream ? "animate-bounce" : ""}`} />
+                <span>{fetchingUpstream ? "Connecting..." : "Import from SMM Panel"}</span>
+              </button>
+              <button
+                onClick={() => {
+                  setNewServiceForm({
+                    panelId: panels[0]?.id || "",
+                    platform: "INSTAGRAM",
+                    category: "General",
+                    name: "",
+                    serviceId: "",
+                    originalRate: 1.0,
+                    customRate: 5.0,
+                    minQuantity: 10,
+                    maxQuantity: 100000,
+                  });
+                  setShowAddServiceModal(true);
+                }}
+                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Mapped Service</span>
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto -mx-6 px-6">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase">
-                  <th className="py-3 px-2">ID</th>
+                  <th className="py-3 px-2">Upstream ID</th>
                   <th className="py-3 px-2">Platform</th>
-                  <th className="py-3 px-2">Service Name</th>
-                  <th className="py-3 px-2">Provider Cost</th>
-                  <th className="py-3 px-2">Your Sell Rate</th>
+                  <th className="py-3 px-2">BotClips Service Title</th>
+                  <th className="py-3 px-2">Upstream Cost / 1k</th>
+                  <th className="py-3 px-2">Your Sell Rate / 1k</th>
                   <th className="py-3 px-2">Your Profit / 1k</th>
-                  <th className="py-3 px-2 text-right">Status</th>
+                  <th className="py-3 px-2">Markup</th>
+                  <th className="py-3 px-2 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                 {services.map((s) => {
-                  const profit = s.customRate - s.originalRate;
+                  const profit = (s.customRate - s.originalRate).toFixed(2);
+                  const multiplier = s.originalRate > 0 ? (s.customRate / s.originalRate).toFixed(1) : "—";
                   return (
                     <tr key={s.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
-                      <td className="py-3.5 px-2 font-mono font-bold">#{s.id}</td>
-                      <td className="py-3.5 px-2 font-bold text-blue-600">{s.platform}</td>
-                      <td className="py-3.5 px-2 font-semibold text-slate-800 dark:text-slate-200">{s.name}</td>
-                      <td className="py-3.5 px-2 text-slate-400 font-mono">₹{s.originalRate}</td>
-                      <td className="py-3.5 px-2 font-black text-slate-900 dark:text-white">₹{s.customRate}</td>
-                      <td className="py-3.5 px-2 font-black text-emerald-600">+₹{profit}</td>
-                      <td className="py-3.5 px-2 text-right">
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[10px] font-bold">
-                          Active
+                      <td className="py-3.5 px-2 font-mono font-bold text-slate-500">#{s.serviceId || s.id}</td>
+                      <td className="py-3.5 px-2">
+                        <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${
+                          s.platform === "INSTAGRAM" ? "bg-pink-50 text-pink-700 border border-pink-200" :
+                          s.platform === "YOUTUBE" ? "bg-red-50 text-red-700 border border-red-200" :
+                          s.platform === "TIKTOK" ? "bg-cyan-50 text-cyan-700 border border-cyan-200" :
+                          s.platform === "TELEGRAM" ? "bg-sky-50 text-sky-700 border border-sky-200" :
+                          "bg-slate-100 text-slate-700"
+                        }`}>
+                          {s.platform}
                         </span>
+                      </td>
+                      <td className="py-3.5 px-2 font-semibold text-slate-800 dark:text-slate-200">
+                        <div>{s.name}</div>
+                        <div className="text-[10px] text-slate-400 font-mono">Min: {s.minQuantity || 10} • Max: {s.maxQuantity || 100000}</div>
+                      </td>
+                      <td className="py-3.5 px-2 text-slate-400 font-mono font-bold">₹{s.originalRate}</td>
+                      <td className="py-3.5 px-2 font-black text-slate-900 dark:text-white font-mono text-sm">₹{s.customRate}</td>
+                      <td className="py-3.5 px-2 font-black text-emerald-600 font-mono">+₹{profit}</td>
+                      <td className="py-3.5 px-2">
+                        <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 font-bold font-mono text-[10px]">
+                          {multiplier}x
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-2 text-right">
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            onClick={() => setEditingService(s)}
+                            className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold text-xs cursor-pointer"
+                            title="Edit custom rate & service mapping"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteService(s.id)}
+                            className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs cursor-pointer"
+                            title="Delete service"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -909,6 +1281,401 @@ export default function AdminDashboardPage() {
                 placeholder="Scheduled infrastructure maintenance in progress. All running orders continue running normally."
                 className="w-full px-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:border-blue-500"
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────── MODAL 1: EDIT SERVICE & CUSTOM PRICING ──────────────── */}
+      {editingService && (
+        <div 
+          onClick={() => setEditingService(null)}
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-[#131b2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 cursor-default text-xs"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                Edit Service & Custom Pricing
+              </h3>
+              <button 
+                onClick={() => setEditingService(null)}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Service Name (Visible to Users)</label>
+                <input
+                  type="text"
+                  value={editingService.name}
+                  onChange={(e) => setEditingService({ ...editingService, name: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Platform</label>
+                  <select
+                    value={editingService.platform}
+                    onChange={(e) => setEditingService({ ...editingService, platform: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
+                  >
+                    <option value="INSTAGRAM">Instagram</option>
+                    <option value="TIKTOK">TikTok</option>
+                    <option value="YOUTUBE">YouTube</option>
+                    <option value="TELEGRAM">Telegram</option>
+                    <option value="X">X (Twitter)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Upstream SMM Service ID</label>
+                  <input
+                    type="text"
+                    value={editingService.serviceId}
+                    onChange={(e) => setEditingService({ ...editingService, serviceId: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                <div>
+                  <label className="block font-bold text-slate-500 mb-1">Upstream Cost / 1k (INR)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editingService.originalRate}
+                    onChange={(e) => setEditingService({ ...editingService, originalRate: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono font-bold"
+                  />
+                  <span className="text-[10px] text-slate-400">What the SMM panel charges you</span>
+                </div>
+                <div>
+                  <label className="block font-bold text-emerald-600 mb-1">Your Selling Rate / 1k (INR)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editingService.customRate}
+                    onChange={(e) => setEditingService({ ...editingService, customRate: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-emerald-500/40 rounded-lg font-mono font-black text-emerald-600 text-sm"
+                  />
+                  <span className="text-[10px] text-emerald-600 font-semibold">What users pay & deduct</span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between font-mono">
+                <span className="text-emerald-700 dark:text-emerald-400 font-bold">Estimated Profit per 1,000 orders:</span>
+                <span className="text-base font-black text-emerald-600">
+                  +₹{(Number(editingService.customRate || 0) - Number(editingService.originalRate || 0)).toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setEditingService(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleSaveService(editingService)}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs cursor-pointer"
+              >
+                Save Custom Pricing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────── MODAL 2: ADD NEW SERVICE ──────────────── */}
+      {showAddServiceModal && (
+        <div 
+          onClick={() => setShowAddServiceModal(false)}
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-[#131b2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 cursor-default text-xs"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                Add New Mapped Service with Custom Pricing
+              </h3>
+              <button 
+                onClick={() => setShowAddServiceModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Service Name (Visible to Users)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Instagram Real High Retention Followers"
+                  value={newServiceForm.name}
+                  onChange={(e) => setNewServiceForm({ ...newServiceForm, name: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Platform</label>
+                  <select
+                    value={newServiceForm.platform}
+                    onChange={(e) => setNewServiceForm({ ...newServiceForm, platform: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
+                  >
+                    <option value="INSTAGRAM">Instagram</option>
+                    <option value="TIKTOK">TikTok</option>
+                    <option value="YOUTUBE">YouTube</option>
+                    <option value="TELEGRAM">Telegram</option>
+                    <option value="X">X (Twitter)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Upstream SMM Service ID</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 1024"
+                    value={newServiceForm.serviceId}
+                    onChange={(e) => setNewServiceForm({ ...newServiceForm, serviceId: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                <div>
+                  <label className="block font-bold text-slate-500 mb-1">Upstream Cost / 1k (INR)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="1.00"
+                    value={newServiceForm.originalRate}
+                    onChange={(e) => setNewServiceForm({ ...newServiceForm, originalRate: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono font-bold"
+                  />
+                  <span className="text-[10px] text-slate-400">What upstream charges you</span>
+                </div>
+                <div>
+                  <label className="block font-bold text-emerald-600 mb-1">Your Selling Rate / 1k (INR)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="5.00"
+                    value={newServiceForm.customRate}
+                    onChange={(e) => setNewServiceForm({ ...newServiceForm, customRate: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-emerald-500/40 rounded-lg font-mono font-black text-emerald-600 text-sm"
+                  />
+                  <span className="text-[10px] text-emerald-600 font-semibold">What users pay BotClips</span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between font-mono">
+                <span className="text-emerald-700 dark:text-emerald-400 font-bold">Estimated Profit per 1,000 orders:</span>
+                <span className="text-base font-black text-emerald-600">
+                  +₹{(Number(newServiceForm.customRate || 0) - Number(newServiceForm.originalRate || 0)).toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setShowAddServiceModal(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleSaveService(newServiceForm)}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs cursor-pointer"
+              >
+                Create Service
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────── MODAL 3: BROWSE UPSTREAM CATALOG ──────────────── */}
+      {showUpstreamModal && (
+        <div 
+          onClick={() => setShowUpstreamModal(false)}
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-[#131b2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-4xl w-full max-h-[85vh] flex flex-col shadow-2xl cursor-default text-xs"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                  Upstream SMM Services Catalog ({upstreamServices.length})
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Select any service from your SMM provider to set your custom markup and activate on BotClips
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowUpstreamModal(false)}
+                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="py-3">
+              <input
+                type="text"
+                placeholder="Search upstream services by name or ID..."
+                value={upstreamSearch}
+                onChange={(e) => setUpstreamSearch(e.target.value)}
+                className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-xs"
+              />
+            </div>
+
+            <div className="overflow-y-auto flex-1 divide-y divide-slate-100 dark:divide-slate-800 pr-1">
+              {upstreamServices
+                .filter(s => 
+                  !upstreamSearch || 
+                  (s.name || "").toLowerCase().includes(upstreamSearch.toLowerCase()) || 
+                  String(s.service || "").includes(upstreamSearch) ||
+                  (s.category || "").toLowerCase().includes(upstreamSearch.toLowerCase())
+                )
+                .slice(0, 50)
+                .map((srv) => (
+                  <div key={srv.service} className="py-3 flex items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/40 px-2 rounded-xl">
+                    <div className="space-y-0.5 max-w-xl">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-slate-400">#{srv.service}</span>
+                        <span className="font-bold text-slate-900 dark:text-white text-xs">{srv.name}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 flex items-center gap-3">
+                        <span>Category: {srv.category || "General"}</span>
+                        <span>•</span>
+                        <span>Min: {srv.min}</span>
+                        <span>•</span>
+                        <span>Max: {srv.max}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-right">
+                        <span className="text-[10px] text-slate-400 block">Upstream Rate</span>
+                        <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
+                          ₹{srv.rate}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleQuickImportUpstream(srv)}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer flex items-center gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Set Custom Price</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────── MODAL 4: ADD SMM PROVIDER ──────────────── */}
+      {showAddPanelModal && (
+        <div 
+          onClick={() => setShowAddPanelModal(false)}
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-[#131b2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 cursor-default text-xs"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                Add Upstream SMM Provider
+              </h3>
+              <button 
+                onClick={() => setShowAddPanelModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Provider Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. SMMSocialMedia (Primary)"
+                  value={newPanelForm.name}
+                  onChange={(e) => setNewPanelForm({ ...newPanelForm, name: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">API URL (v2 format)</label>
+                <input
+                  type="text"
+                  placeholder="https://smmsocialmedia.in/api/v2"
+                  value={newPanelForm.apiUrl}
+                  onChange={(e) => setNewPanelForm({ ...newPanelForm, apiUrl: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">API Key</label>
+                <input
+                  type="password"
+                  placeholder="Provider API Key"
+                  value={newPanelForm.apiKey}
+                  onChange={(e) => setNewPanelForm({ ...newPanelForm, apiKey: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Currency</label>
+                <select
+                  value={newPanelForm.currency}
+                  onChange={(e) => setNewPanelForm({ ...newPanelForm, currency: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
+                >
+                  <option value="INR">INR (₹)</option>
+                  <option value="USD">USD ($)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setShowAddPanelModal(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreatePanel}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs cursor-pointer"
+              >
+                Add Provider
+              </button>
             </div>
           </div>
         </div>

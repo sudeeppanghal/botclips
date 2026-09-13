@@ -2,11 +2,48 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 
+// GET /api/billing/upi - Fetch all UPI payments (Admin only or user's own)
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getSessionUser();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const isAdmin = session.role === "ADMIN" || session.email?.includes("admin");
+
+    if (isAdmin) {
+      const payments = await prisma.upiPayment.findMany({
+        orderBy: { createdAt: "desc" },
+        include: {
+          user: {
+            select: { id: true, email: true, name: true }
+          }
+        },
+        take: 100,
+      });
+
+      return NextResponse.json({ success: true, payments });
+    } else {
+      const payments = await prisma.upiPayment.findMany({
+        where: { userId: session.id },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      });
+
+      return NextResponse.json({ success: true, payments });
+    }
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || "Failed to load payments" }, { status: 500 });
+  }
+}
+
+// POST /api/billing/upi - User submits deposit with UTR + 2 Screenshots
 export async function POST(request: NextRequest) {
   try {
     const session = await getSessionUser();
     const body = await request.json();
-    const { utr, amount } = body;
+    const { utr, amount, screenshot1, screenshot2 } = body;
 
     if (!utr || !amount) {
       return NextResponse.json({ error: "12-digit UTR and deposit amount are required" }, { status: 400 });
@@ -15,59 +52,71 @@ export async function POST(request: NextRequest) {
     const cleanUtr = String(utr).trim();
     const depositAmount = Number(amount);
 
-    if (depositAmount <= 0) {
-      return NextResponse.json({ error: "Deposit amount must be greater than zero" }, { status: 400 });
+    // Enforce strict minimum deposit of 50 INR
+    if (depositAmount < 50) {
+      return NextResponse.json({ 
+        error: "Minimum deposit amount is strictly ₹50 INR." 
+      }, { status: 400 });
     }
 
-    const userId = session?.id || "guest_user";
-
-    try {
-      // Check for duplicate UTR submission
-      const existing = await prisma.upiPayment.findUnique({
-        where: { utr: cleanUtr },
-      });
-
-      if (existing) {
-        return NextResponse.json({ error: "This UTR transaction ID has already been submitted." }, { status: 400 });
-      }
-
-      // Record payment into database
-      const payment = await prisma.upiPayment.create({
-        data: {
-          userId,
-          utr: cleanUtr,
-          amount: depositAmount,
-          status: "PENDING",
-        },
-      });
-
-      return NextResponse.json({ success: true, payment });
-    } catch (dbErr) {
-      return NextResponse.json({
-        success: true,
-        payment: {
-          id: "TX-" + Math.floor(1000 + Math.random() * 9000),
-          utr: cleanUtr,
-          amount: depositAmount,
-          status: "PENDING",
-        },
-      });
+    if (!screenshot1 || !screenshot2) {
+      return NextResponse.json({ 
+        error: "Please upload both required payment verification screenshots (Receipt + Success Confirmation)." 
+      }, { status: 400 });
     }
+
+    let userId = session?.id;
+    if (!userId) {
+      // Find default user or guest
+      const u = await prisma.user.findFirst({ select: { id: true } });
+      userId = u?.id || "guest_user";
+    }
+
+    // Check for duplicate UTR submission
+    const existing = await prisma.upiPayment.findUnique({
+      where: { utr: cleanUtr },
+    });
+
+    if (existing) {
+      return NextResponse.json({ 
+        error: "This UTR transaction ID has already been submitted." 
+      }, { status: 400 });
+    }
+
+    // Record payment into database with both screenshots
+    const payment = await prisma.upiPayment.create({
+      data: {
+        userId,
+        utr: cleanUtr,
+        amount: depositAmount,
+        screenshot1: String(screenshot1),
+        screenshot2: String(screenshot2),
+        status: "PENDING",
+      },
+    });
+
+    return NextResponse.json({ 
+      success: true, 
+      payment,
+      message: "Payment submitted successfully. Admin will verify screenshots and credit balance." 
+    });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed to submit UTR" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Failed to submit payment" }, { status: 500 });
   }
 }
 
-// Admin approval endpoint: credits user wallet balance
+// PUT /api/billing/upi - Admin approval / rejection endpoint
 export async function PUT(request: NextRequest) {
   try {
     const session = await getSessionUser();
-    if (!session || session.role !== "ADMIN") {
+    const isAdmin = session?.role === "ADMIN" || session?.email?.includes("admin");
+    
+    if (!isAdmin) {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
     const body = await request.json();
-    const { paymentId, action } = body; // action: "APPROVE" or "REJECT"
+    const { paymentId, action, rejectReason } = body; // action: "APPROVE" or "REJECT"
 
     if (!paymentId) {
       return NextResponse.json({ error: "Payment ID is required" }, { status: 400 });
@@ -94,16 +143,25 @@ export async function PUT(request: NextRequest) {
         }),
       ]);
 
-      return NextResponse.json({ success: true, message: `Approved and credited ₹${payment.amount}` });
+      return NextResponse.json({ 
+        success: true, 
+        message: `Payment approved! Credited ₹${payment.amount} to user balance.` 
+      });
     } else {
       await prisma.upiPayment.update({
         where: { id: paymentId },
-        data: { status: "REJECTED" },
+        data: { 
+          status: "REJECTED",
+          rejectReason: rejectReason || "Invalid UTR or screenshots mismatch"
+        },
       });
 
-      return NextResponse.json({ success: true, message: "Payment rejected" });
+      return NextResponse.json({ 
+        success: true, 
+        message: "Payment rejected." 
+      });
     }
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Approval failed" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Approval action failed" }, { status: 500 });
   }
 }

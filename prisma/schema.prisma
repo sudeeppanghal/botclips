@@ -22,6 +22,15 @@ model User {
   apiKey          String?       @unique @map("api_key")
   customDiscount  Float         @default(0.0) @map("custom_discount") // percentage discount
   status          UserStatus    @default(ACTIVE)
+
+  // Mode 2: Premium BYO-API Automation
+  customApiUrl    String?       @map("custom_api_url")
+  customApiKey    String?       @map("custom_api_key")
+  automationMode  String        @default("MANAGED") @map("automation_mode") // "MANAGED" or "CUSTOM_API"
+  planActive      Boolean       @default(false) @map("plan_active")
+  planType        String?       @map("plan_type") // "WEEKLY" or "MONTHLY"
+  planExpiresAt   DateTime?     @map("plan_expires_at")
+
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
@@ -166,6 +175,8 @@ model UpiPayment {
   user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   utr             String        @unique
   amount          Float
+  screenshot1     String?       @map("screenshot_1")
+  screenshot2     String?       @map("screenshot_2")
   status          PaymentStatus @default(PENDING)
   rejectReason    String?       @map("reject_reason")
   createdAt       DateTime      @default(now()) @map("created_at")
@@ -251,7 +262,11 @@ model AdminSettings {
   supportEmail    String?       @default("support@dhillionsmm.com") @map("support_email")
   supportTelegram String?       @default("@dhillionsmm_support") @map("support_telegram")
   supportWhatsapp String?       @default("+919999999999") @map("support_whatsapp")
-  minDeposit      Float         @default(100.0) @map("min_deposit")
+  minDeposit      Float         @default(50.0) @map("min_deposit")
+  cloudinaryCloudName String?   @map("cloudinary_cloud_name")
+  cloudinaryUploadPreset String? @map("cloudinary_upload_preset")
+  cloudinaryApiKey String?      @map("cloudinary_api_key")
+  cloudinaryApiSecret String?   @map("cloudinary_api_secret")
   maintenanceMode Boolean       @default(false) @map("maintenance_mode")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 

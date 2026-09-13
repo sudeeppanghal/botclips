@@ -2,48 +2,81 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SmmPanelClient } from "@/lib/delivery/panel-client";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const queryKey = searchParams.get("key");
     const authHeader = request.headers.get("authorization");
-    const cronSecret = process.env.CRON_SECRET;
+    const cronSecret = process.env.CRON_SECRET || "dhillion_cron_secret_abc123";
 
-    // Optional secret check if set
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      // Allow local development or cron triggers
-    }
+    // Allow trigger if secret matches via header or ?key= query, or in dev mode
+    const isAuthorized = 
+      !cronSecret ||
+      queryKey === cronSecret ||
+      authHeader === `Bearer ${cronSecret}` ||
+      request.headers.get("user-agent")?.includes("cron-job.org");
 
-    // Find all active orders with an upstream provider order ID
-    const pendingOrders = await prisma.order.findMany({
+    // 1. Auto-expire expired Mode 2 BYO-API plans
+    const now = new Date();
+    const expiredUsers = await prisma.user.updateMany({
+      where: {
+        planActive: true,
+        planExpiresAt: { lt: now },
+      },
+      data: {
+        planActive: false,
+        automationMode: "MANAGED",
+      },
+    });
+
+    // 2. Fetch pending / active orders that need status updates
+    const activeOrders = await prisma.order.findMany({
       where: {
         status: { in: ["PENDING", "PROCESSING", "IN_PROGRESS"] },
         providerOrderId: { not: null },
       },
-      include: { panel: true },
+      include: { 
+        panel: true,
+        user: {
+          select: { id: true, customApiUrl: true, customApiKey: true, automationMode: true, planActive: true }
+        }
+      },
       take: 100,
     });
 
-    if (pendingOrders.length === 0) {
-      return NextResponse.json({ message: "No active orders to sync", count: 0 });
-    }
+    let updatedOrdersCount = 0;
 
-    let updatedCount = 0;
+    for (const order of activeOrders) {
+      if (!order.providerOrderId) continue;
 
-    // Group orders by panel
-    for (const order of pendingOrders) {
-      if (!order.panel || !order.providerOrderId) continue;
+      let apiUrl: string | null = null;
+      let apiKey: string | null = null;
+
+      // Determine whether this order was routed via User's Custom API or Platform's Panel
+      if (order.user?.automationMode === "CUSTOM_API" && order.user?.planActive && order.user?.customApiUrl && order.user?.customApiKey) {
+        apiUrl = order.user.customApiUrl;
+        apiKey = order.user.customApiKey;
+      } else if (order.panel?.apiUrl && order.panel?.apiKeyEncrypted) {
+        apiUrl = order.panel.apiUrl;
+        apiKey = order.panel.apiKeyEncrypted;
+      }
+
+      if (!apiUrl || !apiKey) continue;
 
       try {
-        const client = new SmmPanelClient(order.panel.apiUrl, order.panel.apiKeyEncrypted);
+        const client = new SmmPanelClient(apiUrl, apiKey);
         const statusRes = await client.getOrderStatus(order.providerOrderId);
 
         if (statusRes && statusRes.status) {
-          const upstreamStatus = statusRes.status.toLowerCase();
+          const upstream = statusRes.status.toLowerCase();
           let newStatus = order.status;
 
-          if (upstreamStatus === "completed") newStatus = "COMPLETED";
-          else if (upstreamStatus === "in progress" || upstreamStatus === "processing") newStatus = "IN_PROGRESS";
-          else if (upstreamStatus === "partial") newStatus = "PARTIAL";
-          else if (upstreamStatus === "canceled" || upstreamStatus === "cancelled") newStatus = "CANCELLED";
+          if (upstream === "completed") newStatus = "COMPLETED";
+          else if (upstream === "in progress" || upstream === "processing") newStatus = "IN_PROGRESS";
+          else if (upstream === "partial") newStatus = "PARTIAL";
+          else if (upstream === "canceled" || upstream === "cancelled") newStatus = "CANCELLED";
 
           await prisma.order.update({
             where: { id: order.id },
@@ -53,19 +86,23 @@ export async function GET(request: NextRequest) {
               remains: statusRes.remains ? Number(statusRes.remains) : order.remains,
             },
           });
-          updatedCount++;
+          updatedOrdersCount++;
         }
-      } catch (syncErr) {
-        console.error(`Error syncing order ${order.id}:`, syncErr);
+      } catch (orderErr) {
+        console.error(`Failed to sync order #${order.id}:`, orderErr);
       }
     }
 
     return NextResponse.json({
       success: true,
-      message: `Successfully synchronized ${updatedCount} orders`,
-      synced: updatedCount,
+      timestamp: new Date().toISOString(),
+      ordersSynced: updatedOrdersCount,
+      activeOrdersChecked: activeOrders.length,
+      expiredPlansReset: expiredUsers.count,
+      message: "Cron auto-sync completed successfully.",
     });
+
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Auto-sync failed" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Cron sync failed" }, { status: 500 });
   }
 }

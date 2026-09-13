@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { 
   ShieldCheck, 
@@ -18,7 +18,10 @@ import {
   Search, 
   DollarSign,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  ExternalLink,
+  Crown
 } from "lucide-react";
 
 type AdminTab = "OVERVIEW" | "ORDERS" | "USERS" | "PANELS" | "SERVICES" | "PAYMENTS" | "SETTINGS";
@@ -26,28 +29,55 @@ type AdminTab = "OVERVIEW" | "ORDERS" | "USERS" | "PANELS" | "SERVICES" | "PAYME
 export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>("OVERVIEW");
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   // ── State for Orders ──
   const [orders, setOrders] = useState([
-    { id: "1024", user: "roonie@dhillionsmm.com", service: "Instagram Real HQ Followers", link: "https://instagram.com/roonie_creator", quantity: 1000, charge: 180, status: "COMPLETED", date: "Sep 11, 2026" },
-    { id: "1023", user: "creator99@gmail.com", service: "YouTube High Retention Views", link: "https://youtube.com/watch?v=k38x92aL", quantity: 5000, charge: 1200, status: "PROCESSING", date: "Sep 11, 2026" },
-    { id: "1022", user: "tiktok_viral@outlook.com", service: "TikTok Real Followers", link: "https://tiktok.com/@roonie.official", quantity: 2000, charge: 380, status: "COMPLETED", date: "Sep 10, 2026" },
-    { id: "1021", user: "crypto_alpha@t.me", service: "Telegram Channel Members", link: "https://t.me/channel_alpha", quantity: 500, charge: 60, status: "PENDING", date: "Sep 10, 2026" },
-    { id: "1020", user: "growth_agency@agency.com", service: "Twitter (X) Active Likes", link: "https://x.com/roonie/status/18342", quantity: 1000, charge: 110, status: "COMPLETED", date: "Sep 09, 2026" },
+    { id: "1024", user: "dipeshdhillon2006@gmail.com", service: "Instagram Real HQ Followers", link: "https://instagram.com/creator_reel", quantity: 1000, charge: 180, status: "COMPLETED", date: "Sep 13, 2026" },
+    { id: "1023", user: "creator99@gmail.com", service: "YouTube High Retention Views", link: "https://youtube.com/watch?v=k38x92aL", quantity: 5000, charge: 1200, status: "PROCESSING", date: "Sep 12, 2026" },
+    { id: "1022", user: "agency@socials.com", service: "TikTok Real Followers", link: "https://tiktok.com/@agency_growth", quantity: 2000, charge: 380, status: "COMPLETED", date: "Sep 12, 2026" },
+    { id: "1021", user: "crypto_alpha@t.me", service: "Telegram Channel Members", link: "https://t.me/channel_alpha", quantity: 500, charge: 60, status: "PENDING", date: "Sep 11, 2026" },
   ]);
 
   // ── State for Users ──
   const [users, setUsers] = useState([
-    { id: "usr_1", name: "Roonie", email: "roonie@dhillionsmm.com", balance: 520.00, totalSpent: 1930.00, role: "USER", status: "ACTIVE" },
-    { id: "usr_2", name: "Agency Pro", email: "agency@socials.com", balance: 1450.00, totalSpent: 8400.00, role: "USER", status: "ACTIVE" },
-    { id: "usr_3", name: "Amit Kumar", email: "amit.k@gmail.com", balance: 50.00, totalSpent: 450.00, role: "USER", status: "ACTIVE" },
-    { id: "usr_4", name: "Admin Dhillon", email: "admin@dhillionsmm.com", balance: 9999.00, totalSpent: 0.00, role: "ADMIN", status: "ACTIVE" },
+    { id: "usr_admin", name: "Dipesh Dhillon", email: "dipeshdhillon2006@gmail.com", balance: 0.00, totalSpent: 0.00, role: "ADMIN", status: "ACTIVE", plan: "ACTIVE (Monthly)" },
+    { id: "usr_1", name: "Roonie", email: "roonie@dhillionsmm.com", balance: 520.00, totalSpent: 1930.00, role: "USER", status: "ACTIVE", plan: "None" },
+    { id: "usr_2", name: "Agency Pro", email: "agency@socials.com", balance: 1450.00, totalSpent: 8400.00, role: "USER", status: "ACTIVE", plan: "ACTIVE (Weekly)" },
   ]);
 
-  // ── State for Panels ──
+  // ── State for Panels (including smmsocialmedia.in and yoyomedia) ──
   const [panels, setPanels] = useState([
-    { id: "p1", name: "JustAnotherPanel (Primary)", url: "https://justanotherpanel.com/api/v2", balance: "$142.50", status: "ONLINE", active: true },
-    { id: "p2", name: "Peakerr SMM (Backup)", url: "https://peakerr.com/api/v2", balance: "$85.00", status: "ONLINE", active: true },
+    { 
+      id: "panel_smmsocialmedia", 
+      name: "SMMSocialMedia (Primary)", 
+      url: "https://smmsocialmedia.in/api/v2", 
+      apiKey: "smmsocial_api_key_placeholder",
+      balance: "₹1,450.00", 
+      status: "ONLINE", 
+      active: true,
+      description: "Background upstream provider for Instagram & YouTube"
+    },
+    { 
+      id: "panel_yoyomedia", 
+      name: "YoyoMedia (Secondary)", 
+      url: "https://yoyomedia.in/api/v2", 
+      apiKey: "yoyo_api_key_placeholder",
+      balance: "₹920.00", 
+      status: "ONLINE", 
+      active: true,
+      description: "Background upstream provider for TikTok, Telegram & X"
+    },
+    { 
+      id: "panel_jap", 
+      name: "JustAnotherPanel (Backup)", 
+      url: "https://justanotherpanel.com/api/v2", 
+      apiKey: "jap_api_key_placeholder",
+      balance: "$142.50", 
+      status: "ONLINE", 
+      active: true,
+      description: "Global fallback provider"
+    },
   ]);
 
   // ── State for Services ──
@@ -59,11 +89,28 @@ export default function AdminDashboardPage() {
     { id: "4010", platform: "TELEGRAM", name: "Telegram Channel Members", originalRate: 25, customRate: 120, active: true },
   ]);
 
-  // ── State for UPI Payments ──
-  const [payments, setPayments] = useState([
-    { id: "pay-1", user: "Roonie (roonie@dhillionsmm.com)", utr: "423891024819", amount: 500, time: "10 mins ago", status: "PENDING" },
-    { id: "pay-2", user: "Amit Kumar (amit.k@gmail.com)", utr: "423401928341", amount: 200, time: "2 hours ago", status: "CONFIRMED" },
-    { id: "pay-3", user: "CryptoWhale (whale@proton.me)", utr: "0x8f3c4a2b9102ef19", amount: 1500, time: "1 day ago", status: "CONFIRMED" },
+  // ── State for Payments (with 2 Proof Screenshots) ──
+  const [payments, setPayments] = useState<any[]>([
+    { 
+      id: "pay-1", 
+      user: "dipeshdhillon2006@gmail.com", 
+      utr: "423891024819", 
+      amount: 100, 
+      time: "5 mins ago", 
+      status: "PENDING",
+      screenshot1: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop",
+      screenshot2: "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=600&auto=format&fit=crop"
+    },
+    { 
+      id: "pay-2", 
+      user: "agency@socials.com", 
+      utr: "423401928341", 
+      amount: 500, 
+      time: "1 hour ago", 
+      status: "CONFIRMED",
+      screenshot1: null,
+      screenshot2: null
+    },
   ]);
 
   // ── State for Settings ──
@@ -71,11 +118,37 @@ export default function AdminDashboardPage() {
     siteName: "BotClips",
     currencySymbol: "₹",
     usdToInr: 88.0,
-    upiId: "dhillionsmm@axl",
+    upiId: "dhillonsmm@axl",
     telegram: "@dhillionsmm_support",
     whatsapp: "+91 99999 99999",
-    minDeposit: 100
+    minDeposit: 50,
+    cloudinaryCloudName: "",
+    cloudinaryUploadPreset: "",
+    cloudinaryApiKey: "",
   });
+
+  useEffect(() => {
+    loadRealPayments();
+  }, []);
+
+  async function loadRealPayments() {
+    try {
+      const res = await fetch("/api/billing/upi");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.payments) && data.payments.length > 0) {
+        setPayments(data.payments.map((p: any) => ({
+          id: p.id,
+          user: p.user?.email || p.userId,
+          utr: p.utr,
+          amount: p.amount,
+          time: new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          status: p.status,
+          screenshot1: p.screenshot1,
+          screenshot2: p.screenshot2,
+        })));
+      }
+    } catch {}
+  }
 
   const notify = (msg: string) => {
     setSuccessMsg(msg);
@@ -85,7 +158,7 @@ export default function AdminDashboardPage() {
   // Actions
   const handleApprovePayment = async (id: string, amount: number, user: string) => {
     setPayments(payments.map(p => p.id === id ? { ...p, status: "CONFIRMED" } : p));
-    notify(`Approved ₹${amount} for ${user}! Wallet credited.`);
+    notify(`Approved ₹${amount} for ${user}! Wallet balance credited.`);
     try {
       await fetch("/api/billing/upi", {
         method: "PUT",
@@ -107,11 +180,6 @@ export default function AdminDashboardPage() {
     } catch {}
   };
 
-  const handleUpdateOrderStatus = (id: string, newStatus: string) => {
-    setOrders(orders.map(o => o.id === id ? { ...o, status: newStatus } : o));
-    notify(`Order #${id} updated to ${newStatus}`);
-  };
-
   const handleAdjustBalance = (userId: string, amount: number) => {
     setUsers(users.map(u => {
       if (u.id === userId) {
@@ -125,6 +193,24 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Screenshot Zoom Modal */}
+      {previewImage && (
+        <div 
+          onClick={() => setPreviewImage(null)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+        >
+          <div className="relative max-w-2xl max-h-[85vh] bg-white rounded-2xl overflow-hidden p-2 shadow-2xl">
+            <button 
+              onClick={() => setPreviewImage(null)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center font-bold hover:bg-black"
+            >
+              ✕
+            </button>
+            <img src={previewImage} alt="Proof Fullscreen Preview" className="max-w-full max-h-[80vh] object-contain rounded-xl" />
+          </div>
+        </div>
+      )}
+
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -137,16 +223,22 @@ export default function AdminDashboardPage() {
             </h1>
           </div>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Complete control over users, balances, upstream providers, orders, and profit margins.
+            Complete control over background SMM providers (smmsocialmedia.in, yoyomedia), UPI screenshot verification, and users.
           </p>
         </div>
 
-        <Link
-          href="/dashboard"
-          className="px-4 py-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold text-xs shadow-xs self-start"
-        >
-          View Client Dashboard →
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              loadRealPayments();
+              notify("Refreshed latest data!");
+            }}
+            className="px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold hover:bg-slate-50 flex items-center gap-1.5 shadow-xs cursor-pointer"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Refresh Queue</span>
+          </button>
+        </div>
       </div>
 
       {successMsg && (
@@ -162,10 +254,10 @@ export default function AdminDashboardPage() {
           { id: "OVERVIEW", label: "Overview", icon: TrendingUp },
           { id: "ORDERS", label: "Orders Manager", icon: ShoppingCart },
           { id: "USERS", label: "Users & Balances", icon: Users },
-          { id: "PANELS", label: "Upstream Providers", icon: Server },
+          { id: "PANELS", label: "Upstream SMM APIs", icon: Server },
           { id: "SERVICES", label: "Services & Markups", icon: Layers },
-          { id: "PAYMENTS", label: "UPI Approvals", icon: CreditCard, badge: payments.filter(p => p.status === "PENDING").length },
-          { id: "SETTINGS", label: "Site Settings", icon: Settings },
+          { id: "PAYMENTS", label: "UPI & Screenshot Queue", icon: CreditCard, badge: payments.filter(p => p.status === "PENDING").length },
+          { id: "SETTINGS", label: "Site & Cloudinary", icon: Settings },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -198,12 +290,12 @@ export default function AdminDashboardPage() {
             <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
               <span className="text-xs font-bold text-slate-400">Total Deposits (30D)</span>
               <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">₹42,500</div>
-              <span className="text-[11px] font-bold text-emerald-600">↑ +24% net profit</span>
+              <span className="text-[11px] font-bold text-emerald-600">Min deposit: ₹50</span>
             </div>
             <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
               <span className="text-xs font-bold text-slate-400">Total Orders Placed</span>
               <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">{orders.length}</div>
-              <span className="text-[11px] font-bold text-blue-600">All dispatched</span>
+              <span className="text-[11px] font-bold text-blue-600">Dispatched automatically</span>
             </div>
             <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
               <span className="text-xs font-bold text-slate-400">Registered Users</span>
@@ -211,18 +303,19 @@ export default function AdminDashboardPage() {
               <span className="text-[11px] font-bold text-emerald-600">Active</span>
             </div>
             <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
-              <span className="text-xs font-bold text-slate-400">Pending UPI Verifications</span>
+              <span className="text-xs font-bold text-slate-400">Pending Screenshot Verifications</span>
               <div className="text-2xl font-black text-amber-500 mt-1">
                 {payments.filter(p => p.status === "PENDING").length}
               </div>
-              <button onClick={() => setActiveTab("PAYMENTS")} className="text-[11px] font-bold text-amber-600 hover:underline">
-                Review Queue →
+              <button onClick={() => setActiveTab("PAYMENTS")} className="text-[11px] font-bold text-amber-600 hover:underline cursor-pointer">
+                Review Queue (2 Proofs) →
               </button>
             </div>
           </div>
 
           <div className="p-6 bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl shadow-xs">
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white mb-2">Automated Provider Health</h3>
+            <h3 className="font-bold text-sm text-slate-900 dark:text-white mb-2">Automated Background SMM Panels</h3>
+            <p className="text-xs text-slate-400 mb-4">Orders placed by users in Mode 1 are routed through these background APIs without exposing them to users.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {panels.map((p) => (
                 <div key={p.id} className="p-4 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
@@ -231,7 +324,7 @@ export default function AdminDashboardPage() {
                     <div className="text-[11px] text-slate-400 font-mono mt-0.5">{p.url}</div>
                   </div>
                   <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 text-[10px] font-bold">
-                    ONLINE (145ms)
+                    ONLINE ({p.balance})
                   </span>
                 </div>
               ))}
@@ -252,42 +345,30 @@ export default function AdminDashboardPage() {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase">
-                  <th className="py-3 px-2">#ID</th>
-                  <th className="py-3 px-2">User</th>
+                  <th className="py-3 px-2">Order ID</th>
+                  <th className="py-3 px-2">Client Email</th>
                   <th className="py-3 px-2">Service</th>
                   <th className="py-3 px-2">Link</th>
                   <th className="py-3 px-2">Qty</th>
                   <th className="py-3 px-2">Charge</th>
                   <th className="py-3 px-2">Status</th>
-                  <th className="py-3 px-2 text-right">Quick Change</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                 {orders.map((o) => (
                   <tr key={o.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
-                    <td className="py-3.5 px-2 font-mono font-bold">#{o.id}</td>
-                    <td className="py-3.5 px-2 text-slate-500">{o.user}</td>
+                    <td className="py-3.5 px-2 font-mono font-bold text-blue-600">#{o.id}</td>
+                    <td className="py-3.5 px-2 font-medium">{o.user}</td>
                     <td className="py-3.5 px-2 font-semibold">{o.service}</td>
-                    <td className="py-3.5 px-2 font-mono text-[11px] max-w-[140px] truncate text-blue-600">{o.link}</td>
-                    <td className="py-3.5 px-2 font-bold">{o.quantity.toLocaleString()}</td>
-                    <td className="py-3.5 px-2 font-black">₹{o.charge}</td>
+                    <td className="py-3.5 px-2 font-mono text-[11px] text-slate-400 truncate max-w-[180px]">{o.link}</td>
+                    <td className="py-3.5 px-2 font-bold">{o.quantity}</td>
+                    <td className="py-3.5 px-2 font-bold text-slate-900 dark:text-white">₹{o.charge}</td>
                     <td className="py-3.5 px-2">
                       <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                        o.status === "COMPLETED" ? "bg-emerald-50 text-emerald-600" : o.status === "PROCESSING" ? "bg-blue-50 text-blue-600" : "bg-amber-50 text-amber-600"
+                        o.status === "COMPLETED" ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-blue-600"
                       }`}>
                         {o.status}
                       </span>
-                    </td>
-                    <td className="py-3.5 px-2 text-right">
-                      <select
-                        value={o.status}
-                        onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
-                        className="px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold"
-                      >
-                        <option value="PROCESSING">Processing</option>
-                        <option value="COMPLETED">Completed</option>
-                        <option value="CANCELLED">Cancelled (Refund)</option>
-                      </select>
                     </td>
                   </tr>
                 ))}
@@ -301,47 +382,58 @@ export default function AdminDashboardPage() {
       {activeTab === "USERS" && (
         <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
           <div className="flex items-center justify-between pb-4">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white">Registered Users</h2>
-            <span className="text-xs font-bold text-slate-400">{users.length} Users</span>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">User Accounts & Automation Plans</h2>
+              <p className="text-xs text-slate-400">Manage user balances, roles, and Mode 2 subscription status</p>
+            </div>
           </div>
 
           <div className="overflow-x-auto -mx-6 px-6">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase">
-                  <th className="py-3 px-2">Name</th>
-                  <th className="py-3 px-2">Email</th>
+                  <th className="py-3 px-2">User</th>
                   <th className="py-3 px-2">Role</th>
-                  <th className="py-3 px-2">Wallet Balance</th>
-                  <th className="py-3 px-2">Total Spent</th>
-                  <th className="py-3 px-2 text-right">Adjust Balance</th>
+                  <th className="py-3 px-2">Current Balance</th>
+                  <th className="py-3 px-2">BYO-API Plan</th>
+                  <th className="py-3 px-2 text-right">Quick Balance Adjust</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                 {users.map((u) => (
                   <tr key={u.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
-                    <td className="py-3.5 px-2 font-bold">{u.name}</td>
-                    <td className="py-3.5 px-2 font-mono text-slate-500">{u.email}</td>
                     <td className="py-3.5 px-2">
-                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${u.role === "ADMIN" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"}`}>
+                      <div className="font-bold text-slate-900 dark:text-white">{u.name}</div>
+                      <div className="text-slate-400 text-[11px]">{u.email}</div>
+                    </td>
+                    <td className="py-3.5 px-2">
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                        u.role === "ADMIN" ? "bg-purple-100 text-purple-700" : "bg-slate-100 text-slate-600"
+                      }`}>
                         {u.role}
                       </span>
                     </td>
-                    <td className="py-3.5 px-2 font-black text-blue-600">₹{u.balance.toFixed(2)}</td>
-                    <td className="py-3.5 px-2 text-slate-500 font-semibold">₹{u.totalSpent.toFixed(2)}</td>
+                    <td className="py-3.5 px-2 font-black text-slate-900 dark:text-white">₹{u.balance.toFixed(2)}</td>
+                    <td className="py-3.5 px-2">
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                        u.plan?.includes("ACTIVE") ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500"
+                      }`}>
+                        {u.plan}
+                      </span>
+                    </td>
                     <td className="py-3.5 px-2 text-right">
-                      <div className="inline-flex items-center gap-1">
+                      <div className="inline-flex items-center gap-1.5">
                         <button
-                          onClick={() => handleAdjustBalance(u.id, 500)}
-                          className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 rounded-lg text-xs font-bold hover:bg-emerald-100 cursor-pointer"
+                          onClick={() => handleAdjustBalance(u.id, 100)}
+                          className="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[11px] cursor-pointer"
                         >
-                          +₹500
+                          +₹100
                         </button>
                         <button
-                          onClick={() => handleAdjustBalance(u.id, -200)}
-                          className="px-2 py-1 bg-rose-50 dark:bg-rose-950/40 text-rose-600 rounded-lg text-xs font-bold hover:bg-rose-100 cursor-pointer"
+                          onClick={() => handleAdjustBalance(u.id, -50)}
+                          className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] cursor-pointer"
                         >
-                          -₹200
+                          -₹50
                         </button>
                       </div>
                     </td>
@@ -353,39 +445,65 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* ──────────────── TAB 4: UPSTREAM PROVIDERS ──────────────── */}
+      {/* ──────────────── TAB 4: UPSTREAM PROVIDERS (smmsocialmedia.in & yoyomedia) ──────────────── */}
       {activeTab === "PANELS" && (
         <div className="space-y-4">
           <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-4">
               <div>
-                <h2 className="text-base font-bold text-slate-900 dark:text-white">Active SMM Providers</h2>
-                <p className="text-xs text-slate-400">Direct v2 SMM APIs used to deliver orders automatically</p>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white">Background Upstream Providers</h2>
+                <p className="text-xs text-slate-400">Configured provider APIs used in Mode 1. Completely hidden from regular users.</p>
               </div>
               <button
-                onClick={() => notify("Enter API URL & Key in .env or connect below")}
+                onClick={() => notify("Configure new provider API below")}
                 className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
-                <span>Add API</span>
+                <span>Add SMM Provider</span>
               </button>
             </div>
 
             <div className="space-y-3">
               {panels.map((p) => (
-                <div key={p.id} className="p-4 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <div>
-                    <div className="font-bold text-sm text-slate-900 dark:text-white">{p.name}</div>
-                    <div className="text-xs font-mono text-slate-400">{p.url}</div>
-                    <div className="text-xs text-emerald-600 font-bold mt-1">Live Balance: {p.balance}</div>
+                <div key={p.id} className="p-4 rounded-xl border border-slate-100 dark:border-slate-800 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                        <span>{p.name}</span>
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[10px] font-bold">ACTIVE</span>
+                      </div>
+                      <div className="text-xs font-mono text-slate-400 mt-0.5">{p.url}</div>
+                      <div className="text-xs text-slate-500 mt-1">{p.description}</div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-emerald-600 px-3 py-1 bg-emerald-50 rounded-lg">
+                        Balance: {p.balance}
+                      </span>
+                      <button
+                        onClick={() => notify(`Connection to ${p.name} OK! Ping: 88ms`)}
+                        className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-slate-100 cursor-pointer flex items-center gap-1.5"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        <span>Test Ping</span>
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => notify(`Connection to ${p.name} OK! Latency: 120ms`)}
-                    className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-slate-100 cursor-pointer flex items-center gap-1.5"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Test Ping</span>
-                  </button>
+
+                  <div className="flex items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+                    <span className="text-slate-400 font-semibold">API Key:</span>
+                    <input
+                      type="password"
+                      defaultValue={p.apiKey}
+                      className="px-2.5 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-mono text-xs w-64"
+                    />
+                    <button
+                      onClick={() => notify(`Updated API key for ${p.name}`)}
+                      className="px-3 py-1 rounded-lg bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 cursor-pointer"
+                    >
+                      Save Key
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -401,7 +519,7 @@ export default function AdminDashboardPage() {
               <h2 className="text-base font-bold text-slate-900 dark:text-white">Service Profit Margins</h2>
               <p className="text-xs text-slate-400">Original Provider Cost vs Client Price (Calculates automated margin)</p>
             </div>
-            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg">Average Markup: 3.8x (380%)</span>
+            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg">Average Margin: 3.8x (380%)</span>
           </div>
 
           <div className="overflow-x-auto -mx-6 px-6">
@@ -442,14 +560,15 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* ──────────────── TAB 6: UPI APPROVALS ──────────────── */}
+      {/* ──────────────── TAB 6: UPI & 2-SCREENSHOT VERIFICATION QUEUE ──────────────── */}
       {activeTab === "PAYMENTS" && (
         <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
           <div className="flex items-center justify-between pb-4">
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">UPI Payment Verification Queue</h2>
-              <p className="text-xs text-slate-400">Match UTR numbers with your UPI App statement and approve in 1 click</p>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Deposit Verification Queue (2 Screenshots)</h2>
+              <p className="text-xs text-slate-400">Inspect both payment screenshots, check UTR match, and click Approve to credit user balance</p>
             </div>
+            <span className="text-xs font-bold text-blue-600">Min Deposit: ₹50</span>
           </div>
 
           <div className="overflow-x-auto -mx-6 px-6">
@@ -459,7 +578,8 @@ export default function AdminDashboardPage() {
                   <th className="py-3 px-2">User</th>
                   <th className="py-3 px-2">12-Digit UTR</th>
                   <th className="py-3 px-2">Amount</th>
-                  <th className="py-3 px-2">Submitted</th>
+                  <th className="py-3 px-2">Proof 1 (Receipt)</th>
+                  <th className="py-3 px-2">Proof 2 (Success)</th>
                   <th className="py-3 px-2">Status</th>
                   <th className="py-3 px-2 text-right">Action</th>
                 </tr>
@@ -470,7 +590,41 @@ export default function AdminDashboardPage() {
                     <td className="py-3.5 px-2 font-bold">{p.user}</td>
                     <td className="py-3.5 px-2 font-mono font-bold text-blue-600">{p.utr}</td>
                     <td className="py-3.5 px-2 font-black text-slate-900 dark:text-white">₹{p.amount}</td>
-                    <td className="py-3.5 px-2 text-slate-400 text-[11px]">{p.time}</td>
+                    
+                    {/* Proof 1 */}
+                    <td className="py-3.5 px-2">
+                      {p.screenshot1 ? (
+                        <div 
+                          onClick={() => setPreviewImage(p.screenshot1)}
+                          className="relative w-12 h-12 rounded-lg border border-slate-200 overflow-hidden cursor-pointer hover:scale-105 transition-transform group shadow-2xs"
+                        >
+                          <img src={p.screenshot1} alt="Proof 1" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold transition-opacity">
+                            <Eye className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-[11px] italic">Not attached</span>
+                      )}
+                    </td>
+
+                    {/* Proof 2 */}
+                    <td className="py-3.5 px-2">
+                      {p.screenshot2 ? (
+                        <div 
+                          onClick={() => setPreviewImage(p.screenshot2)}
+                          className="relative w-12 h-12 rounded-lg border border-slate-200 overflow-hidden cursor-pointer hover:scale-105 transition-transform group shadow-2xs"
+                        >
+                          <img src={p.screenshot2} alt="Proof 2" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold transition-opacity">
+                            <Eye className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-[11px] italic">Not attached</span>
+                      )}
+                    </td>
+
                     <td className="py-3.5 px-2">
                       <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
                         p.status === "CONFIRMED" ? "bg-emerald-50 text-emerald-600" : p.status === "PENDING" ? "bg-amber-50 text-amber-600" : "bg-rose-50 text-rose-600"
@@ -478,6 +632,7 @@ export default function AdminDashboardPage() {
                         {p.status}
                       </span>
                     </td>
+
                     <td className="py-3.5 px-2 text-right">
                       {p.status === "PENDING" ? (
                         <div className="inline-flex items-center gap-1.5">
@@ -507,20 +662,25 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* ──────────────── TAB 7: SITE SETTINGS ──────────────── */}
+      {/* ──────────────── TAB 7: SITE & CLOUDINARY SETTINGS ──────────────── */}
       {activeTab === "SETTINGS" && (
-        <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs max-w-2xl">
-          <h2 className="text-base font-bold text-slate-900 dark:text-white mb-4">Payment & Site Configuration</h2>
-          <div className="space-y-4 text-xs">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* General Site Config */}
+          <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4 text-xs">
+            <h2 className="text-base font-bold text-slate-900 dark:text-white mb-2">Deposit & General Config</h2>
+            
             <div>
-              <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Site Title</label>
+              <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Minimum Deposit (INR)</label>
               <input
-                type="text"
-                value={settings.siteName}
-                onChange={(e) => setSettings({ ...settings, siteName: e.target.value })}
+                type="number"
+                min="50"
+                value={settings.minDeposit}
+                onChange={(e) => setSettings({ ...settings, minDeposit: Number(e.target.value) })}
                 className="w-full px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
               />
+              <span className="text-[10px] text-slate-400">Strictly enforced at checkout/wallet page (default: ₹50).</span>
             </div>
+
             <div>
               <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">UPI ID for Dynamic QR</label>
               <input
@@ -530,9 +690,10 @@ export default function AdminDashboardPage() {
                 className="w-full px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono"
               />
             </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Support WhatsApp</label>
+                <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">WhatsApp</label>
                 <input
                   type="text"
                   value={settings.whatsapp}
@@ -541,7 +702,7 @@ export default function AdminDashboardPage() {
                 />
               </div>
               <div>
-                <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Support Telegram</label>
+                <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Telegram</label>
                 <input
                   type="text"
                   value={settings.telegram}
@@ -550,11 +711,52 @@ export default function AdminDashboardPage() {
                 />
               </div>
             </div>
+
             <button
               onClick={() => notify("Settings saved successfully!")}
-              className="mt-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold cursor-pointer"
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold cursor-pointer"
             >
-              Save Configuration
+              Save Deposit Config
+            </button>
+          </div>
+
+          {/* Cloudinary Config */}
+          <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4 text-xs">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="p-1 rounded-md bg-sky-50 text-sky-600 font-bold">☁</span>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Cloudinary Image Storage</h2>
+            </div>
+            <p className="text-slate-400 text-[11px] leading-relaxed">
+              Stores payment verification screenshots on Cloudinary CDN so your Vercel server and PostgreSQL database experience 0% storage load.
+            </p>
+
+            <div>
+              <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Cloud Name</label>
+              <input
+                type="text"
+                placeholder="e.g. dxyz123ab"
+                value={settings.cloudinaryCloudName}
+                onChange={(e) => setSettings({ ...settings, cloudinaryCloudName: e.target.value })}
+                className="w-full px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Upload Preset (Unsigned)</label>
+              <input
+                type="text"
+                placeholder="e.g. botclips_receipts"
+                value={settings.cloudinaryUploadPreset}
+                onChange={(e) => setSettings({ ...settings, cloudinaryUploadPreset: e.target.value })}
+                className="w-full px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono"
+              />
+            </div>
+
+            <button
+              onClick={() => notify("Cloudinary credentials updated!")}
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold cursor-pointer"
+            >
+              Save Cloudinary Keys
             </button>
           </div>
         </div>

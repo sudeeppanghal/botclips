@@ -4,12 +4,31 @@ import React, { useState } from "react";
 import { User, Key, Lock, Copy, Check, Shield, CheckCircle2 } from "lucide-react";
 
 export default function SettingsPage() {
-  const [name, setName] = useState("Roonie");
-  const [email, setEmail] = useState("roonie@dhillionsmm.com");
-  const [phone, setPhone] = useState("+91 98765 43210");
-  const [apiKey, setApiKey] = useState("dhl_live_a98f72c1409b83e40192a3f");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [apiKey, setApiKey] = useState("");
   const [copiedKey, setCopiedKey] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    async function loadUser() {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        if (data.authenticated && data.user) {
+          setName(data.user.name || "");
+          setEmail(data.user.email || "");
+          setPhone(data.user.phone || "");
+          setApiKey(data.user.apiKey || "dhl_" + data.user.id.slice(-8));
+        }
+      } catch {} finally {
+        setLoading(false);
+      }
+    }
+    loadUser();
+  }, []);
 
   const copyKey = () => {
     navigator.clipboard.writeText(apiKey);
@@ -17,16 +36,32 @@ export default function SettingsPage() {
     setTimeout(() => setCopiedKey(false), 2000);
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2500);
+    try {
+      await fetch("/api/auth/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, phone }),
+      });
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 2500);
+    } catch {}
   };
 
-  const regenerateKey = () => {
+  const regenerateKey = async () => {
     if (confirm("Are you sure you want to regenerate your API key? Old key will be invalidated immediately.")) {
-      const newKey = "dhl_live_" + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-      setApiKey(newKey);
+      try {
+        const res = await fetch("/api/auth/me", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ regenerateApiKey: true }),
+        });
+        const data = await res.json();
+        if (data.user?.apiKey) {
+          setApiKey(data.user.apiKey);
+        }
+      } catch {}
     }
   };
 

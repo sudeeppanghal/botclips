@@ -99,18 +99,18 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile, brandName =
         {/* Bottom VIP Upgrade Card */}
         <div className="pt-4">
           <Link
-            href="/dashboard/wallet"
-            className="block p-4 rounded-2xl bg-slate-50 hover:bg-slate-100/80 dark:bg-slate-800/50 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-800/80 transition-all group cursor-pointer shadow-xs"
+            href="/dashboard/automation"
+            className="block p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent hover:from-amber-500/15 border border-amber-500/20 hover:border-amber-500/30 transition-all group cursor-pointer shadow-xs"
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2">
-                <Crown className="w-5 h-5 text-amber-500 shrink-0 fill-amber-500/20" />
-                <span className="font-bold text-sm text-slate-900 dark:text-white">Upgrade Now</span>
+                <Crown className="w-5 h-5 text-amber-500 shrink-0 fill-amber-500/30" />
+                <span className="font-bold text-sm text-slate-900 dark:text-white">Upgrade to Premium</span>
               </div>
-              <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+              <ChevronRight className="w-4 h-4 text-amber-500 group-hover:translate-x-0.5 transition-transform" />
             </div>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-relaxed pl-7">
-              Get faster services and exclusive features.
+              Connect your own SMM API ($5/wk • $25/mo)
             </p>
           </Link>
         </div>

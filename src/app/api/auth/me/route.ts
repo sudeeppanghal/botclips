@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       user: {
         id: session.id,
         email: session.email,
-        name: session.name || "Roonie",
+        name: session.name || session.email?.split("@")[0] || "User",
         role: session.role,
         balance: 0.00,
       },
@@ -44,3 +44,40 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ authenticated: false, error: error.message }, { status: 500 });
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await getSessionUser();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const updateData: any = {};
+
+    if (typeof body.name === "string") updateData.name = body.name.trim();
+    if (typeof body.phone === "string") updateData.phone = body.phone.trim();
+    if (body.regenerateApiKey) {
+      updateData.apiKey = "dhl_" + Math.random().toString(36).substring(2, 12) + Math.random().toString(36).substring(2, 12);
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: session.id },
+      data: updateData,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phone: true,
+        role: true,
+        balance: true,
+        apiKey: true,
+      },
+    });
+
+    return NextResponse.json({ success: true, user: updatedUser });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || "Failed to update profile" }, { status: 500 });
+  }
+}
+

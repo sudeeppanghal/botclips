@@ -27,9 +27,9 @@ interface HeaderProps {
 }
 
 export default function Header({
-  userName = "Roonie",
+  userName = "User",
   userRole = "User",
-  walletBalance = 520.00,
+  walletBalance = 0.00,
   currencySymbol = "₹",
   onOpenMobile,
   onSearchSelect

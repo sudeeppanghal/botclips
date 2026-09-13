@@ -1242,7 +1242,8 @@ export default function HomePage() {
             <span className="text-slate-300">|</span>
             <span className="text-slate-500 font-medium">High-Retention Clipping Infrastructure</span>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center gap-6">
+            <span className="font-semibold text-neutral-700">Founders: Jack & Daniel 🍾🍷</span>
             <Link href="/login" className="hover:text-neutral-900 transition-colors">Sign In</Link>
             <Link href="/signup" className="hover:text-neutral-900 transition-colors">Register</Link>
             <span>© {new Date().getFullYear()} BotClips. All rights reserved.</span>
@@ -1302,7 +1303,7 @@ export default function HomePage() {
 
             {/* Modal Image Display */}
             <div className="relative bg-black flex items-center justify-center p-2 max-h-[65vh] overflow-hidden">
-              <img  decoding="async" src={allProofs[selectedProofIndex].src} 
+              <img loading="lazy" decoding="async" src={allProofs[selectedProofIndex].src} 
                 alt={allProofs[selectedProofIndex].title} 
                 className="max-h-[60vh] w-auto max-w-full rounded-lg shadow-xl object-contain" 
               />

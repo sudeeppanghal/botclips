@@ -3,495 +3,624 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { 
-  Bot, 
-  ArrowRight, 
   ShieldCheck, 
-  Zap, 
-  Clock, 
-  Users, 
-  TrendingUp, 
+  ShieldAlert, 
   CheckCircle2, 
-  Star,
-  ChevronDown,
-  Sparkles,
+  X, 
+  Check, 
+  Smartphone, 
+  TrendingUp, 
+  BarChart3, 
+  ArrowRight, 
+  ChevronDown, 
+  ChevronUp, 
+  Zap, 
+  Eye, 
+  Activity,
   Layers,
-  ArrowUpRight,
-  ShieldAlert,
-  Play
+  Sparkles,
+  Award
 } from "lucide-react";
 
 export default function HomePage() {
-  const [selectedCurve, setSelectedCurve] = useState("ORGANIC");
-  const [activePlatform, setActivePlatform] = useState("INSTAGRAM");
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  const curves: Record<string, { title: string; badge: string; desc: string; duration: string; path: string }> = {
-    ORGANIC: {
-      title: "Organic Viral Algorithm",
-      badge: "Best for Reels & Shorts",
-      desc: "Simulates genuine human discovery. Views gradually build up over 4 hours, peak during prime algorithm test windows, and decay naturally with 0 flags.",
-      duration: "24h - 72h Pacing",
-      path: "M 10 90 C 50 85, 70 65, 110 20 C 150 10, 190 40, 240 70 C 270 85, 290 92, 300 95"
+  const toggleFaq = (idx: number) => {
+    setFaqOpen(faqOpen === idx ? null : idx);
+  };
+
+  const screenshots = [
+    {
+      src: "/screenshots/campaign-1.png",
+      title: "Campaign Performance Overview",
+      caption: "High retention views, organic likes, comments & realistic viral growth curve passing Whop review."
     },
-    VYRO: {
-      title: "Explosive Hook Velocity",
-      badge: "Best for Viral AI Content",
-      desc: "Delivers an immediate sustained burst in the first 2 hours to pass the platform retention hook test, followed by steady engagement drip.",
-      duration: "12h - 48h Pacing",
-      path: "M 10 90 C 20 15, 60 15, 120 35 C 180 50, 240 75, 300 85"
+    {
+      src: "/screenshots/campaign-2.png",
+      title: "Submission Analytics Portal",
+      caption: "Verified payout status on creator reward portal showing consistent engagement pacing over time."
     },
-    UNIVERSAL: {
-      title: "Universal Multi-Peak Wave",
-      badge: "Best for Global Audiences",
-      desc: "Double-peaked cyclic pacing designed to trigger engagement surges across multiple global timezones as creators cross international feeds.",
-      duration: "24h - 96h Pacing",
-      path: "M 10 90 C 40 20, 80 80, 140 25 C 200 80, 250 30, 300 90"
+    {
+      src: "/screenshots/campaign-3.png",
+      title: "Delivery Growth Consistency",
+      caption: "Natural algorithmic climb mimicking genuine viral distribution with zero sudden dropoffs."
     },
-    STEADY: {
-      title: "Continuous Linear Drip",
-      badge: "Best for Accounts Seeking Safe Pacing",
-      desc: "Strictly even batch distribution every hour over multi-day campaigns. Perfect for client agencies and cautious creators.",
-      duration: "48h - 168h (1-7 Days)",
-      path: "M 10 90 L 300 20"
+    {
+      src: "/screenshots/campaign-4.png",
+      title: "Detailed Campaign Audit",
+      caption: "Transparent metrics inspection demonstrating clean retention signals and 0 automated bot flags."
     }
-  };
-
-  const sampleServices: Record<string, Array<{ name: string; rate: string; speed: string; refill: string }>> = {
-    INSTAGRAM: [
-      { name: "Instagram Real HQ Followers [Instant]", rate: "₹180 / 1k", speed: "0 - 15 mins", refill: "30 Days Refill" },
-      { name: "Instagram High Retention Likes [Real Active]", rate: "₹45 / 1k", speed: "Instant", refill: "Lifetime Guarantee" },
-      { name: "Instagram Reels Views [Viral Push]", rate: "₹15 / 1k", speed: "Instant 50k/min", refill: "Non-Drop" },
-      { name: "Instagram Real Indian Comments [Custom]", rate: "₹380 / 1k", speed: "Gradual Drip", refill: "Safe" },
-    ],
-    YOUTUBE: [
-      { name: "YouTube High Retention Views [Monetizable]", rate: "₹240 / 1k", speed: "1 - 3 hours", refill: "Lifetime Refill" },
-      { name: "YouTube Real Subscribers [Non-Drop]", rate: "₹1,200 / 1k", speed: "24 - 48 hours", refill: "60 Days Refill" },
-      { name: "YouTube 4000 Watch Hours Package", rate: "₹3,400 / pkg", speed: "3 - 7 days", refill: "Monetization Safe" },
-      { name: "YouTube Likes & Comments [Engagement]", rate: "₹190 / 1k", speed: "Instant", refill: "Non-Drop" },
-    ],
-    TIKTOK: [
-      { name: "TikTok Real Followers [Guaranteed No Drop]", rate: "₹190 / 1k", speed: "0 - 30 mins", refill: "30 Days Refill" },
-      { name: "TikTok Video Views [FYP Algorithm Boost]", rate: "₹20 / 1k", speed: "Instant 100k/hr", refill: "Non-Drop" },
-      { name: "TikTok Active Likes & Shares Combo", rate: "₹95 / 1k", speed: "10 mins", refill: "Safe" },
-    ],
-    TELEGRAM: [
-      { name: "Telegram Channel Members [Global Non-Drop]", rate: "₹120 / 1k", speed: "Instant 10k/hr", refill: "60 Days Refill" },
-      { name: "Telegram Post Views [1-5 Recent Posts Autoview]", rate: "₹10 / 1k", speed: "Instant", refill: "Non-Drop" },
-      { name: "Telegram Group Active Discussion Members", rate: "₹210 / 1k", speed: "Gradual Drip", refill: "Safe" },
-    ],
-    TWITTER: [
-      { name: "Twitter (X) Followers [Real Profiles with PFP]", rate: "₹350 / 1k", speed: "1 - 6 hours", refill: "30 Days Refill" },
-      { name: "Twitter (X) High Speed Likes & Retweets", rate: "₹110 / 1k", speed: "Instant", refill: "Non-Drop" },
-      { name: "Twitter (X) Impressions & Poll Votes", rate: "₹45 / 1k", speed: "Instant", refill: "Non-Drop" },
-    ]
-  };
+  ];
 
   const faqs = [
     {
-      q: "Can my social media account get banned or shadowbanned?",
-      a: "No. Unlike conventional SMM panels that blast flat bots within seconds, BotClips utilizes Organic Algorithmic Curves and natural delivery velocity. This simulates genuine virality that complies with platform guidelines."
+      q: "Why do standard SMM panels get rejected on Whop & ContentReward?",
+      a: "Generic SMM panels rely on cloud datacenter bots that trigger 1-second view pings. These cause severe view drops (e.g., dropping from 70k to 65k overnight), creating erratic zigzag graphs. Reward platform fraud detectors flag these with Bot Risk Scores exceeding 70/100, automatically rejecting submissions and freezing payouts."
     },
     {
-      q: "How fast do orders start delivering?",
-      a: "95% of our services start delivering within 0 to 60 seconds automatically through our connected high-speed SMM v2 infrastructure."
+      q: "How does BotClips ensure undetectable delivery?",
+      a: "BotClips utilizes a private hardware network of 20,000+ physical smartphones and 100,000+ authentic user accounts operating over genuine residential connections. Each view sustains 3 to 7 seconds of actual watchtime, delivering a natural parabolic curve that passes automated and manual platform audits."
     },
     {
-      q: "How does the UPI QR Code payment work?",
-      a: "Go to Add Funds in your dashboard, choose an amount, scan the generated UPI QR code with any app (GPay, PhonePe, Paytm, BHIM), and paste the 12-digit UTR receipt number. Funds are credited to your balance instantly."
+      q: "Which platforms and reward campaigns are supported?",
+      a: "Our infrastructure is purpose-built for Whop Clipping Campaigns, ContentReward, Clipster, TikTok Creator Rewards, Instagram Reels Bonus programs, and YouTube Shorts monetization."
     },
     {
-      q: "What is an Organic Drip-Feed Curve?",
-      a: "Instead of receiving 10,000 views at the exact same second, Drip-Feed divides your order into organic batches (e.g. 500 views every 30 minutes). This mimics genuine algorithmic spread on the Instagram Explore or YouTube Recommendations feed."
+      q: "What is the minimum deposit and accepted payment methods?",
+      a: "Minimum deposit is only ₹50 INR. We accept instant UPI (PhonePe, Google Pay, Paytm) and USDT TRC20 (at a competitive fixed rate of 1 USDT = ₹96.00). Submissions are verified swiftly through our dashboard."
     },
     {
-      q: "What happens if a service drops followers over time?",
-      a: "All services marked with 'Refill' come with automatic 30 to 60 day refill guarantees. You can trigger an automatic refill directly from your Order History page with 1 click."
+      q: "Can I connect my own SMM panel via API?",
+      a: "Yes! BotClips offers both automated internal AI routing (using our hardware viewfarm) as well as Premium Automation where agency owners can connect custom external SMM panel APIs with a weekly ($5) or monthly ($25) license."
     }
   ];
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f19] text-slate-900 dark:text-white selection:bg-blue-500 selection:text-white">
-      
-      {/* ─── 1. Public Top Navbar ─── */}
-      <header className="sticky top-0 z-40 bg-white/80 dark:bg-[#111827]/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800/80 px-4 sm:px-8 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600/10 dark:bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
-              <Bot className="w-6 h-6 stroke-[2.2]" />
-            </div>
-            <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-              BotClips
-            </span>
+    <div className="min-h-screen bg-white text-[#111214] font-sans antialiased selection:bg-blue-600 selection:text-white">
+      {/* ── STICKY TOP NAVIGATION ── */}
+      <nav className="sticky top-0 z-40 h-[74px] border-b border-[#e9e9ec] bg-white/90 backdrop-blur-md">
+        <div className="max-w-[1180px] mx-auto px-6 h-full flex items-center justify-between">
+          <Link href="/" className="text-2xl font-black tracking-tight text-[#111214] flex items-center gap-1.5">
+            Bot<span className="text-[#246bfe]">Clips</span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600 dark:text-slate-300">
-            <a href="#services" className="hover:text-blue-600 transition-colors">Services</a>
-            <a href="#curves" className="hover:text-blue-600 transition-colors">Organic Curves</a>
-            <a href="#how-it-works" className="hover:text-blue-600 transition-colors">How It Works</a>
-            <a href="#faq" className="hover:text-blue-600 transition-colors">FAQ</a>
-          </nav>
+          <div className="hidden md:flex items-center gap-8 text-[14px] font-semibold text-[#62666e]">
+            <a href="#why" className="hover:text-[#111214] transition-colors">Why BotClips</a>
+            <a href="#analytics" className="hover:text-[#111214] transition-colors">Analytics & Proofs</a>
+            <a href="#workflow" className="hover:text-[#111214] transition-colors">How It Works</a>
+            <a href="#faq" className="hover:text-[#111214] transition-colors">FAQ</a>
+          </div>
 
           <div className="flex items-center gap-3">
-            <Link
+            <Link 
               href="/login"
-              className="px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-blue-600 transition-colors"
+              className="px-4 py-2 text-sm font-semibold text-[#111214] hover:text-[#246bfe] transition-colors"
             >
               Sign In
             </Link>
+            <Link 
+              href="/signup"
+              className="px-4 py-2 rounded-xl text-sm font-bold bg-[#111214] hover:bg-[#246bfe] text-white shadow-sm transition-all duration-200 cursor-pointer"
+            >
+              Get Started
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      {/* ── HERO SECTION ── */}
+      <header className="relative pt-20 pb-24 text-center overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-50/70 via-white to-white">
+        <div className="max-w-[1180px] mx-auto px-6">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-blue-100 bg-blue-50/80 text-blue-700 text-xs font-extrabold tracking-wide uppercase">
+            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+            Built for the Clipping Industry
+          </div>
+
+          <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-[#111214] mt-6 max-w-4xl mx-auto leading-[1.05]">
+            A clipping industry{" "}
+            <span className="bg-gradient-to-r from-neutral-900 via-blue-700 to-blue-600 bg-clip-text text-transparent">
+              nightmare.
+            </span>
+          </h1>
+
+          <p className="mt-6 text-lg sm:text-xl text-[#6b7078] max-w-2xl mx-auto leading-relaxed font-normal">
+            Undetectable views, genuine retention curves, and automated compliance designed specifically for <strong className="text-neutral-900 font-semibold">Whop</strong>, <strong className="text-neutral-900 font-semibold">ContentReward</strong>, and <strong className="text-neutral-900 font-semibold">Clipster</strong> reward campaigns.
+          </p>
+
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
             <Link
               href="/signup"
-              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all flex items-center gap-1.5 cursor-pointer"
+              className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-[#111214] hover:bg-neutral-800 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 group cursor-pointer"
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Get Started</span>
+              <span>Launch Campaign</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </Link>
+            <a
+              href="#analytics"
+              className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-white hover:bg-neutral-50 text-[#111214] font-bold text-sm border border-[#dce0e5] shadow-sm transition-all flex items-center justify-center gap-2"
+            >
+              <span>View Dashboard Proofs</span>
+              <Eye className="w-4 h-4 text-blue-600" />
+            </a>
+          </div>
+
+          {/* Trust stats row */}
+          <div className="mt-14 pt-10 border-t border-[#f0f0f3] grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto text-left">
+            <div className="p-3">
+              <div className="text-2xl font-black text-[#111214]">20,000+</div>
+              <div className="text-xs font-semibold text-[#6b7078] mt-1">Physical Device Farm</div>
+            </div>
+            <div className="p-3">
+              <div className="text-2xl font-black text-[#111214]">3–7 Sec</div>
+              <div className="text-xs font-semibold text-[#6b7078] mt-1">Real Human Watchtime</div>
+            </div>
+            <div className="p-3">
+              <div className="text-2xl font-black text-emerald-600">24 / 100</div>
+              <div className="text-xs font-semibold text-[#6b7078] mt-1">Avg Bot Risk Score</div>
+            </div>
+            <div className="p-3">
+              <div className="text-2xl font-black text-blue-600">0% Drop</div>
+              <div className="text-xs font-semibold text-[#6b7078] mt-1">Audit-Approved Payouts</div>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* ─── 2. Hero Section ─── */}
-      <section className="pt-16 pb-20 px-4 sm:px-8 max-w-7xl mx-auto text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400 text-xs font-bold mb-6">
-          <Zap className="w-3.5 h-3.5 fill-current" />
-          <span>Next-Gen High-Speed SMM Automation</span>
-        </div>
-
-        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-slate-900 dark:text-white max-w-5xl mx-auto leading-tight sm:leading-none">
-          Scale Your Social Growth With Algorithmic Pacing & Zero Drops
-        </h1>
-
-        <p className="mt-6 text-base sm:text-lg text-slate-500 dark:text-slate-400 max-w-3xl mx-auto leading-relaxed">
-          The ultimate SMM Panel for creators, agencies, and businesses. Equipped with proprietary Organic Viral Curves, instant UPI QR code top-ups, and automated v2 provider API dispatch.
-        </p>
-
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Link
-            href="/dashboard"
-            className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2"
-          >
-            <span>Open Dashboard</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-          <a
-            href="#services"
-            className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold text-sm hover:bg-slate-50 transition-all flex items-center justify-center"
-          >
-            Browse All Services
-          </a>
-        </div>
-
-        {/* 4 Stat Badges */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-16 max-w-4xl mx-auto text-left">
-          <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-xs">
-            <Clock className="w-5 h-5 text-blue-600 mb-2" />
-            <div className="font-black text-xl text-slate-900 dark:text-white">0-30s</div>
-            <div className="text-xs text-slate-400">Instant Order Dispatch</div>
+      {/* ── COMPARISON SECTION ── */}
+      <section id="why" className="py-24 border-t border-[#f0f0f3] bg-[#fafafa]">
+        <div className="max-w-[1180px] mx-auto px-6">
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <div className="text-xs font-black uppercase tracking-wider text-[#246bfe]">
+              The Core Problem
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#111214] mt-2.5">
+              Generic SMM panels were never built for clipping.
+            </h2>
+            <p className="text-[#6b7078] mt-3.5 text-base leading-relaxed">
+              When you submit a clip to Whop or ContentReward, automated fraud algorithms inspect your retention curve, view-drop velocity, and hardware IP fingerprints.
+            </p>
           </div>
-          <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-xs">
-            <ShieldCheck className="w-5 h-5 text-emerald-600 mb-2" />
-            <div className="font-black text-xl text-slate-900 dark:text-white">100% Safe</div>
-            <div className="text-xs text-slate-400">Organic Viral Algorithms</div>
-          </div>
-          <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-xs">
-            <Users className="w-5 h-5 text-cyan-600 mb-2" />
-            <div className="font-black text-xl text-slate-900 dark:text-white">50k+</div>
-            <div className="text-xs text-slate-400">Orders Delivered</div>
-          </div>
-          <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-xs">
-            <Star className="w-5 h-5 text-amber-500 fill-amber-500 mb-2" />
-            <div className="font-black text-xl text-slate-900 dark:text-white">4.9 / 5</div>
-            <div className="text-xs text-slate-400">Customer Rating</div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 rounded-3xl border border-[#e4e6eb] bg-white shadow-xl shadow-neutral-200/50 overflow-hidden">
+            {/* Typical Panel */}
+            <div className="p-8 sm:p-10 bg-[#fafafa] border-b md:border-b-0 md:border-r border-[#e4e6eb]">
+              <div className="flex items-center gap-2.5 mb-6">
+                <div className="w-8 h-8 rounded-lg bg-red-100 text-red-600 flex items-center justify-center font-bold text-sm">
+                  ✕
+                </div>
+                <h3 className="text-xl font-bold text-neutral-900">Typical SMM Panel</h3>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3.5 p-3 rounded-xl bg-white border border-red-100">
+                  <span className="text-red-500 font-bold text-lg leading-none mt-0.5">✕</span>
+                  <div className="text-sm text-neutral-700 leading-snug">
+                    <strong className="text-neutral-900 block mb-0.5">1-Second Bot Pings</strong>
+                    Datacenter cloud scrapers register views for 1 second, causing instant retention collapse.
+                  </div>
+                </div>
+                <div className="flex items-start gap-3.5 p-3 rounded-xl bg-white border border-red-100">
+                  <span className="text-red-500 font-bold text-lg leading-none mt-0.5">✕</span>
+                  <div className="text-sm text-neutral-700 leading-snug">
+                    <strong className="text-neutral-900 block mb-0.5">Sudden Post-Delivery Drops</strong>
+                    Views frequently fall from 70k down to 65k within 12 hours, creating visible negative drop spikes.
+                  </div>
+                </div>
+                <div className="flex items-start gap-3.5 p-3 rounded-xl bg-white border border-red-100">
+                  <span className="text-red-500 font-bold text-lg leading-none mt-0.5">✕</span>
+                  <div className="text-sm text-neutral-700 leading-snug">
+                    <strong className="text-neutral-900 block mb-0.5">High Bot Risk Score (78/100)</strong>
+                    Triggers automated red flags on Whop & ContentReward review dashboards, leading to rejected payouts.
+                  </div>
+                </div>
+                <div className="flex items-start gap-3.5 p-3 rounded-xl bg-white border border-red-100">
+                  <span className="text-red-500 font-bold text-lg leading-none mt-0.5">✕</span>
+                  <div className="text-sm text-neutral-700 leading-snug">
+                    <strong className="text-neutral-900 block mb-0.5">Generic Server Proxies</strong>
+                    Repeated subnet pools easily detected and blacklisted by short-form video algorithms.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* BotClips Engine */}
+            <div className="p-8 sm:p-10 bg-white">
+              <div className="flex items-center gap-2.5 mb-6">
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-sm">
+                  ✓
+                </div>
+                <h3 className="text-xl font-bold text-neutral-900">BotClips Architecture</h3>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3.5 p-3 rounded-xl bg-blue-50/40 border border-blue-100">
+                  <Check className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="text-sm text-neutral-700 leading-snug">
+                    <strong className="text-neutral-900 block mb-0.5">20,000+ Physical Smartphones</strong>
+                    Real devices running genuine mobile operating systems on private residential carrier connections.
+                  </div>
+                </div>
+                <div className="flex items-start gap-3.5 p-3 rounded-xl bg-blue-50/40 border border-blue-100">
+                  <Check className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="text-sm text-neutral-700 leading-snug">
+                    <strong className="text-neutral-900 block mb-0.5">Genuine 3–7s Watchtime Retention</strong>
+                    Realistic human playback duration ensures high completion rates and safe algorithmic indexing.
+                  </div>
+                </div>
+                <div className="flex items-start gap-3.5 p-3 rounded-xl bg-blue-50/40 border border-blue-100">
+                  <Check className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="text-sm text-neutral-700 leading-snug">
+                    <strong className="text-neutral-900 block mb-0.5">Ultra-Low Risk Score (24/100)</strong>
+                    Consistently passes Whop, Clipster & ContentReward anti-fraud checks with green approval status.
+                  </div>
+                </div>
+                <div className="flex items-start gap-3.5 p-3 rounded-xl bg-blue-50/40 border border-blue-100">
+                  <Check className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="text-sm text-neutral-700 leading-snug">
+                    <strong className="text-neutral-900 block mb-0.5">Smooth Parabolic Growth Curve</strong>
+                    Natural delivery pacing with zero abrupt dropoffs, safeguarding creator payouts every time.
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ─── 3. Organic Viral Curves Showcase (From yoyosmm reference) ─── */}
-      <section id="curves" className="py-16 px-4 sm:px-8 max-w-7xl mx-auto border-t border-slate-100 dark:border-slate-800">
-        <div className="text-center max-w-3xl mx-auto mb-12">
-          <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-            Proprietary Technology
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white mt-1">
-            Why Flat SMM Panels Get Flagged (And We Don't)
-          </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-            Standard panels spike thousands of fake bots in 1 second, causing instant shadowbans. Our Organic Curve Engine delivers paced engagement calibrated to actual recommendation algorithms.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          {/* Left Curves List */}
-          <div className="lg:col-span-6 space-y-3">
-            {Object.entries(curves).map(([key, c]) => {
-              const active = selectedCurve === key;
-              return (
-                <div
-                  key={key}
-                  onClick={() => setSelectedCurve(key)}
-                  className={`p-5 rounded-2xl border transition-all cursor-pointer ${
-                    active
-                      ? "bg-white dark:bg-[#131b2e] border-blue-500 shadow-md ring-2 ring-blue-500/20"
-                      : "bg-slate-50/50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800 hover:bg-white dark:hover:bg-[#131b2e]"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">{c.title}</h3>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
-                      {c.badge}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">{c.desc}</p>
-                  <div className="mt-2 text-[11px] font-mono font-bold text-slate-400">{c.duration}</div>
-                </div>
-              );
-            })}
+      {/* ── THREE PILLARS ── */}
+      <section className="py-20 bg-white">
+        <div className="max-w-[1180px] mx-auto px-6">
+          <div className="text-center max-w-2xl mx-auto mb-14">
+            <div className="text-xs font-black uppercase tracking-wider text-[#246bfe]">
+              Core Infrastructure
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#111214] mt-2">
+              Engineered specifically for clippers.
+            </h2>
           </div>
 
-          {/* Right Live Waveform Visualizer */}
-          <div className="lg:col-span-6 bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-3xl p-8 shadow-sm">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Live Delivery Waveform</span>
-              <span className="text-xs font-bold text-blue-600 dark:text-blue-400 font-mono">Algorithm Active</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="p-7 rounded-2xl border border-[#e9e9ec] bg-white hover:border-blue-200 hover:shadow-md transition-all">
+              <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm mb-5">
+                01
+              </div>
+              <h3 className="text-lg font-bold text-neutral-900 mb-2">Campaign-First Delivery</h3>
+              <p className="text-sm text-[#6b7078] leading-relaxed">
+                Organize orders around short-form clipping workflows. Choose your exact delivery speed, platform, and retention parameters.
+              </p>
             </div>
 
-            <div className="py-8">
-              <svg viewBox="0 0 320 120" className="w-full h-40 overflow-visible">
-                <line x1="10" y1="30" x2="310" y2="30" stroke="#94a3b8" strokeOpacity="0.2" strokeDasharray="3 3" />
-                <line x1="10" y1="60" x2="310" y2="60" stroke="#94a3b8" strokeOpacity="0.2" strokeDasharray="3 3" />
-                <line x1="10" y1="90" x2="310" y2="90" stroke="#94a3b8" strokeOpacity="0.2" strokeDasharray="3 3" />
+            <div className="p-7 rounded-2xl border border-[#e9e9ec] bg-white hover:border-blue-200 hover:shadow-md transition-all">
+              <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm mb-5">
+                02
+              </div>
+              <h3 className="text-lg font-bold text-neutral-900 mb-2">Whop & Reward Compliance</h3>
+              <p className="text-sm text-[#6b7078] leading-relaxed">
+                Pre-configured delivery velocity ensures your views, likes, and comment ratios look 100% organic to moderation panels.
+              </p>
+            </div>
 
-                <path
-                  d={curves[selectedCurve].path}
-                  fill="none"
-                  stroke="#2563eb"
+            <div className="p-7 rounded-2xl border border-[#e9e9ec] bg-white hover:border-blue-200 hover:shadow-md transition-all">
+              <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm mb-5">
+                03
+              </div>
+              <h3 className="text-lg font-bold text-neutral-900 mb-2">Real-Time Growth Tracking</h3>
+              <p className="text-sm text-[#6b7078] leading-relaxed">
+                Monitor your campaign delivery curves, retention signals, and submission statuses directly from your unified dashboard.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── PROOFS & ANALYTICS SHOWCASE ── */}
+      <section id="analytics" className="py-24 bg-[#f7f7f8] border-y border-[#e9e9ec]">
+        <div className="max-w-[1180px] mx-auto px-6">
+          <div className="text-center max-w-3xl mx-auto mb-14">
+            <div className="text-xs font-black uppercase tracking-wider text-[#246bfe]">
+              Dashboard Transparency
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#111214] mt-2.5">
+              What Whop and ContentReward see in your submission.
+            </h2>
+            <p className="text-[#6b7078] mt-3 text-base leading-relaxed">
+              Below are verified campaign submissions demonstrating smooth delivery curves, sustained watchtime, and clean anti-fraud audits.
+            </p>
+          </div>
+
+          {/* Screenshots Grid (4 Real Campaign Images) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {screenshots.map((item, idx) => (
+              <div 
+                key={idx}
+                onClick={() => setSelectedImage(item.src)}
+                className="group cursor-pointer bg-neutral-900 rounded-2xl p-2.5 shadow-lg shadow-neutral-900/10 hover:shadow-2xl transition-all duration-300 border border-neutral-800"
+              >
+                <div className="overflow-hidden rounded-xl aspect-[16/10] bg-neutral-950 flex items-center justify-center relative">
+                  <img 
+                    src={item.src} 
+                    alt={item.title}
+                    className="w-full h-full object-cover object-top group-hover:scale-[1.02] transition-transform duration-300"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1.5 rounded-lg bg-black/75 text-white text-xs font-bold backdrop-blur-sm">
+                      Click to expand
+                    </span>
+                  </div>
+                </div>
+                <div className="px-3 pt-3.5 pb-2 text-white">
+                  <h4 className="font-bold text-sm text-neutral-100 flex items-center justify-between">
+                    <span>{item.title}</span>
+                    <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-neutral-800 text-neutral-400">Proof #{idx + 1}</span>
+                  </h4>
+                  <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
+                    {item.caption}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Risk Score Comparison Box */}
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Typical SMM Panel Risk Score */}
+            <div className="p-7 rounded-2xl border border-red-200 bg-white shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wide text-neutral-500">Typical SMM Panel Signal</span>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">Flagged / Rejected</span>
+              </div>
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-5xl font-black text-red-600">78</span>
+                <span className="text-lg font-bold text-neutral-400">/ 100 Risk Index</span>
+              </div>
+              <div className="w-full h-2.5 rounded-full bg-neutral-100 mt-4 overflow-hidden">
+                <div className="h-full bg-red-500 rounded-full" style={{ width: "78%" }} />
+              </div>
+              <p className="text-xs text-[#6b7078] mt-3 leading-relaxed">
+                Elevated bot risk score triggered by 1-sec drops and repetitive datacenter proxies. Submissions are marked fraudulent and disqualified.
+              </p>
+            </div>
+
+            {/* BotClips Safe Risk Score */}
+            <div className="p-7 rounded-2xl border border-emerald-200 bg-white shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wide text-neutral-500">BotClips Quality Signal</span>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">Approved / Paid Out</span>
+              </div>
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-5xl font-black text-emerald-600">24</span>
+                <span className="text-lg font-bold text-neutral-400">/ 100 Risk Index</span>
+              </div>
+              <div className="w-full h-2.5 rounded-full bg-neutral-100 mt-4 overflow-hidden">
+                <div className="h-full bg-emerald-500 rounded-full" style={{ width: "24%" }} />
+              </div>
+              <p className="text-xs text-[#6b7078] mt-3 leading-relaxed">
+                Low risk score generated by authentic 3–7s retention and physical smartphones. Seamlessly clears automated verification filters.
+              </p>
+            </div>
+          </div>
+
+          {/* Delivery Consistency SVG Graph */}
+          <div className="mt-8 p-7 rounded-2xl border border-[#e9e9ec] bg-white shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+              <div>
+                <h3 className="text-base font-bold text-neutral-900">Why Delivery Consistency Matters</h3>
+                <p className="text-xs text-[#6b7078] mt-0.5">Comparing view velocity and retention profiles over 48 hours</p>
+              </div>
+              <div className="flex items-center gap-4 text-xs font-semibold text-neutral-600">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />
+                  <span>Irregular Bot Drop</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block" />
+                  <span>BotClips Organic Curve</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 inline-block" />
+                  <span>Baseline</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="w-full h-[220px] relative mt-4">
+              <svg viewBox="0 0 900 220" className="w-full h-full" preserveAspectRatio="none">
+                {/* Horizontal Grid lines */}
+                <line x1="0" y1="40" x2="900" y2="40" stroke="#f1f2f4" strokeWidth="1" strokeDasharray="4 4" />
+                <line x1="0" y1="90" x2="900" y2="90" stroke="#f1f2f4" strokeWidth="1" strokeDasharray="4 4" />
+                <line x1="0" y1="140" x2="900" y2="140" stroke="#f1f2f4" strokeWidth="1" strokeDasharray="4 4" />
+                <line x1="0" y1="190" x2="900" y2="190" stroke="#f1f2f4" strokeWidth="1" strokeDasharray="4 4" />
+
+                {/* Irregular drop line (Red) */}
+                <path 
+                  d="M0 190 C90 110 130 205 210 145 S330 105 405 160 S520 70 590 130 S720 80 900 115" 
+                  fill="none" 
+                  stroke="#ef4444" 
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                />
+
+                {/* Steady organic curve (Blue) */}
+                <path 
+                  d="M0 190 C130 175 210 155 300 142 S470 120 580 105 S760 82 900 68" 
+                  fill="none" 
+                  stroke="#246bfe" 
                   strokeWidth="4"
                   strokeLinecap="round"
-                  className="transition-all duration-300"
+                />
+
+                {/* Baseline (Cyan) */}
+                <path 
+                  d="M0 205 C160 195 260 180 390 170 S620 150 900 138" 
+                  fill="none" 
+                  stroke="#06b6d4" 
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
                 />
               </svg>
             </div>
-
-            <div className="flex items-center justify-between text-xs font-mono text-slate-400 pt-4 border-t border-slate-100 dark:border-slate-800">
-              <span>Warmup (0-4h)</span>
-              <span className="text-blue-600 font-bold">Peak Engagement Window</span>
-              <span>Organic Decay Tail</span>
+            <div className="mt-2 text-center text-xs text-[#8d929a]">
+              Figure 1: Smooth parabolic curve vs erratic drop-and-spike graphs analyzed by Whop & ContentReward automated reviewers.
             </div>
-
-            <Link
-              href="/dashboard/automation"
-              className="mt-6 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-xs"
-            >
-              <span>Configure This Curve in Dashboard</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
           </div>
         </div>
       </section>
 
-      {/* ─── 4. Live Services & Pricing Catalog ─── */}
-      <section id="services" className="py-16 px-4 sm:px-8 max-w-7xl mx-auto border-t border-slate-100 dark:border-slate-800">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-          <div>
-            <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-              Transparent Pricing
-            </span>
-            <h2 className="text-3xl font-black text-slate-900 dark:text-white mt-1">
-              Top Services & Instant Rates
+      {/* ── 4-STEP WORKFLOW ── */}
+      <section id="workflow" className="py-24 bg-white">
+        <div className="max-w-[1180px] mx-auto px-6">
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <div className="text-xs font-black uppercase tracking-wider text-[#246bfe]">
+              Step-By-Step
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#111214] mt-2.5">
+              From submission to payout.
             </h2>
-            <p className="text-xs text-slate-500 mt-1">
-              No hidden fees. Free refills included with all guaranteed servers.
+            <p className="text-[#6b7078] mt-2 text-base">
+              Four straightforward steps to maximize your clipping rewards with zero risk of disqualification.
             </p>
           </div>
 
-          {/* Platform Tab Buttons */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-xl p-1.5 scrollbar-none">
-            {["INSTAGRAM", "YOUTUBE", "TIKTOK", "TELEGRAM", "TWITTER"].map((p) => (
-              <button
-                key={p}
-                onClick={() => setActivePlatform(p)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  activePlatform === p
-                    ? "bg-blue-600 text-white shadow-xs"
-                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                }`}
-              >
-                {p === "TWITTER" ? "Twitter (X)" : p.charAt(0) + p.slice(1).toLowerCase()}
-              </button>
-            ))}
-          </div>
-        </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="p-6 rounded-2xl border border-[#e9e9ec] bg-white relative">
+              <span className="text-xs font-black text-blue-600 block mb-3">STEP 01</span>
+              <h3 className="text-lg font-bold text-neutral-900 mb-2">Submit Link</h3>
+              <p className="text-sm text-[#6b7078] leading-relaxed">
+                Paste your TikTok or Instagram Reel clipping submission link and select your desired volume.
+              </p>
+            </div>
 
-        {/* Services Table */}
-        <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
-          <div className="overflow-x-auto -mx-6 px-6">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase">
-                  <th className="py-3 px-2">Service</th>
-                  <th className="py-3 px-2">Rate / 1k</th>
-                  <th className="py-3 px-2">Delivery Speed</th>
-                  <th className="py-3 px-2">Refill Guarantee</th>
-                  <th className="py-3 px-2 text-right">Order</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                {sampleServices[activePlatform]?.map((s, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
-                    <td className="py-4 px-2 font-bold text-slate-900 dark:text-white">
-                      {s.name}
-                    </td>
-                    <td className="py-4 px-2 font-black text-blue-600 dark:text-blue-400">
-                      {s.rate}
-                    </td>
-                    <td className="py-4 px-2 text-slate-500 font-mono">
-                      {s.speed}
-                    </td>
-                    <td className="py-4 px-2 text-emerald-600 font-semibold">
-                      {s.refill}
-                    </td>
-                    <td className="py-4 px-2 text-right">
-                      <Link
-                        href="/dashboard"
-                        className="px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white font-bold transition-all inline-flex items-center gap-1"
-                      >
-                        <span>Order</span>
-                        <ArrowUpRight className="w-3.5 h-3.5" />
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="p-6 rounded-2xl border border-[#e9e9ec] bg-white relative">
+              <span className="text-xs font-black text-blue-600 block mb-3">STEP 02</span>
+              <h3 className="text-lg font-bold text-neutral-900 mb-2">Hardware Dispatch</h3>
+              <p className="text-sm text-[#6b7078] leading-relaxed">
+                Our viewfarm routes the order across physical smartphones with authentic residential device fingerprints.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-2xl border border-[#e9e9ec] bg-white relative">
+              <span className="text-xs font-black text-blue-600 block mb-3">STEP 03</span>
+              <h3 className="text-lg font-bold text-neutral-900 mb-2">Natural Retention</h3>
+              <p className="text-sm text-[#6b7078] leading-relaxed">
+                Views are watched for 3 to 7 genuine seconds, creating a safe, human engagement profile without drops.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-2xl border border-[#e9e9ec] bg-white relative">
+              <span className="text-xs font-black text-blue-600 block mb-3">STEP 04</span>
+              <h3 className="text-lg font-bold text-neutral-900 mb-2">Collect Rewards</h3>
+              <p className="text-sm text-[#6b7078] leading-relaxed">
+                Submit on Whop, ContentReward, or Clipster. Clear compliance reviews smoothly and claim your reward.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ─── 5. How It Works (4 Steps) ─── */}
-      <section id="how-it-works" className="py-16 px-4 sm:px-8 max-w-7xl mx-auto border-t border-slate-100 dark:border-slate-800 text-center">
-        <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-          Simple 4-Step Process
-        </span>
-        <h2 className="text-3xl font-black text-slate-900 dark:text-white mt-1">
-          How BotClips Works
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 mt-12 text-left">
-          <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-sm mb-4">
-              01
+      {/* ── FAQ SECTION ── */}
+      <section id="faq" className="py-20 bg-[#fafafa] border-t border-[#e9e9ec]">
+        <div className="max-w-[800px] mx-auto px-6">
+          <div className="text-center mb-12">
+            <div className="text-xs font-black uppercase tracking-wider text-[#246bfe]">
+              Got Questions?
             </div>
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white">Create Account</h3>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Sign up in 10 seconds. Deposit funds securely via UPI or Crypto to start placing orders.
-            </p>
+            <h2 className="text-3xl font-extrabold tracking-tight text-[#111214] mt-2">
+              Frequently Asked Questions
+            </h2>
           </div>
 
-          <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-sm mb-4">
-              02
-            </div>
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white">Add Funds</h3>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Scan our dynamic UPI QR code with GPay/PhonePe or send Crypto USDT with 0% fee.
-            </p>
-          </div>
-
-          <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-sm mb-4">
-              03
-            </div>
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white">Pick Your Service</h3>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Choose your platform, paste your video/profile link, and select your organic drip-feed curve.
-            </p>
-          </div>
-
-          <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center font-black text-sm mb-4">
-              04
-            </div>
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white">Watch Viral Delivery</h3>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Our automated SMM API dispatches your order instantly with live tracking & 30-day refills.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── 6. FAQ Accordion ─── */}
-      <section id="faq" className="py-16 px-4 sm:px-8 max-w-4xl mx-auto border-t border-slate-100 dark:border-slate-800">
-        <div className="text-center mb-10">
-          <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Got Questions?</span>
-          <h2 className="text-3xl font-black text-slate-900 dark:text-white mt-1">Frequently Asked Questions</h2>
-        </div>
-
-        <div className="space-y-3">
-          {faqs.map((faq, i) => {
-            const isOpen = faqOpen === i;
-            return (
-              <div
-                key={i}
-                className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs"
+          <div className="space-y-3">
+            {faqs.map((faq, idx) => (
+              <div 
+                key={idx} 
+                className="border border-[#e4e6eb] rounded-xl bg-white overflow-hidden"
               >
                 <button
-                  onClick={() => setFaqOpen(isOpen ? null : i)}
-                  className="w-full p-5 text-left flex items-center justify-between gap-4 font-bold text-sm text-slate-900 dark:text-white cursor-pointer"
+                  onClick={() => toggleFaq(idx)}
+                  className="w-full px-6 py-4 text-left flex items-center justify-between font-bold text-sm sm:text-base text-neutral-900 hover:text-blue-600 transition-colors"
                 >
                   <span>{faq.q}</span>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                  {faqOpen === idx ? (
+                    <ChevronUp className="w-5 h-5 text-neutral-400 shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-neutral-400 shrink-0" />
+                  )}
                 </button>
-                {isOpen && (
-                  <div className="px-5 pb-5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed border-t border-slate-100 dark:border-slate-800/60 pt-3">
+                {faqOpen === idx && (
+                  <div className="px-6 pb-4 pt-1 text-sm text-[#6b7078] leading-relaxed border-t border-neutral-100">
                     {faq.a}
                   </div>
                 )}
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* ─── 7. CTA Banner & Footer ─── */}
-      <section className="py-16 px-4 sm:px-8 max-w-7xl mx-auto text-center">
-        <div className="bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-3xl p-10 sm:p-14 text-white shadow-xl shadow-blue-500/20">
-          <h2 className="text-3xl sm:text-5xl font-black tracking-tight">
-            Ready to Automate Your Social Reach?
+      {/* ── FINAL CTA BANNER ── */}
+      <div className="max-w-[1180px] mx-auto px-6 my-20">
+        <div className="bg-[#111214] text-white rounded-3xl p-10 sm:p-14 text-center relative overflow-hidden shadow-2xl">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,#246bfe30,transparent_60%)] pointer-events-none" />
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight mb-4">
+            Ready to secure your clipping payouts?
           </h2>
-          <p className="mt-3 text-sm sm:text-base text-blue-100 max-w-2xl mx-auto">
-            Join thousands of creators and agencies using BotClips to scale engagement safely.
+          <p className="text-neutral-400 max-w-xl mx-auto mb-8 text-base leading-relaxed">
+            Join professional clippers using BotClips to scale campaigns, maintain clean audit scores, and prevent view rejections.
           </p>
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
               href="/signup"
-              className="px-8 py-3.5 rounded-xl bg-white text-blue-600 hover:bg-slate-100 font-black text-sm shadow-md transition-all"
+              className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-white hover:bg-neutral-100 text-[#111214] font-extrabold text-sm shadow-md transition-all cursor-pointer"
             >
-              Create Free Account & Start
+              Create BotClips Account
             </Link>
             <Link
-              href="/dashboard"
-              className="px-8 py-3.5 rounded-xl bg-blue-700/80 hover:bg-blue-700 text-white font-bold text-sm transition-all"
+              href="/login"
+              className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-white font-bold text-sm border border-neutral-700 transition-all"
             >
-              Open Live Dashboard
+              Sign In to Dashboard
             </Link>
           </div>
         </div>
-      </section>
+      </div>
 
-      <footer className="border-t border-slate-100 dark:border-slate-800 py-8 px-4 text-center text-xs text-slate-400">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+      {/* ── FOOTER ── */}
+      <footer className="border-t border-[#e9e9ec] py-8 text-[#6b7078] text-xs">
+        <div className="max-w-[1180px] mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Bot className="w-5 h-5 text-blue-600" />
-            <span className="font-bold text-slate-700 dark:text-slate-300">BotClips SMM Automation</span>
+            <span className="font-bold text-neutral-900">BotClips</span>
+            <span>—</span>
+            <span>High-Retention Clipping Infrastructure</span>
           </div>
-          <div>© 2026 BotClips / DhillonSMM. Powered by Cloudflare & Vercel.</div>
-          <div className="flex items-center gap-4 text-slate-500">
-            <Link href="/login" className="hover:text-blue-600">Client Login</Link>
-            <Link href="/dashboard/services" className="hover:text-blue-600">Services</Link>
-            <Link href="/signup" className="hover:text-blue-600">Create Account</Link>
+          <div className="flex items-center gap-6">
+            <Link href="/login" className="hover:text-neutral-900 transition-colors">Sign In</Link>
+            <Link href="/signup" className="hover:text-neutral-900 transition-colors">Register</Link>
+            <span>© {new Date().getFullYear()} BotClips. All rights reserved.</span>
           </div>
         </div>
       </footer>
 
+      {/* ── IMAGE MODAL PREVIEW ── */}
+      {selectedImage && (
+        <div 
+          onClick={() => setSelectedImage(null)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm p-4 flex items-center justify-center cursor-pointer"
+        >
+          <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center">
+            <button 
+              onClick={() => setSelectedImage(null)}
+              className="absolute -top-10 right-0 text-white hover:text-neutral-300 p-2 text-xl font-bold"
+            >
+              ✕ Close
+            </button>
+            <img 
+              src={selectedImage} 
+              alt="Campaign Screenshot" 
+              className="max-h-[85vh] w-auto max-w-full rounded-xl shadow-2xl object-contain" 
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

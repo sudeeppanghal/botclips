@@ -25,7 +25,7 @@ export default function AddFundsModal({
 
   if (!isOpen) return null;
 
-  const upiId = "dhillonsmm@axl";
+  const upiId = "Jaatdhillon@fam";
   const upiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=upi://pay?pa=${encodeURIComponent(upiId)}%26pn=DhillonSMM%26am=${amount}%26cu=INR`;
 
   const copyUpi = () => {
@@ -214,7 +214,7 @@ export default function AddFundsModal({
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
               <span className="text-xs font-bold uppercase text-slate-400">USDT TRC20 Address</span>
               <p className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200 break-all mt-1">
-                TYDvh7Q1z3bW9Gj3R2x7Kq9L6m4V2p8A1Z
+                TVTjQKqYuntgk6EfD6PqeFvezZnVCCimjz
               </p>
             </div>
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">

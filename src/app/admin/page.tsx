@@ -118,7 +118,7 @@ export default function AdminDashboardPage() {
     siteName: "BotClips",
     currencySymbol: "₹",
     usdToInr: 96.0,
-    upiId: "dhillonsmm@axl",
+    upiId: "Jaatdhillon@fam",
     telegram: "@dhillionsmm_support",
     whatsapp: "+91 99999 99999",
     minDeposit: 50,

@@ -45,8 +45,8 @@ export default function WalletPage() {
     loadData();
   }, []);
 
-  const upiId = "dhillonsmm@axl";
-  const trc20 = "TYDvh7Q1z3bW9Gj3R2x7Kq9L6m4V2p8A1Z";
+  const upiId = "Jaatdhillon@fam";
+  const trc20 = "TVTjQKqYuntgk6EfD6PqeFvezZnVCCimjz";
   const activeAmount = customAmount ? Number(customAmount) : amount;
   const upiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=upi://pay?pa=${encodeURIComponent(upiId)}%26pn=BotClips%26am=${activeAmount}%26cu=INR`;
 

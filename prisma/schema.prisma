@@ -1,0 +1,271 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ──────────────── USER MODEL ────────────────
+model User {
+  id              String        @id @default(cuid())
+  email           String        @unique
+  passwordHash    String?       @map("password_hash")
+  name            String?
+  phone           String?
+  avatarUrl       String?       @map("avatar_url")
+  role            Role          @default(USER)
+  balance         Float         @default(0.0)
+  totalSpent      Float         @default(0.0) @map("total_spent")
+  apiKey          String?       @unique @map("api_key")
+  customDiscount  Float         @default(0.0) @map("custom_discount") // percentage discount
+  status          UserStatus    @default(ACTIVE)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  orders          Order[]
+  upiPayments     UpiPayment[]
+  cryptoPayments  CryptoPayment[]
+  supportTickets  SupportTicket[]
+  ticketMessages  TicketMessage[]
+  auditLogs       AuditLog[]
+
+  @@map("users")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+// ──────────────── SMM PROVIDER PANEL ────────────────
+model Panel {
+  id              String        @id @default(cuid())
+  name            String        // e.g. "Main JAP Provider"
+  apiUrl          String        @map("api_url")
+  apiKeyEncrypted String        @map("api_key_encrypted")
+  priority        Int           @default(1)
+  isActive        Boolean       @default(true) @map("is_active")
+  balance         Float?        @default(0.0)
+  currency        String?       @default("USD")
+  lastCheckedAt   DateTime?     @map("last_checked_at")
+  status          PanelStatus   @default(ONLINE)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  services        AdminService[]
+  orders          Order[]
+
+  @@map("panels")
+}
+
+enum PanelStatus {
+  ONLINE
+  OFFLINE
+  ERROR
+}
+
+// ──────────────── SERVICE CATALOG ────────────────
+model AdminService {
+  id              String        @id @default(cuid())
+  panelId         String        @map("panel_id")
+  panel           Panel         @relation(fields: [panelId], references: [id], onDelete: Cascade)
+  platform        Platform      @default(INSTAGRAM)
+  category        String        // e.g. "Instagram Followers - Guaranteed"
+  name            String        // e.g. "Instagram Real HQ Followers"
+  serviceId       String        @map("service_id") // ID in upstream provider
+  originalRate    Float         @map("original_rate") // rate per 1000 from upstream API
+  customRate      Float         @map("custom_rate") // rate per 1000 shown to users
+  minQuantity     Int           @default(10) @map("min_quantity")
+  maxQuantity     Int           @default(1000000) @map("max_quantity")
+  type            String        @default("Default") // Default, Custom Comments, Mentions, etc.
+  dripfeed        Boolean       @default(false)
+  refill          Boolean       @default(false)
+  cancel          Boolean       @default(false)
+  description     String?       @db.Text
+  isActive        Boolean       @default(true) @map("is_active")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  orders          Order[]
+
+  @@index([panelId])
+  @@index([platform])
+  @@index([category])
+  @@map("admin_services")
+}
+
+enum Platform {
+  INSTAGRAM
+  YOUTUBE
+  TIKTOK
+  TELEGRAM
+  TWITTER
+  FACEBOOK
+  SPOTIFY
+  OTHER
+}
+
+// ──────────────── ORDER MODEL ────────────────
+model Order {
+  id              String        @id @default(cuid())
+  userId          String        @map("user_id")
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId       String        @map("service_id")
+  service         AdminService  @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  panelId         String?       @map("panel_id")
+  panel           Panel?        @relation(fields: [panelId], references: [id], onDelete: SetNull)
+
+  link            String
+  quantity        Int
+  charge          Float
+  startCount      Int?          @default(0) @map("start_count")
+  remains         Int?          @map("remains")
+  
+  // Drip-feed / Organic curve options
+  runs            Int           @default(1)
+  intervalMinutes Int           @default(0) @map("interval_minutes")
+  curveStyle      String?       @default("ORGANIC") @map("curve_style")
+
+  // Upstream tracking
+  providerOrderId String?       @map("provider_order_id")
+  status          OrderStatus   @default(PENDING)
+  failReason      String?       @map("fail_reason")
+
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([serviceId])
+  @@index([status])
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  IN_PROGRESS
+  COMPLETED
+  PARTIAL
+  CANCELLED
+  REFUNDED
+  FAILED
+}
+
+// ──────────────── UPI PAYMENTS ────────────────
+model UpiPayment {
+  id              String        @id @default(cuid())
+  userId          String        @map("user_id")
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  utr             String        @unique
+  amount          Float
+  status          PaymentStatus @default(PENDING)
+  rejectReason    String?       @map("reject_reason")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("upi_payments")
+}
+
+// ──────────────── CRYPTO PAYMENTS ────────────────
+model CryptoPayment {
+  id              String        @id @default(cuid())
+  userId          String        @map("user_id")
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  network         String        // TRC20 or BEP20
+  walletAddress   String        @map("wallet_address")
+  txHash          String        @unique @map("tx_hash")
+  amountUsdt      Float         @map("amount_usdt")
+  status          PaymentStatus @default(PENDING)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("crypto_payments")
+}
+
+enum PaymentStatus {
+  PENDING
+  VERIFYING
+  CONFIRMED
+  REJECTED
+}
+
+// ──────────────── SUPPORT TICKETS ────────────────
+model SupportTicket {
+  id              String          @id @default(cuid())
+  userId          String          @map("user_id")
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject         String
+  relatedOrderId  String?         @map("related_order_id")
+  status          TicketStatus    @default(OPEN)
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  messages        TicketMessage[]
+
+  @@index([userId])
+  @@map("support_tickets")
+}
+
+enum TicketStatus {
+  OPEN
+  ANSWERED
+  CUSTOMER_REPLY
+  CLOSED
+}
+
+model TicketMessage {
+  id              String          @id @default(cuid())
+  ticketId        String          @map("ticket_id")
+  ticket          SupportTicket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId          String          @map("user_id")
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message         String          @db.Text
+  isAdmin         Boolean         @default(false) @map("is_admin")
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  @@index([ticketId])
+  @@map("ticket_messages")
+}
+
+// ──────────────── SITE SETTINGS ────────────────
+model AdminSettings {
+  id              String        @id @default("global")
+  siteName        String        @default("BotClips") @map("site_name")
+  currency        String        @default("INR")
+  currencySymbol  String        @default("₹") @map("currency_symbol")
+  usdToInrRate    Float         @default(88.0) @map("usd_to_inr_rate")
+  upiId           String?       @default("dhillon@upi") @map("upi_id")
+  upiQrCodeUrl    String?       @map("upi_qr_code_url")
+  trc20Address    String?       @map("trc20_address")
+  bep20Address    String?       @map("bep20_address")
+  supportEmail    String?       @default("support@dhillionsmm.com") @map("support_email")
+  supportTelegram String?       @default("@dhillionsmm_support") @map("support_telegram")
+  supportWhatsapp String?       @default("+919999999999") @map("support_whatsapp")
+  minDeposit      Float         @default(100.0) @map("min_deposit")
+  maintenanceMode Boolean       @default(false) @map("maintenance_mode")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@map("admin_settings")
+}
+
+model AuditLog {
+  id              String        @id @default(cuid())
+  userId          String?       @map("user_id")
+  user            User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action          String
+  details         String?       @db.Text
+  ipAddress       String?       @map("ip_address")
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}

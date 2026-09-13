@@ -48,7 +48,10 @@ export async function POST(request: NextRequest) {
       intervalMinutes = 0,
       charge = 0,
       category,
-      service: serviceName
+      service: serviceName,
+      deliveryGraphId,
+      deliveryGraphName,
+      durationHours,
     } = body;
 
     if (!link || !quantity || Number(quantity) <= 0) {
@@ -113,16 +116,30 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Ensure valid serviceId foreign key for Order model
+      let dbService = await prisma.adminService.findFirst({
+        where: {
+          OR: [
+            { id: String(serviceId) },
+            { serviceId: String(serviceId) },
+          ],
+        },
+      });
+      if (!dbService) {
+        dbService = await prisma.adminService.findFirst();
+      }
+
       // Record order without deducting BotClips wallet balance (subscriber pays $5/$25 fee)
       const order = await prisma.order.create({
         data: {
           userId: dbUser.id,
-          serviceId: String(subscriberServiceId || "custom_api_service"),
+          serviceId: dbService?.id || String(serviceId),
           link,
           quantity: Number(quantity),
           charge: 0, // Funded directly from subscriber's SMM panel balance
           runs: Number(runs),
           intervalMinutes: Number(intervalMinutes),
+          curveStyle: deliveryGraphName ? `${deliveryGraphName} (${deliveryGraphId || "custom"})` : (deliveryGraphId || "CUSTOM_API"),
           providerOrderId,
           status: "PROCESSING",
         },
@@ -142,6 +159,7 @@ export async function POST(request: NextRequest) {
     let mappedUpstreamServiceId = serviceId || "1";
     let calculatedRate = Number(charge || 0);
     let targetPanelId: string | null = null;
+    let adminServiceRecord: any = null;
 
     try {
       const adminService = await prisma.adminService.findFirst({
@@ -157,6 +175,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (adminService) {
+        adminServiceRecord = adminService;
         mappedUpstreamServiceId = adminService.serviceId;
         calculatedRate = adminService.customRate;
         targetPanelId = adminService.panelId;
@@ -216,16 +235,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Record order in database
+    const resolvedAdminService = adminServiceRecord || (await prisma.adminService.findFirst());
     const order = await prisma.order.create({
       data: {
         userId: dbUser.id,
-        serviceId: String(mappedUpstreamServiceId),
+        serviceId: resolvedAdminService ? resolvedAdminService.id : String(mappedUpstreamServiceId),
         panelId: panel?.id || null,
         link,
         quantity: Number(quantity),
         charge: totalCost,
         runs: Number(runs),
         intervalMinutes: Number(intervalMinutes),
+        curveStyle: deliveryGraphName ? `${deliveryGraphName} (${deliveryGraphId || "custom"})` : (deliveryGraphId || "ORGANIC"),
         providerOrderId,
         status: "PROCESSING",
       },

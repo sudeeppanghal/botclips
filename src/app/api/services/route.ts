@@ -29,16 +29,24 @@ export async function GET(request: NextRequest) {
     if (services.length > 0) {
       return NextResponse.json({
         success: true,
-        services: services.map((s) => ({
-          id: s.id,
-          platform: s.platform,
-          cat: s.category,
-          name: s.name,
-          serviceId: s.serviceId,
-          rate: s.customRate,
-          min: s.minQuantity,
-          max: s.maxQuantity,
-        })),
+        services: services.map((s) => {
+          const rateInr = Number(s.customRate || 0);
+          const rateUsd = Number((rateInr / 96).toFixed(2));
+          return {
+            id: s.id,
+            platform: s.platform,
+            cat: s.category,
+            name: s.name,
+            serviceId: s.serviceId,
+            rate: rateInr,
+            rateInr,
+            rateUsd,
+            rateInrFormatted: `₹${rateInr.toFixed(2)}`,
+            rateUsdFormatted: `$${rateUsd.toFixed(2)}`,
+            min: s.minQuantity,
+            max: s.maxQuantity,
+          };
+        }),
       });
     }
 

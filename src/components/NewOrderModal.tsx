@@ -1,8 +1,20 @@
 "use client";
 
-import React, { useState } from "react";
-import { X, ShoppingCart, CheckCircle2, AlertCircle, Sparkles } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { 
+  X, 
+  ShoppingCart, 
+  CheckCircle2, 
+  AlertCircle, 
+  Sparkles, 
+  TrendingUp, 
+  Activity, 
+  Clock, 
+  ShieldCheck 
+} from "lucide-react";
 import { PlatformType } from "@/lib/types";
+import DeliveryGraphSelectorModal from "@/components/DeliveryGraphSelectorModal";
+import { DeliveryCurve, getDeliveryGraphById } from "@/lib/delivery-graphs";
 
 interface NewOrderModalProps {
   isOpen: boolean;
@@ -17,14 +29,14 @@ export default function NewOrderModal({
   isOpen,
   onClose,
   defaultPlatform = "INSTAGRAM",
-  walletBalance = 520.00,
+  walletBalance = 0.00,
   currencySymbol = "₹",
   onOrderSuccess
 }: NewOrderModalProps) {
   const [platform, setPlatform] = useState<PlatformType>(defaultPlatform);
-  const [category, setCategory] = useState("Instagram Followers [Instant & High Quality]");
-  const [service, setService] = useState("1024 - Instagram Real HQ Followers [Instant]");
-  const [ratePer1k, setRatePer1k] = useState(180);
+  const [category, setCategory] = useState("Instagram Followers");
+  const [service, setService] = useState("Instagram Real HQ Followers [Instant, 30 Days Refill]");
+  const [ratePer1k, setRatePer1k] = useState(120);
   const [link, setLink] = useState("");
   const [quantity, setQuantity] = useState(1000);
   const [isDripFeed, setIsDripFeed] = useState(false);
@@ -33,6 +45,32 @@ export default function NewOrderModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  // Custom Delivery Graph State
+  const [selectedGraph, setSelectedGraph] = useState<DeliveryCurve>(getDeliveryGraphById("viral_exp_takeoff"));
+  const [graphModalOpen, setGraphModalOpen] = useState(false);
+  const [availableServices, setAvailableServices] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadCatalog() {
+      try {
+        const res = await fetch(`/api/services?platform=${platform}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.services) && data.services.length > 0) {
+          setAvailableServices(data.services);
+          const first = data.services[0];
+          setService(first.name);
+          setRatePer1k(Number(first.rate || 120));
+          if (first.cat) setCategory(first.cat);
+        }
+      } catch (e) {
+        console.error("Failed to load services", e);
+      }
+    }
+    if (isOpen) {
+      loadCatalog();
+    }
+  }, [platform, isOpen]);
 
   if (!isOpen) return null;
 
@@ -142,6 +180,9 @@ export default function NewOrderModal({
           link,
           quantity: totalQuantity,
           charge: totalCost,
+          deliveryGraphId: selectedGraph.id,
+          deliveryGraphName: selectedGraph.name,
+          durationHours: selectedGraph.durationHours,
           runs: isDripFeed ? runs : 1,
           intervalMinutes: isDripFeed ? interval : 0
         })
@@ -256,17 +297,35 @@ export default function NewOrderModal({
                 Service
               </label>
               <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
-                Rate: {currencySymbol}{ratePer1k} / 1k
+                Rate: ₹{ratePer1k.toFixed(2)} (${(ratePer1k / 96).toFixed(2)}) / 1k
               </span>
             </div>
             <select
               value={service}
-              onChange={(e) => setService(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setService(val);
+                const found = availableServices.find(s => s.name === val || `${s.serviceId || s.id} - ${s.name}` === val);
+                if (found) {
+                  setRatePer1k(Number(found.rate || 120));
+                  if (found.cat) setCategory(found.cat);
+                }
+              }}
               className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
             >
-              <option value={service}>{service}</option>
-              <option value="Standard Fast Delivery Server">Standard Fast Delivery Server</option>
-              <option value="High Speed No Drop Server">High Speed No Drop Server</option>
+              {availableServices.length > 0 ? (
+                availableServices.map((s) => (
+                  <option key={s.id} value={s.name}>
+                    {s.name} — ₹{Number(s.rate).toFixed(2)} (${(Number(s.rate) / 96).toFixed(2)}) / 1k
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value={service}>{service}</option>
+                  <option value="High Speed Cluster A Node">High Speed Cluster A Node (0% Loss)</option>
+                  <option value="Ultra Retention Cluster B Node">Ultra Retention Cluster B Node (Anti-Drop)</option>
+                </>
+              )}
             </select>
           </div>
 
@@ -303,6 +362,62 @@ export default function NewOrderModal({
             />
           </div>
 
+          {/* ──────────────── CUSTOM DELIVERY GRAPH (60 PRESETS) ──────────────── */}
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50/70 via-indigo-50/40 to-transparent dark:from-blue-950/30 dark:to-transparent border border-blue-200/80 dark:border-blue-900/50 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                  Delivery Velocity Graph
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-600 text-white uppercase">
+                  60 Presets
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGraphModalOpen(true)}
+                className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+              >
+                <span>Customize Graph</span>
+                <TrendingUp className="w-3 h-3" />
+              </button>
+            </div>
+
+            {/* Selected Graph Preview Card */}
+            <div 
+              onClick={() => setGraphModalOpen(true)}
+              className="p-3 rounded-xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 cursor-pointer hover:border-blue-400 transition-colors"
+            >
+              <div className="space-y-1 max-w-[270px]">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs font-black text-slate-900 dark:text-white truncate">
+                    {selectedGraph.name}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                  <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                    <Clock className="w-3 h-3" /> {selectedGraph.durationHours}h Pace
+                  </span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                    <ShieldCheck className="w-3 h-3" /> {selectedGraph.safetyRating}% Safe
+                  </span>
+                </div>
+              </div>
+
+              {/* Mini SVG curve preview */}
+              <div className="w-24 h-11 bg-slate-950 rounded-lg p-1.5 flex items-center justify-center shrink-0 border border-slate-800">
+                <svg viewBox="0 0 100 100" className="w-full h-full stroke-cyan-400" preserveAspectRatio="none">
+                  <path d={selectedGraph.svgPath} fill="none" strokeWidth="4" strokeLinecap="round" />
+                </svg>
+              </div>
+            </div>
+            <p className="text-[10px] text-slate-400">
+              {selectedGraph.description}
+            </p>
+          </div>
+
           {/* Drip-Feed Option */}
           <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
             <label className="flex items-center gap-2 cursor-pointer">
@@ -313,7 +428,7 @@ export default function NewOrderModal({
                 className="w-4 h-4 rounded-md accent-blue-600"
               />
               <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                Enable Drip-Feed (Organic Delivery Schedule)
+                Enable Multi-Run Pacing (Sub-Batch Intervals)
               </span>
             </label>
 
@@ -345,18 +460,18 @@ export default function NewOrderModal({
             )}
           </div>
 
-          {/* Pricing & Balance Overview */}
+          {/* Pricing & Balance Overview with Dual Currency */}
           <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 flex items-center justify-between">
             <div>
               <div className="text-xs text-slate-500 dark:text-slate-400">Total Charge:</div>
               <div className="text-xl font-black text-blue-600 dark:text-blue-400">
-                {currencySymbol}{totalCost.toFixed(2)}
+                ₹{totalCost.toFixed(2)} <span className="text-xs font-bold text-slate-400">(${(totalCost / 96).toFixed(2)})</span>
               </div>
             </div>
             <div className="text-right">
               <div className="text-xs text-slate-500 dark:text-slate-400">Wallet Balance:</div>
               <div className={`text-sm font-bold ${hasSufficientBalance ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600"}`}>
-                {currencySymbol}{walletBalance.toFixed(2)}
+                ₹{walletBalance.toFixed(2)} <span className="text-[11px] font-normal text-slate-400">(${(walletBalance / 96).toFixed(2)})</span>
               </div>
             </div>
           </div>
@@ -371,6 +486,13 @@ export default function NewOrderModal({
           </button>
         </form>
       </div>
+
+      <DeliveryGraphSelectorModal
+        isOpen={graphModalOpen}
+        onClose={() => setGraphModalOpen(false)}
+        selectedGraphId={selectedGraph.id}
+        onSelectGraph={(g) => setSelectedGraph(g)}
+      />
     </div>
   );
 }

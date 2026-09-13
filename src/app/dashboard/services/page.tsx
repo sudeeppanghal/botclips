@@ -132,18 +132,24 @@ export default function ServicesPage() {
                       #{s.serviceId || s.id}
                     </td>
                     <td className="py-4 px-2">
-                      <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap">
                         <span>{s.name}</span>
-                        {s.rate <= 50 && (
-                          <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 text-[10px] font-bold flex items-center gap-0.5">
-                            <Sparkles className="w-2.5 h-2.5" /> High Retention
-                          </span>
-                        )}
+                        <span className="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-[10px] font-bold">
+                          3x Wholesale Node
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 text-[10px] font-bold">
+                          60 Curves
+                        </span>
                       </div>
                       <div className="text-[11px] text-slate-400 mt-0.5 font-medium">{s.cat}</div>
                     </td>
-                    <td className="py-4 px-2">
-                      <span className="font-black text-slate-900 dark:text-white text-sm">₹{Number(s.rate).toFixed(2)}</span>
+                    <td className="py-4 px-2 whitespace-nowrap">
+                      <div className="font-black text-slate-900 dark:text-white text-sm">
+                        ₹{Number(s.rate).toFixed(2)}
+                      </div>
+                      <div className="text-[11px] font-bold text-slate-400">
+                        ${(Number(s.rate) / 96).toFixed(2)} USD
+                      </div>
                     </td>
                     <td className="py-4 px-2 text-slate-500 font-mono text-[11px]">
                       {Number(s.min).toLocaleString()} / {Number(s.max).toLocaleString()}
@@ -156,7 +162,7 @@ export default function ServicesPage() {
                         }}
                         className="px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white font-bold transition-all cursor-pointer inline-flex items-center gap-1 text-xs"
                       >
-                        <span>Order</span>
+                        <span>Configure & Order</span>
                         <ArrowUpRight className="w-3.5 h-3.5" />
                       </button>
                     </td>

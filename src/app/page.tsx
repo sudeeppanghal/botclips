@@ -25,7 +25,22 @@ import {
   DollarSign,
   Filter,
   Flame,
-  CheckCircle
+  CheckCircle,
+  Play,
+  Pause,
+  AlertTriangle,
+  Info,
+  Maximize2,
+  Video,
+  Radio,
+  Sliders,
+  Clock,
+  ThumbsUp,
+  MessageSquare,
+  Share2,
+  Bookmark,
+  Bell,
+  Globe
 } from "lucide-react";
 import BotClipsLogo from "@/components/BotClipsLogo";
 
@@ -33,112 +48,146 @@ export default function HomePage() {
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
   const [selectedProofIndex, setSelectedProofIndex] = useState<number | null>(null);
   const [proofFilter, setProofFilter] = useState<string>("ALL");
+  const [activeVideoTab, setActiveVideoTab] = useState<number>(0);
+  const [selectedImageModal, setSelectedImageModal] = useState<string | null>(null);
 
   const toggleFaq = (idx: number) => {
     setFaqOpen(faqOpen === idx ? null : idx);
   };
 
-  const proofScreenshots = [
+  // Real Client Proofs & High-Value Earnings Showcases from public/proofs & public/screenshots
+  const allProofs = [
     {
       id: 1,
+      src: "/proofs/whop-lockscreen-payouts.jpg",
+      platform: "Whop Notifications",
+      payout: "$1,487+",
+      views: "Daily Payout Stream",
+      botScore: "0 / 100",
+      status: "APPROVED",
+      category: "PAYOUTS",
+      title: "Consecutive Daily Whop Payouts ($380, $288, $189...)",
+      caption: "Live lockscreen alerts from Content Rewards HQ: Multiple same-day payouts approved and credited directly to clipper account without flags.",
+      badge: "Consecutive Payouts",
+      likes: "7 Streams",
+      isHighlight: true
+    },
+    {
+      id: 2,
+      src: "/proofs/content-reward-300-approved.jpg",
+      platform: "Content Rewards",
+      payout: "$300.00",
+      views: "3,866,908 Views",
+      botScore: "0 / 100",
+      status: "APPROVED",
+      category: "PAYOUTS",
+      title: "Mybet Campaign: $300 Payout Approved (Green Shield 0)",
+      caption: "3.86M views, 72,232 likes, 320 comments. Clean human retention curve clearing moderator inspection with instant approval.",
+      badge: "$300 Approved",
+      likes: "72.2K Likes",
+      isHighlight: true
+    },
+    {
+      id: 3,
+      src: "/proofs/admin-caught-vs-passed.jpg",
+      platform: "Moderation Console",
+      payout: "$1,459.06",
+      views: "User Audit Panel",
+      botScore: "0 / 100",
+      status: "APPROVED",
+      category: "AUDIT",
+      title: "Admin POV: Trusted Clipper (76%) vs Botted Clipper (37%)",
+      caption: "Real admin panel comparing Reniyo ($1,459 paid, 76% Trust Score) vs Goalkeeper_go (37% Trust Score with red alert flags).",
+      badge: "Real Admin Audit",
+      likes: "2,145 Users",
+      isHighlight: true
+    },
+    {
+      id: 4,
+      src: "/proofs/whop-earning-5230.jpg",
+      platform: "Whop Business",
+      payout: "$5,230.44",
+      views: "Top Clipper",
+      botScore: "0 / 100",
+      status: "APPROVED",
+      category: "PAYOUTS",
+      title: "Creator ak47boss: $5,230.44 Total Earnings",
+      caption: "Whop business dashboard revenue for top agency clipper scaling brand campaigns using BotClips high-retention infrastructure.",
+      badge: "$5,230+ Earned",
+      likes: "Verified Account"
+    },
+    {
+      id: 5,
+      src: "/proofs/whop-earning-3860.jpg",
+      platform: "Whop Business",
+      payout: "$3,860.48",
+      views: "100M+ Views",
+      botScore: "0 / 100",
+      status: "APPROVED",
+      category: "PAYOUTS",
+      title: "ClpCartel: $3,860.48 Earned & 100M+ Views",
+      caption: "Tier 1 Audience Specialist scaling brand campaigns on Whop. Over 100 million organic views delivered without moderation bans.",
+      badge: "$3,860+ Earned",
+      likes: "$1.18K / 30d"
+    },
+    {
+      id: 6,
+      src: "/proofs/content-reward-69-approved.jpg",
+      platform: "Instagram Reels",
+      payout: "$69.08",
+      views: "138,162 Views",
+      botScore: "0 / 100",
+      status: "APPROVED",
+      category: "REELS",
+      title: "Mybet Viral Reel: $69.08 Approved Status",
+      caption: "138,162 views and 1,846 likes with green bot shield (0). Status marked Approved by campaign manager with 0 drops.",
+      badge: "Green Shield 0",
+      likes: "1,846 Likes"
+    },
+    {
+      id: 7,
+      src: "/proofs/tier1-usa-audience.jpg",
+      platform: "Audience Analytics",
+      payout: "Tier 1 Geo",
+      views: "48.4% USA",
+      botScore: "0 / 100",
+      status: "APPROVED",
+      category: "AUDIT",
+      title: "Clean Tier 1 Audience Fingerprint (48.4% USA, 24.2% UK)",
+      caption: "Authentic residential device routing creates high-value Tier 1 demographic distributions required for top CPM payouts.",
+      badge: "USA 48.4% + UK",
+      likes: "Tier 1 Geo"
+    },
+    {
+      id: 8,
+      src: "/proofs/payout-received-breakdown.jpg",
+      platform: "Content Rewards",
+      payout: "$63.97",
+      views: "Payment Timeline",
+      botScore: "0 / 100",
+      status: "APPROVED",
+      category: "PAYOUTS",
+      title: "Transparent Payout Timeline & Direct Deposit",
+      caption: "$63.97 total earnings with $6.26 paid out immediately and $57.71 upcoming milestone release without manual fraud scrutiny.",
+      badge: "Direct Deposit",
+      likes: "Paid Sun Jul 19"
+    },
+    {
+      id: 9,
       src: "/screenshots/1.jpg",
       platform: "TikTok",
       payout: "$5.78",
       views: "1,900+ Views",
       botScore: "0 / 100",
       status: "APPROVED",
-      category: "TIKTOK",
-      title: "Content Rewards — TikTok Campaign Approval",
+      category: "SHORTS_TIKTOK",
+      title: "Galactic TikTok Submission Approved",
       caption: "Brand Galactic on Content Rewards approved submission mopiofficial. Organic curve with zero bot flags.",
       badge: "Verified Approval",
       likes: "11 Likes"
     },
     {
-      id: 2,
-      src: "/screenshots/2.jpg",
-      platform: "YouTube Shorts",
-      payout: "$10.20",
-      views: "6,800 Views",
-      botScore: "0 / 100",
-      status: "APPROVED",
-      category: "SHORTS_TIKTOK",
-      title: "YouTube Shorts Viral Spike & Payout",
-      caption: "Creator reward submission approved with $10.20 estimated payout. 6,800 views, 70 likes and sustained retention.",
-      badge: "Approved Payout",
-      likes: "70 Likes"
-    },
-    {
-      id: 3,
-      src: "/screenshots/3.jpg",
-      platform: "Instagram Reels",
-      payout: "$27.87",
-      views: "18,583 Views",
-      botScore: "0 / 100",
-      status: "APPROVED",
-      category: "REELS",
-      title: "Instagram Reel Sustained Retention",
-      caption: "18,583 views with zero post-delivery dropoff. Linear organic growth curve clearing platform review.",
-      badge: "Clean Retention Curve",
-      likes: "25 Likes"
-    },
-    {
-      id: 4,
-      src: "/screenshots/4.jpg",
-      platform: "Instagram Reels",
-      payout: "$37.00",
-      views: "24,665 Views",
-      botScore: "0 / 100",
-      status: "APPROVED",
-      category: "REELS",
-      title: "High-Engagement Instagram Submission",
-      caption: "24,665 views and 885 likes. Status approved by brand manager with zero bot detection flags and $37 payout.",
-      badge: "Approved Payout",
-      likes: "885 Likes"
-    },
-    {
-      id: 5,
-      src: "/screenshots/5.jpg",
-      platform: "Instagram Reels",
-      payout: "$73.29",
-      views: "48,862 Views",
-      botScore: "0 / 100",
-      status: "APPROVED",
-      category: "REELS",
-      title: "Multi-Day Viral Distribution",
-      caption: "48,862 views with natural multi-day parabolic velocity. Approved payout of $73.29 without manual flags.",
-      badge: "High Earner ($73+)",
-      likes: "298 Likes"
-    },
-    {
-      id: 6,
-      src: "/screenshots/6.jpg",
-      platform: "Instagram Reels",
-      payout: "$7.75",
-      views: "5,166 Views",
-      botScore: "0 / 100",
-      status: "APPROVED",
-      category: "REELS",
-      title: "Paced Hourly Delivery Profile",
-      caption: "5,166 views distributed across 9 days with natural stair-step pacing to match organic FYP algorithmic tests.",
-      badge: "Organic Pacing",
-      likes: "24 Likes"
-    },
-    {
-      id: 7,
-      src: "/screenshots/7.jpg",
-      platform: "Instagram Reels",
-      payout: "$37.05",
-      views: "18,523 Views",
-      botScore: "0 / 100",
-      status: "APPROVED",
-      category: "REELS",
-      title: "Podcast Clipping Viral Breakthrough",
-      caption: "18,523 views on Elon Musk podcast clip ($2.00 / 1k views campaign). 0 Bot Risk Score (green shield) and instant approval.",
-      badge: "0 Bot Risk Score",
-      likes: "124 Likes"
-    },
-    {
-      id: 8,
+      id: 10,
       src: "/screenshots/8.jpg",
       platform: "X (Twitter)",
       payout: "$113.43",
@@ -150,63 +199,159 @@ export default function HomePage() {
       caption: "56,714 views, 65 likes, 4 retweets. Flawless S-curve growth triggering a three-figure payout approval.",
       badge: "Top Earner ($113.43)",
       likes: "65 Likes"
-    },
-    {
-      id: 9,
-      src: "/screenshots/9.jpg",
-      platform: "Instagram Reels",
-      payout: "$31.46",
-      views: "6,292 Views",
-      botScore: "0 / 100",
-      status: "APPROVED",
-      category: "REELS",
-      title: "Business Campaign Payout Approved",
-      caption: "Business Basics campaign ($2 CPM). 0 Bot Risk rating, $31.46 payout approved by creator sponsor.",
-      badge: "Approved Payout",
-      likes: "15 Likes"
-    },
-    {
-      id: 10,
-      src: "/screenshots/10.jpg",
-      platform: "Instagram Reels",
-      payout: "$33.21",
-      views: "6,600+ Views",
-      botScore: "0 / 100",
-      status: "APPROVED",
-      category: "REELS",
-      title: "Verified Clean Audit & Fast Clearance",
-      caption: "Zero bot risk shield rating, $33.21 earnings verified on moderation panel with full payout guarantee.",
-      badge: "0 Bot Score Shield",
-      likes: "Engagement OK"
     }
   ];
 
   const filteredProofs = proofFilter === "ALL" 
-    ? proofScreenshots 
+    ? allProofs 
     : proofFilter === "PAYOUTS"
-    ? proofScreenshots.filter(p => parseFloat(p.payout.replace("$", "")) >= 30)
-    : proofScreenshots.filter(p => p.category === proofFilter);
+    ? allProofs.filter(p => p.category === "PAYOUTS" || parseFloat(p.payout.replace("$", "").replace("+", "") || "0") >= 30)
+    : allProofs.filter(p => p.category === proofFilter);
 
-  const screenshots = [
+  // 4 Core Campaign Dashboards from public/screenshots
+  const campaignDashboards = [
     {
       src: "/screenshots/campaign-1.png",
-      title: "Campaign Performance Overview",
-      caption: "High retention views, organic likes, comments & realistic viral growth curve passing Whop review."
+      title: "Whop Campaign: Approved Submission ($5.17)",
+      subtitle: "alexjaat • Bot Score 20 (Significantly Low)",
+      views: "1,476 Views",
+      likes: "54 Likes",
+      badge: "Whop Approved",
+      caption: "Real Whop campaign audit screen: Approved status, zero fraud flags, clean retention graph, and payout transferred directly to wallet."
     },
     {
-      src: "/screenshots/campaign-2.png",
-      title: "Submission Analytics Portal",
-      caption: "Verified payout status on creator reward portal showing consistent engagement pacing over time."
+      src: "/proofs/content-reward-review-console.jpg",
+      title: "Content Rewards: 3.86M Views Review Screen",
+      subtitle: "Full Algorithmic Telemetry Inspection",
+      views: "3,866,908 Views",
+      likes: "72,232 Likes",
+      badge: "3.8M Approved",
+      caption: "Campaign submission review showing steady hourly delivery, authentic residential IP distribution, and Approve/Reject moderation."
     },
     {
       src: "/screenshots/campaign-3.png",
-      title: "Delivery Growth Consistency",
-      caption: "Natural algorithmic climb mimicking genuine viral distribution with zero sudden dropoffs."
+      title: "Algorithmic Growth & Retention Consistency",
+      subtitle: "Smooth Parabolic Velocity Tracking",
+      views: "18,523 Views",
+      likes: "124 Likes",
+      badge: "Safe Pacing",
+      caption: "Zero dropoff curve over 7 days. Automated fraud monitors classify the clip as 100% organic user traffic."
     },
     {
       src: "/screenshots/campaign-4.png",
-      title: "Detailed Campaign Audit",
-      caption: "Transparent metrics inspection demonstrating clean retention signals and 0 automated bot flags."
+      title: "Reward Panel Compliance Audit",
+      subtitle: "Multi-Tier Anti-Fraud Verification",
+      views: "56,714 Views",
+      likes: "885 Likes",
+      badge: "High Earner",
+      caption: "Approved high-tier payout submission showing coordinated engagement ratio and spotless moderation logs."
+    }
+  ];
+
+  // Screen recording demo videos from public/videos
+  const demoVideos = [
+    {
+      id: 1,
+      src: "/videos/video-1.mp4",
+      title: "Whop Campaign Payout Clearance & Bot Score Verification",
+      caption: "Real-time recording of Whop creator dashboard verifying approved payout, green shield Bot Score (20/100), and clean retention profile.",
+      tag: "Whop Approved",
+      duration: "0:45",
+      metrics: {
+        botScore: "20 / 100",
+        payout: "$5.17 Approved",
+        retention: "Clean S-Curve"
+      }
+    },
+    {
+      id: 2,
+      src: "/videos/video-2.mp4",
+      title: "Live Submission Verification & Balance Distribution",
+      caption: "Inspection of submission review portal demonstrating instant order processing, zero manual flags, and automated reward clearance.",
+      tag: "Portal Review",
+      duration: "1:12",
+      metrics: {
+        botScore: "0 Flags",
+        payout: "Credited",
+        retention: "100% Verified"
+      }
+    },
+    {
+      id: 3,
+      src: "/videos/video-3.mp4",
+      title: "Algorithmic Jitter Delivery & Zero-Drop Retention",
+      caption: "Demonstration of organic randomized micro-time jitter and coordinated likes/comments pacing passing moderation audits.",
+      tag: "Jitter Engine",
+      duration: "0:58",
+      metrics: {
+        botScore: "Organic FYP",
+        payout: "Guaranteed",
+        retention: "Zero Drop"
+      }
+    }
+  ];
+
+  // Whop AI Bot Detection Tiers directly from owner sketch
+  const whopScoreTiers = [
+    {
+      range: "0 – 20",
+      label: "Significantly Low",
+      badge: "BotClips Guaranteed Safe Zone",
+      status: "100% Payout Approval",
+      accent: "emerald",
+      badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      barClass: "bg-emerald-500",
+      description: "Spotless score. Whop AI detects 100% organic retention and device diversity. Guaranteed payout approval."
+    },
+    {
+      range: "20 – 40",
+      label: "Low",
+      badge: "Passing Tier",
+      status: "Instant Clearance",
+      accent: "teal",
+      badgeClass: "bg-teal-50 text-teal-700 border-teal-200",
+      barClass: "bg-teal-500",
+      description: "Within acceptable algorithmic variance. Clears automated fraud filters without manual admin intervention."
+    },
+    {
+      range: "40 – 60",
+      label: "Slight",
+      badge: "Elevated Scrutiny",
+      status: "Manual Audit Queue",
+      accent: "amber",
+      badgeClass: "bg-amber-50 text-amber-700 border-amber-200",
+      barClass: "bg-amber-500",
+      description: "Triggers secondary inspection. Payouts delayed 48–72h for retention and IP subnet inspection."
+    },
+    {
+      range: "60 – 80",
+      label: "High Risk",
+      badge: "Frequent Flag",
+      status: "High Rejection Rate",
+      accent: "orange",
+      badgeClass: "bg-orange-50 text-orange-700 border-orange-200",
+      barClass: "bg-orange-500",
+      description: "Typical generic SMM panels fall here. Datacenter IP patterns and rapid view drops detected."
+    },
+    {
+      range: "80 – 100",
+      label: "Very High / Botted",
+      badge: "Whop AI Auto-Reject",
+      status: "Disqualified ($0.00)",
+      accent: "red",
+      badgeClass: "bg-red-50 text-red-700 border-red-200",
+      barClass: "bg-red-500",
+      description: "Unnatural spikes, flatline watchtime, or 0 engagement. Whop AI flags submission as artificial ($0 payout)."
+    },
+    {
+      range: "100+",
+      label: "Disqualified",
+      badge: "Permanent Blacklist",
+      status: "Account Ban",
+      accent: "rose",
+      badgeClass: "bg-rose-50 text-rose-700 border-rose-200",
+      barClass: "bg-rose-700",
+      description: "Severe bot farming detected. Clipper is permanently blacklisted from brand creator reward programs."
     }
   ];
 
@@ -217,7 +362,7 @@ export default function HomePage() {
     },
     {
       q: "How does BotClips ensure undetectable delivery?",
-      a: "BotClips utilizes a private hardware network of 20,000+ physical smartphones and 100,000+ authentic user accounts operating over genuine residential connections. Each view sustains 3 to 7 seconds of actual watchtime, delivering a natural parabolic curve that passes automated and manual platform audits."
+      a: "BotClips utilizes a private hardware network of 20,000+ physical smartphones and 100,000+ authentic user accounts operating over genuine residential connections. Each view sustains 3 to 7 seconds of actual watchtime with micro-random time jitter (e.g. 72-63-99-101), delivering a natural parabolic curve that passes automated and manual platform audits."
     },
     {
       q: "Which platforms and reward campaigns are supported?",
@@ -241,22 +386,23 @@ export default function HomePage() {
           <BotClipsLogo size="md" href="/" />
 
           <div className="hidden md:flex items-center gap-8 text-[14px] font-semibold text-[#62666e]">
-            <a href="#why" className="hover:text-[#111214] transition-colors">Why BotClips</a>
-            <a href="#analytics" className="hover:text-[#111214] transition-colors">Analytics & Proofs</a>
-            <a href="#workflow" className="hover:text-[#111214] transition-colors">How It Works</a>
+            <a href="#admin-pov" className="hover:text-[#111214] transition-colors">Admin POV vs Bypass</a>
+            <a href="#bot-score" className="hover:text-[#111214] transition-colors">Whop Bot Score</a>
+            <a href="#video-demos" className="hover:text-[#111214] transition-colors">Live Videos</a>
+            <a href="#analytics" className="hover:text-[#111214] transition-colors">Real Payout Proofs</a>
             <a href="#faq" className="hover:text-[#111214] transition-colors">FAQ</a>
           </div>
 
           <div className="flex items-center gap-3">
-            <Link 
+            <Link
               href="/login"
-              className="px-4 py-2 text-sm font-semibold text-[#111214] hover:text-[#246bfe] transition-colors"
+              className="text-[14px] font-semibold text-[#111214] hover:text-blue-600 px-3.5 py-2 transition-colors"
             >
               Sign In
             </Link>
-            <Link 
+            <Link
               href="/signup"
-              className="px-4 py-2 rounded-xl text-sm font-bold bg-[#111214] hover:bg-[#246bfe] text-white shadow-sm transition-all duration-200 cursor-pointer"
+              className="text-[14px] font-bold bg-[#111214] hover:bg-neutral-800 text-white px-5 py-2.5 rounded-full transition-all shadow-xs"
             >
               Get Started
             </Link>
@@ -264,261 +410,529 @@ export default function HomePage() {
         </div>
       </nav>
 
-      {/* ── HERO SECTION ── */}
-      <header className="relative pt-20 pb-24 text-center overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-50/70 via-white to-white">
-        <div className="max-w-[1180px] mx-auto px-6">
-          <div className="flex flex-wrap items-center justify-center gap-3 mb-2">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-blue-100 bg-blue-50/80 text-blue-700 text-xs font-extrabold tracking-wide uppercase">
-              <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-              Built for the Clipping Industry
-            </div>
-
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-200 bg-emerald-50/90 text-emerald-800 text-[11px] font-bold shadow-xs">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span>20,480 Physical Smartphones Active</span>
-            </div>
+      {/* ── HERO HEADER ── */}
+      <header className="relative pt-20 pb-20 overflow-hidden bg-white border-b border-[#f0f0f3]">
+        <div className="max-w-[1180px] mx-auto px-6 text-center relative z-10">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200/80 text-blue-700 text-xs font-bold uppercase tracking-wider mb-8">
+            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+            <span>Anti-Detection Algorithm for Whop & ContentReward</span>
           </div>
 
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-[#111214] mt-6 max-w-4xl mx-auto leading-[1.05]">
-            A clipping industry{" "}
-            <span className="bg-gradient-to-r from-neutral-900 via-blue-700 to-blue-600 bg-clip-text text-transparent">
-              nightmare.
-            </span>
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-[#111214] max-w-4xl mx-auto leading-[1.08]">
+            High-Retention views engineered to bypass{" "}
+            <span className="text-[#246bfe]">Whop bot detection.</span>
           </h1>
 
-          <p className="mt-6 text-lg sm:text-xl text-[#6b7078] max-w-2xl mx-auto leading-relaxed font-normal">
-            Undetectable views, genuine retention curves, and automated compliance designed specifically for <strong className="text-neutral-900 font-semibold">Whop</strong>, <strong className="text-neutral-900 font-semibold">ContentReward</strong>, and <strong className="text-neutral-900 font-semibold">Clipster</strong> reward campaigns.
+          <p className="mt-6 text-lg sm:text-xl text-[#6b7078] max-w-2xl mx-auto font-medium leading-relaxed">
+            Stop losing clipping campaign payouts to 1-second bot drops. Real physical smartphones, 3–7s retention, coordinated engagement, and zero-risk audit approval.
           </p>
 
-          {/* Floating Live Activity Ticker */}
-          <div className="hidden sm:inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white border border-slate-200/90 text-xs text-slate-600 mt-5 animate-float shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-bold text-neutral-900">Live Verification:</span>
-            <span>Whop reward payout $420 approved</span>
-            <span className="text-slate-400 font-mono text-[10px]">• 3m ago</span>
-          </div>
-
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/signup"
-              className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-[#111214] hover:bg-neutral-800 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 group cursor-pointer"
+              className="w-full sm:w-auto px-8 py-4 rounded-xl bg-[#246bfe] hover:bg-blue-600 text-white font-extrabold text-base shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <span>Launch Campaign</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              <span>Launch Campaign Order</span>
+              <ArrowRight className="w-4 h-4" />
             </Link>
             <a
-              href="#analytics"
-              className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-white hover:bg-neutral-50 text-[#111214] font-bold text-sm border border-[#dce0e5] shadow-sm transition-all flex items-center justify-center gap-2"
+              href="#admin-pov"
+              className="w-full sm:w-auto px-8 py-4 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-[#111214] font-bold text-base transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <span>View Dashboard Proofs</span>
-              <Eye className="w-4 h-4 text-blue-600" />
+              <span>Inspect Real Admin Screenshots</span>
+              <Eye className="w-4 h-4 text-neutral-500" />
             </a>
           </div>
 
-          {/* Trust stats row */}
-          <div className="mt-14 pt-10 border-t border-[#f0f0f3] grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto text-left">
+          {/* Quick Metrics Ribbon */}
+          <div className="mt-14 max-w-3xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-4 text-center border-t border-[#f0f0f3] pt-8">
             <div className="p-3">
-              <div className="text-2xl font-black text-[#111214]">20,000+</div>
-              <div className="text-xs font-semibold text-[#6b7078] mt-1">Physical Device Farm</div>
+              <div className="text-2xl font-black text-neutral-900">20,000+</div>
+              <div className="text-xs font-semibold text-[#6b7078] mt-1">Real Smartphones</div>
             </div>
             <div className="p-3">
-              <div className="text-2xl font-black text-[#111214]">3–7 Sec</div>
+              <div className="text-2xl font-black text-neutral-900">3–7s</div>
               <div className="text-xs font-semibold text-[#6b7078] mt-1">Real Human Watchtime</div>
             </div>
             <div className="p-3">
-              <div className="text-2xl font-black text-emerald-600">24 / 100</div>
-              <div className="text-xs font-semibold text-[#6b7078] mt-1">Avg Bot Risk Score</div>
+              <div className="text-2xl font-black text-emerald-600">0 – 20 / 100</div>
+              <div className="text-xs font-semibold text-[#6b7078] mt-1">Whop AI Safe Zone</div>
             </div>
             <div className="p-3">
-              <div className="text-2xl font-black text-blue-600">0% Drop</div>
+              <div className="text-2xl font-black text-blue-600">100%</div>
               <div className="text-xs font-semibold text-[#6b7078] mt-1">Audit-Approved Payouts</div>
             </div>
           </div>
         </div>
       </header>
 
-      {/* ── COMPARISON SECTION ── */}
-      <section id="why" className="py-24 border-t border-[#f0f0f3] bg-[#fafafa]">
-        <div className="max-w-[1180px] mx-auto px-6">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <div className="text-xs font-black uppercase tracking-wider text-[#246bfe]">
-              The Core Problem
+      {/* ── SECTION 1: ADMIN POV VS BOTCLIPS BYPASS ENGINE (WITH REAL SCREENSHOTS) ── */}
+      <section id="admin-pov" className="py-24 bg-[#0d0f12] text-white relative overflow-hidden border-b border-neutral-800">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,#ef444415,transparent_50%),radial-gradient(circle_at_80%_20%,#10b98115,transparent_50%)] pointer-events-none" />
+        
+        <div className="max-w-[1180px] mx-auto px-6 relative z-10">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-neutral-800/80 border border-neutral-700 text-neutral-300 text-xs font-black uppercase tracking-wider mb-4">
+              <Radio className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
+              <span>Real Moderation Console & Whop Audit Comparison</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#111214] mt-2.5">
-              Generic SMM panels were never built for clipping.
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white">
+              What Clipping Campaigns Admin Actually See.
             </h2>
-            <p className="text-[#6b7078] mt-3.5 text-base leading-relaxed">
-              When you submit a clip to Whop or ContentReward, automated fraud algorithms inspect your retention curve, view-drop velocity, and hardware IP fingerprints.
+            <p className="text-neutral-400 mt-4 text-base sm:text-lg leading-relaxed">
+              Real screenshots from Content Rewards and Whop moderation panels. See exactly why cheap bots get red-flagged and how BotClips creators clear payouts effortlessly.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 rounded-3xl border border-[#e4e6eb] bg-white shadow-xl shadow-neutral-200/50 overflow-hidden">
-            {/* Typical Panel */}
-            <div className="p-8 sm:p-10 bg-[#fafafa] border-b md:border-b-0 md:border-r border-[#e4e6eb]">
-              <div className="flex items-center gap-2.5 mb-6">
-                <div className="w-8 h-8 rounded-lg bg-red-100 text-red-600 flex items-center justify-center font-bold text-sm">
-                  ✕
+          {/* DUAL COMPARISON WITH REAL SCREENSHOTS */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+            {/* Left Card: ❌ Admin POV: How They Catch Botting */}
+            <div className="rounded-3xl bg-neutral-900/90 border border-red-500/30 p-6 sm:p-8 flex flex-col justify-between shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
+              
+              <div>
+                {/* Header */}
+                <div className="flex items-center justify-between gap-2 mb-5 pb-4 border-b border-neutral-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center font-bold">
+                      <ShieldAlert className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-white">Admin POV: How They Catch Botting</h3>
+                      <p className="text-xs text-neutral-400">Score 88 Alert • Unnatural Drops • Broken Ratios</p>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 rounded-full bg-red-500/20 text-red-400 text-xs font-black uppercase tracking-wider border border-red-500/30">
+                    Flagged & Rejected ($0)
+                  </span>
                 </div>
-                <h3 className="text-xl font-bold text-neutral-900">Typical SMM Panel</h3>
+
+                {/* Real Admin Screenshot: Goalkeeper_go caught with 37% Trust Score */}
+                <div 
+                  onClick={() => setSelectedImageModal("/proofs/admin-caught-vs-passed.jpg")}
+                  className="rounded-2xl overflow-hidden border border-red-500/30 bg-neutral-950 relative group cursor-pointer mb-5 shadow-lg"
+                >
+                  <div className="aspect-[16/10] overflow-hidden relative">
+                    <img 
+                      src="/proofs/admin-caught-vs-passed.jpg" 
+                      alt="Admin POV: Caught Botted Clipper" 
+                      className="w-full h-full object-cover object-bottom group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                      <span className="px-3.5 py-2 rounded-xl bg-red-950/90 text-red-200 border border-red-800 text-xs font-bold backdrop-blur-sm flex items-center gap-2">
+                        <Maximize2 className="w-3.5 h-3.5" />
+                        <span>Inspect Admin Console Screen</span>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-3 bg-red-950/50 border-t border-red-900/50 text-xs text-red-300 flex items-center justify-between font-mono">
+                    <span>Target: @goalkeepergo</span>
+                    <span className="font-bold text-red-400">Trust Score 37% (Flagged Red)</span>
+                  </div>
+                </div>
+
+                {/* 3 Critical Detection Traps */}
+                <div className="space-y-3">
+                  <div className="p-3.5 rounded-xl bg-red-950/30 border border-red-900/30 text-xs text-neutral-300">
+                    <strong className="text-red-400 block mb-0.5">1. Whop AI Bot Score 88 / 100 Alert</strong>
+                    Datacenter cloud scrapers trigger immediate automated fraud flags, freezing submission balance.
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-neutral-950/60 border border-neutral-800 text-xs text-neutral-300">
+                    <strong className="text-red-400 block mb-0.5">2. Rigid Stair-Step Spike Graph</strong>
+                    Views surge in 1 second, then drop by thousands within hours, creating an unnatural steep cliff.
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-neutral-950/60 border border-neutral-800 text-xs text-neutral-300">
+                    <strong className="text-red-400 block mb-0.5">3. Mismatched Engagement Ratio Trap</strong>
+                    50,000 Views with only 4 Likes & 0 Comments instantly trips platform anti-bot thresholds.
+                  </div>
+                </div>
               </div>
-              <div className="space-y-4">
-                <div className="flex items-start gap-3.5 p-3 rounded-xl bg-white border border-red-100">
-                  <span className="text-red-500 font-bold text-lg leading-none mt-0.5">✕</span>
-                  <div className="text-sm text-neutral-700 leading-snug">
-                    <strong className="text-neutral-900 block mb-0.5">1-Second Bot Pings</strong>
-                    Datacenter cloud scrapers register views for 1 second, causing instant retention collapse.
-                  </div>
-                </div>
-                <div className="flex items-start gap-3.5 p-3 rounded-xl bg-white border border-red-100">
-                  <span className="text-red-500 font-bold text-lg leading-none mt-0.5">✕</span>
-                  <div className="text-sm text-neutral-700 leading-snug">
-                    <strong className="text-neutral-900 block mb-0.5">Sudden Post-Delivery Drops</strong>
-                    Views frequently fall from 70k down to 65k within 12 hours, creating visible negative drop spikes.
-                  </div>
-                </div>
-                <div className="flex items-start gap-3.5 p-3 rounded-xl bg-white border border-red-100">
-                  <span className="text-red-500 font-bold text-lg leading-none mt-0.5">✕</span>
-                  <div className="text-sm text-neutral-700 leading-snug">
-                    <strong className="text-neutral-900 block mb-0.5">High Bot Risk Score (78/100)</strong>
-                    Triggers automated red flags on Whop & ContentReward review dashboards, leading to rejected payouts.
-                  </div>
-                </div>
-                <div className="flex items-start gap-3.5 p-3 rounded-xl bg-white border border-red-100">
-                  <span className="text-red-500 font-bold text-lg leading-none mt-0.5">✕</span>
-                  <div className="text-sm text-neutral-700 leading-snug">
-                    <strong className="text-neutral-900 block mb-0.5">Generic Server Proxies</strong>
-                    Repeated subnet pools easily detected and blacklisted by short-form video algorithms.
-                  </div>
-                </div>
+
+              {/* Footer */}
+              <div className="mt-6 pt-4 border-t border-neutral-800 flex items-center justify-between text-xs">
+                <span className="text-neutral-500 font-mono">Moderation Action:</span>
+                <span className="text-red-400 font-bold font-mono">REJECTED • $0.00 PAID</span>
               </div>
             </div>
 
-            {/* BotClips Engine */}
-            <div className="p-8 sm:p-10 bg-white">
-              <div className="flex items-center gap-2.5 mb-6">
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-sm">
-                  ✓
+            {/* Right Card: ✅ BotClips Algorithmic Bypass Engine */}
+            <div className="rounded-3xl bg-neutral-900/90 border border-emerald-500/40 p-6 sm:p-8 flex flex-col justify-between shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+              
+              <div>
+                {/* Header */}
+                <div className="flex items-center justify-between gap-2 mb-5 pb-4 border-b border-neutral-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-white">BotClips Algorithmic Bypass Engine</h3>
+                      <p className="text-xs text-neutral-400">Score 20 Clean • Micro-Jitter • Perfect Ratios</p>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-wider border border-emerald-500/30 flex items-center gap-1">
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    <span>Verified & Transferred</span>
+                  </span>
                 </div>
-                <h3 className="text-xl font-bold text-neutral-900">BotClips Architecture</h3>
+
+                {/* Real Approved Screenshot: Whop Lockscreen Payouts or $300 Approved */}
+                <div 
+                  onClick={() => setSelectedImageModal("/proofs/whop-lockscreen-payouts.jpg")}
+                  className="rounded-2xl overflow-hidden border border-emerald-500/30 bg-neutral-950 relative group cursor-pointer mb-5 shadow-lg"
+                >
+                  <div className="aspect-[16/10] overflow-hidden relative">
+                    <img 
+                      src="/proofs/whop-lockscreen-payouts.jpg" 
+                      alt="Whop Lockscreen Payout Stream" 
+                      className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                      <span className="px-3.5 py-2 rounded-xl bg-emerald-950/90 text-emerald-200 border border-emerald-800 text-xs font-bold backdrop-blur-sm flex items-center gap-2">
+                        <Maximize2 className="w-3.5 h-3.5" />
+                        <span>Inspect Real Payout Alerts</span>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-3 bg-emerald-950/50 border-t border-emerald-900/50 text-xs text-emerald-300 flex items-center justify-between font-mono">
+                    <span>Whop Payouts: $380, $288, $189...</span>
+                    <span className="font-bold text-emerald-400">All Approved ($1,487+)</span>
+                  </div>
+                </div>
+
+                {/* 3 Algorithmic Bypass Points */}
+                <div className="space-y-3">
+                  <div className="p-3.5 rounded-xl bg-emerald-950/30 border border-emerald-900/30 text-xs text-neutral-300">
+                    <strong className="text-emerald-400 block mb-0.5">1. Clean Bot Score (0 – 20 Safe Zone)</strong>
+                    20,000+ real physical smartphones delivering 3–7s human playback. Green shield rating guaranteed.
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-neutral-950/60 border border-neutral-800 text-xs text-neutral-300">
+                    <strong className="text-emerald-400 block mb-0.5">2. 60fps Organic Delivery Jitter Curve</strong>
+                    Micro-time jitter (72-63-99-101) creates an authentic parabolic velocity that mirrors FYP virality.
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-neutral-950/60 border border-neutral-800 text-xs text-neutral-300">
+                    <strong className="text-emerald-400 block mb-0.5">3. Coordinated Engagement Harmony</strong>
+                    Balanced 10,000 views : 430 likes : 30 comments : 45 shares triggers instant approval.
+                  </div>
+                </div>
               </div>
-              <div className="space-y-4">
-                <div className="flex items-start gap-3.5 p-3 rounded-xl bg-blue-50/40 border border-blue-100">
-                  <Check className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                  <div className="text-sm text-neutral-700 leading-snug">
-                    <strong className="text-neutral-900 block mb-0.5">20,000+ Physical Smartphones</strong>
-                    Real devices running genuine mobile operating systems on private residential carrier connections.
-                  </div>
-                </div>
-                <div className="flex items-start gap-3.5 p-3 rounded-xl bg-blue-50/40 border border-blue-100">
-                  <Check className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                  <div className="text-sm text-neutral-700 leading-snug">
-                    <strong className="text-neutral-900 block mb-0.5">Genuine 3–7s Watchtime Retention</strong>
-                    Realistic human playback duration ensures high completion rates and safe algorithmic indexing.
-                  </div>
-                </div>
-                <div className="flex items-start gap-3.5 p-3 rounded-xl bg-blue-50/40 border border-blue-100">
-                  <Check className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                  <div className="text-sm text-neutral-700 leading-snug">
-                    <strong className="text-neutral-900 block mb-0.5">Ultra-Low Risk Score (24/100)</strong>
-                    Consistently passes Whop, Clipster & ContentReward anti-fraud checks with green approval status.
-                  </div>
-                </div>
-                <div className="flex items-start gap-3.5 p-3 rounded-xl bg-blue-50/40 border border-blue-100">
-                  <Check className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                  <div className="text-sm text-neutral-700 leading-snug">
-                    <strong className="text-neutral-900 block mb-0.5">Smooth Parabolic Growth Curve</strong>
-                    Natural delivery pacing with zero abrupt dropoffs, safeguarding creator payouts every time.
-                  </div>
-                </div>
+
+              {/* Footer */}
+              <div className="mt-6 pt-4 border-t border-neutral-800 flex items-center justify-between text-xs">
+                <span className="text-neutral-400 font-mono">Whop Payout Result:</span>
+                <span className="text-emerald-400 font-bold font-mono">APPROVED • 100% TRANSFERRED</span>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── THREE PILLARS ── */}
-      <section className="py-20 bg-white">
+      {/* ── SECTION 2: REAL EARNINGS & CREATOR REVENUE PROOF SHOWCASE (USER SCREENSHOTS) ── */}
+      <section className="py-24 bg-white border-b border-[#e9e9ec]">
         <div className="max-w-[1180px] mx-auto px-6">
-          <div className="text-center max-w-2xl mx-auto mb-14">
-            <div className="text-xs font-black uppercase tracking-wider text-[#246bfe]">
-              Core Infrastructure
+          <div className="text-center max-w-3xl mx-auto mb-14">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-black uppercase tracking-wider mb-3">
+              <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Real User Screenshots & Revenue Dashboards</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#111214] mt-2">
-              Engineered specifically for clippers.
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#111214]">
+              Real Whop Earnings Generated with BotClips.
             </h2>
+            <p className="text-[#6b7078] mt-3 text-base leading-relaxed">
+              Actual business dashboards, $300 campaign approvals, lockscreen deposit notifications, and Tier 1 audience demographics submitted by our clippers.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-7 rounded-2xl border border-[#e9e9ec] bg-white hover:border-blue-200 hover:shadow-md transition-all">
-              <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm mb-5">
-                01
+          {/* 4 Feature Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
+            {/* Card 1: Whop Lockscreen Stream */}
+            <div 
+              onClick={() => setSelectedImageModal("/proofs/whop-lockscreen-payouts.jpg")}
+              className="rounded-2xl border border-neutral-200 bg-white p-3.5 shadow-xs hover:shadow-xl transition-all cursor-pointer group flex flex-col justify-between"
+            >
+              <div>
+                <div className="aspect-[9/14] rounded-xl overflow-hidden bg-black relative mb-3">
+                  <img 
+                    src="/proofs/whop-lockscreen-payouts.jpg" 
+                    alt="Whop Lockscreen Payouts" 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                  />
+                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span className="px-3 py-1.5 rounded-lg bg-black/80 text-white text-xs font-bold">Zoom In</span>
+                  </div>
+                </div>
+                <div className="text-xs font-bold text-neutral-900">Whop Payout Notification Stream</div>
+                <p className="text-[11px] text-[#6b7078] mt-1">Continuous same-day payments: $380, $288, $189 directly from Content Rewards.</p>
               </div>
-              <h3 className="text-lg font-bold text-neutral-900 mb-2">Campaign-First Delivery</h3>
-              <p className="text-sm text-[#6b7078] leading-relaxed">
-                Organize orders around short-form clipping workflows. Choose your exact delivery speed, platform, and retention parameters.
-              </p>
+              <div className="mt-3 pt-2 border-t border-neutral-100 flex items-center justify-between text-xs">
+                <span className="text-emerald-600 font-bold">$1,487+ Stream</span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold">Verified</span>
+              </div>
             </div>
 
-            <div className="p-7 rounded-2xl border border-[#e9e9ec] bg-white hover:border-blue-200 hover:shadow-md transition-all">
-              <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm mb-5">
-                02
+            {/* Card 2: $300 Approved Campaign */}
+            <div 
+              onClick={() => setSelectedImageModal("/proofs/content-reward-300-approved.jpg")}
+              className="rounded-2xl border border-neutral-200 bg-white p-3.5 shadow-xs hover:shadow-xl transition-all cursor-pointer group flex flex-col justify-between"
+            >
+              <div>
+                <div className="aspect-[9/14] rounded-xl overflow-hidden bg-black relative mb-3">
+                  <img 
+                    src="/proofs/content-reward-300-approved.jpg" 
+                    alt="Content Rewards $300 Approved" 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                  />
+                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span className="px-3 py-1.5 rounded-lg bg-black/80 text-white text-xs font-bold">Zoom In</span>
+                  </div>
+                </div>
+                <div className="text-xs font-bold text-neutral-900">$300 Campaign Approval</div>
+                <p className="text-[11px] text-[#6b7078] mt-1">3,866,908 views, 72,232 likes with Green Bot Shield (0). Approved by brand.</p>
               </div>
-              <h3 className="text-lg font-bold text-neutral-900 mb-2">Whop & Reward Compliance</h3>
-              <p className="text-sm text-[#6b7078] leading-relaxed">
-                Pre-configured delivery velocity ensures your views, likes, and comment ratios look 100% organic to moderation panels.
-              </p>
+              <div className="mt-3 pt-2 border-t border-neutral-100 flex items-center justify-between text-xs">
+                <span className="text-emerald-600 font-bold">$300.00 Payout</span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-bold">Shield 0</span>
+              </div>
             </div>
 
-            <div className="p-7 rounded-2xl border border-[#e9e9ec] bg-white hover:border-blue-200 hover:shadow-md transition-all">
-              <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm mb-5">
-                03
+            {/* Card 3: ak47boss $5,230 Earned */}
+            <div 
+              onClick={() => setSelectedImageModal("/proofs/whop-earning-5230.jpg")}
+              className="rounded-2xl border border-neutral-200 bg-white p-3.5 shadow-xs hover:shadow-xl transition-all cursor-pointer group flex flex-col justify-between"
+            >
+              <div>
+                <div className="aspect-[9/14] rounded-xl overflow-hidden bg-black relative mb-3">
+                  <img 
+                    src="/proofs/whop-earning-5230.jpg" 
+                    alt="ak47boss $5,230 Earned" 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                  />
+                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span className="px-3 py-1.5 rounded-lg bg-black/80 text-white text-xs font-bold">Zoom In</span>
+                  </div>
+                </div>
+                <div className="text-xs font-bold text-neutral-900">Whop Dashboard: $5,230.44</div>
+                <p className="text-[11px] text-[#6b7078] mt-1">Top clipper business dashboard verified on Whop using BotClips views.</p>
               </div>
-              <h3 className="text-lg font-bold text-neutral-900 mb-2">Real-Time Growth Tracking</h3>
-              <p className="text-sm text-[#6b7078] leading-relaxed">
-                Monitor your campaign delivery curves, retention signals, and submission statuses directly from your unified dashboard.
-              </p>
+              <div className="mt-3 pt-2 border-t border-neutral-100 flex items-center justify-between text-xs">
+                <span className="text-emerald-600 font-bold">$5,230.44</span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-purple-50 text-purple-700 font-bold">Business</span>
+              </div>
+            </div>
+
+            {/* Card 4: Tier 1 Audience USA */}
+            <div 
+              onClick={() => setSelectedImageModal("/proofs/tier1-usa-audience.jpg")}
+              className="rounded-2xl border border-neutral-200 bg-white p-3.5 shadow-xs hover:shadow-xl transition-all cursor-pointer group flex flex-col justify-between"
+            >
+              <div>
+                <div className="aspect-[9/14] rounded-xl overflow-hidden bg-black relative mb-3">
+                  <img 
+                    src="/proofs/tier1-usa-audience.jpg" 
+                    alt="Tier 1 USA Audience" 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                  />
+                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span className="px-3 py-1.5 rounded-lg bg-black/80 text-white text-xs font-bold">Zoom In</span>
+                  </div>
+                </div>
+                <div className="text-xs font-bold text-neutral-900">48.4% USA Demographics</div>
+                <p className="text-[11px] text-[#6b7078] mt-1">Tier 1 country audience distribution required to clear brand campaign audits.</p>
+              </div>
+              <div className="mt-3 pt-2 border-t border-neutral-100 flex items-center justify-between text-xs">
+                <span className="text-blue-600 font-bold">USA + UK (72%)</span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-bold">Tier 1</span>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── PROOFS & REAL-WORLD EARNINGS SHOWCASE (10 VERIFIED CLIENT PROOFS) ── */}
-      <section id="analytics" className="py-24 bg-[#f7f7f8] border-y border-[#e9e9ec]">
+      {/* ── SECTION 3: WHOP AI BOT DETECTION SCALE (0-100+) ── */}
+      <section id="bot-score" className="py-24 bg-[#fafafa] border-b border-[#e9e9ec]">
+        <div className="max-w-[1180px] mx-auto px-6">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-black uppercase tracking-wider mb-3">
+              <Sliders className="w-3.5 h-3.5 text-blue-600" />
+              <span>Official Verification Matrix</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#111214]">
+              Whop & Campaign AI Bot Score Meter.
+            </h2>
+            <p className="text-[#6b7078] mt-3 text-base leading-relaxed">
+              Moderation algorithms categorize every submitted link into 6 distinct bot score tiers. Here is how submissions are evaluated and why BotClips guarantees the 0–20 Safe Zone.
+            </p>
+          </div>
+
+          {/* Scale Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {whopScoreTiers.map((tier, idx) => (
+              <div 
+                key={idx}
+                className="p-6 rounded-2xl border bg-white shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-2xl font-black text-neutral-900 font-mono tracking-tight">
+                      {tier.range}
+                    </span>
+                    <span className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border ${tier.badgeClass}`}>
+                      {tier.badge}
+                    </span>
+                  </div>
+
+                  <div className="w-full h-2 rounded-full bg-neutral-100 overflow-hidden mb-4">
+                    <div className={`h-full ${tier.barClass} rounded-full`} style={{ width: `${(idx + 1) * 16.6}%` }} />
+                  </div>
+
+                  <div className="text-sm font-bold text-neutral-800 mb-1">
+                    {tier.label}
+                  </div>
+                  <p className="text-xs text-[#6b7078] leading-relaxed">
+                    {tier.description}
+                  </p>
+                </div>
+
+                <div className="mt-5 pt-3 border-t border-neutral-100 flex items-center justify-between text-xs">
+                  <span className="text-neutral-400 font-medium">Platform Action:</span>
+                  <span className="font-bold text-neutral-900">{tier.status}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Bottom Callout Banner */}
+          <div className="mt-10 p-6 rounded-2xl bg-blue-50/60 border border-blue-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black shrink-0">
+                <Check className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-neutral-900">BotClips 100% Safe Zone Guarantee</h4>
+                <p className="text-xs text-neutral-600">Every campaign view order includes micro-jitter timing and coordinated likes to maintain scores below 20.</p>
+              </div>
+            </div>
+            <Link
+              href="/signup"
+              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shrink-0 shadow-xs transition-colors"
+            >
+              Start Safe Order
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── SECTION 4: LIVE SCREEN RECORDINGS & VIDEO PROOFS ── */}
+      <section id="video-demos" className="py-24 bg-white border-b border-[#e9e9ec]">
+        <div className="max-w-[1180px] mx-auto px-6">
+          <div className="text-center max-w-3xl mx-auto mb-14">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-neutral-900 text-white text-xs font-black uppercase tracking-wider mb-3">
+              <Video className="w-3.5 h-3.5 text-blue-400" />
+              <span>Live Demonstration Recordings</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#111214]">
+              Watch Real Whop Payouts in Action.
+            </h2>
+            <p className="text-[#6b7078] mt-3 text-base leading-relaxed">
+              Inspect unedited screen recordings of creator submissions being verified, approved, and paid out with green bot risk shields.
+            </p>
+          </div>
+
+          {/* Video Switcher Tabs */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
+            {demoVideos.map((vid, idx) => (
+              <button
+                key={vid.id}
+                onClick={() => setActiveVideoTab(idx)}
+                className={`px-5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2.5 ${
+                  activeVideoTab === idx
+                    ? "bg-[#111214] text-white shadow-lg shadow-neutral-900/20 scale-[1.02]"
+                    : "bg-white text-neutral-600 border border-neutral-200 hover:bg-neutral-50"
+                }`}
+              >
+                <Play className={`w-3.5 h-3.5 ${activeVideoTab === idx ? "text-blue-400 fill-blue-400" : "text-neutral-400"}`} />
+                <span>Video {vid.id}: {vid.tag}</span>
+                <span className="text-[10px] opacity-70 font-mono">({vid.duration})</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Active Video Player Showcase */}
+          <div className="rounded-3xl bg-neutral-950 border border-neutral-800 p-4 sm:p-6 shadow-2xl overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+              {/* Video Player (Left 8 cols) */}
+              <div className="lg:col-span-8 rounded-2xl overflow-hidden bg-black aspect-video relative flex items-center justify-center border border-neutral-800">
+                <video
+                  key={demoVideos[activeVideoTab].src}
+                  controls
+                  playsInline
+                  className="w-full h-full object-contain"
+                  preload="metadata"
+                >
+                  <source src={demoVideos[activeVideoTab].src} type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+              </div>
+
+              {/* Video Details & Telemetry (Right 4 cols) */}
+              <div className="lg:col-span-4 text-white space-y-5 p-2">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-500/20 text-blue-400 font-mono text-xs border border-blue-500/30">
+                  <span>Recording #{demoVideos[activeVideoTab].id}</span>
+                  <span>•</span>
+                  <span>{demoVideos[activeVideoTab].duration}</span>
+                </div>
+
+                <h3 className="text-xl font-bold leading-snug">
+                  {demoVideos[activeVideoTab].title}
+                </h3>
+
+                <p className="text-xs text-neutral-400 leading-relaxed">
+                  {demoVideos[activeVideoTab].caption}
+                </p>
+
+                {/* Telemetry Metrics */}
+                <div className="p-4 rounded-xl bg-neutral-900 border border-neutral-800 space-y-2.5 text-xs font-mono">
+                  <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+                    <span className="text-neutral-400">Whop Bot Score:</span>
+                    <span className="text-emerald-400 font-bold">{demoVideos[activeVideoTab].metrics.botScore}</span>
+                  </div>
+                  <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+                    <span className="text-neutral-400">Payout Status:</span>
+                    <span className="text-white font-bold">{demoVideos[activeVideoTab].metrics.payout}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-neutral-400">Retention Signal:</span>
+                    <span className="text-blue-400 font-bold">{demoVideos[activeVideoTab].metrics.retention}</span>
+                  </div>
+                </div>
+
+                <Link
+                  href="/signup"
+                  className="block text-center w-full py-3 rounded-xl bg-white hover:bg-neutral-200 text-neutral-950 font-extrabold text-xs transition-colors"
+                >
+                  Get BotClips Verification
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── SECTION 5: 10 VERIFIED CLIENT PAYOUT PROOFS GRID ── */}
+      <section id="analytics" className="py-24 bg-[#f7f7f8] border-b border-[#e9e9ec]">
         <div className="max-w-[1180px] mx-auto px-6">
           <div className="text-center max-w-3xl mx-auto mb-10">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-black uppercase tracking-wider mb-3">
               <CheckCircle className="w-3.5 h-3.5 text-blue-600" />
-              <span>Real Client Submissions & Payouts</span>
+              <span>10 Verified Submissions & Approvals</span>
             </div>
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#111214]">
-              What Whop, ContentReward & Brands See.
+              Verified Client Payout Proofs.
             </h2>
             <p className="text-[#6b7078] mt-3 text-base leading-relaxed">
-              10 verified submissions directly from client campaigns across TikTok, Instagram Reels, YouTube Shorts, and X. Every order delivered with 3–7s retention, 0-drop stability, and 0 bot risk rating.
+              Every order delivered with 3–7s retention, 0-drop stability, and 0 bot risk rating. Filter across Whop Payouts, Content Rewards, Reels, TikTok, and X.
             </p>
-          </div>
-
-          {/* Quick Metrics Ribbon */}
-          <div className="mb-10 grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-            <div className="text-center p-3 border-r border-slate-100 last:border-0">
-              <div className="text-2xl font-black text-emerald-600">$349.00+</div>
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Sample Approved Payouts</div>
-            </div>
-            <div className="text-center p-3 border-r border-slate-100 last:border-0">
-              <div className="text-2xl font-black text-blue-600">100%</div>
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Audit Pass Rate</div>
-            </div>
-            <div className="text-center p-3 border-r border-slate-100 last:border-0">
-              <div className="text-2xl font-black text-slate-900">0 / 100</div>
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Automated Bot Flags</div>
-            </div>
-            <div className="text-center p-3">
-              <div className="text-2xl font-black text-purple-600">0% Drop</div>
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Retention Guarantee</div>
-            </div>
           </div>
 
           {/* Proof Filter Pills */}
@@ -542,7 +956,7 @@ export default function HomePage() {
               }`}
             >
               <DollarSign className="w-3.5 h-3.5" />
-              <span>Top Payouts ($30+)</span>
+              <span>Top Payouts ($30+ & Streams)</span>
             </button>
             <button
               onClick={() => setProofFilter("REELS")}
@@ -576,13 +990,13 @@ export default function HomePage() {
             </button>
           </div>
 
-          {/* 10 Real Proofs Cards Grid */}
+          {/* 10 Proofs Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredProofs.map((item, idx) => (
               <div 
                 key={item.id}
-                onClick={() => setSelectedProofIndex(proofScreenshots.findIndex(p => p.id === item.id))}
-                className="group cursor-pointer bg-white dark:bg-neutral-900 rounded-2xl p-3 shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-200 dark:border-neutral-800 flex flex-col justify-between"
+                onClick={() => setSelectedProofIndex(idx)}
+                className="group cursor-pointer bg-white rounded-2xl p-3 shadow-xs hover:shadow-xl transition-all duration-300 border border-slate-200 flex flex-col justify-between"
               >
                 <div>
                   {/* Top Badge Row */}
@@ -590,8 +1004,8 @@ export default function HomePage() {
                     <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
                       item.platform.includes("Instagram")
                         ? "bg-pink-50 text-pink-700 border border-pink-200"
-                        : item.platform.includes("YouTube")
-                        ? "bg-red-50 text-red-700 border border-red-200"
+                        : item.platform.includes("Whop")
+                        ? "bg-orange-50 text-orange-700 border border-orange-200"
                         : item.platform.includes("TikTok")
                         ? "bg-cyan-50 text-cyan-700 border border-cyan-200"
                         : "bg-slate-100 text-slate-800 border border-slate-300"
@@ -623,7 +1037,7 @@ export default function HomePage() {
                 {/* Details Footer */}
                 <div className="pt-3 px-1">
                   <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="font-bold text-slate-900 dark:text-white truncate max-w-[200px]">{item.title}</span>
+                    <span className="font-bold text-slate-900 truncate max-w-[200px]">{item.title}</span>
                     <span className="text-[10px] font-mono text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">
                       {item.badge}
                     </span>
@@ -631,7 +1045,7 @@ export default function HomePage() {
                   <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
                     {item.caption}
                   </p>
-                  <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-neutral-800 flex items-center justify-between text-[10px] text-slate-400 font-mono font-bold">
+                  <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-mono font-bold">
                     <span>{item.views}</span>
                     <span>{item.likes}</span>
                     <span className="text-emerald-600">Shield 0</span>
@@ -641,84 +1055,8 @@ export default function HomePage() {
             ))}
           </div>
 
-          {/* System Architecture Showcase Section */}
-          <div className="mt-16 pt-12 border-t border-slate-200">
-            <div className="text-center max-w-2xl mx-auto mb-8">
-              <h3 className="text-xl font-extrabold text-slate-900">
-                Unified Campaign Tracking Dashboard
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                How BotClips presents deep submission telemetry, velocity metrics, and delivery curves
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {screenshots.map((item, idx) => (
-                <div 
-                  key={idx}
-                  onClick={() => setSelectedProofIndex(idx)}
-                  className="cursor-pointer bg-neutral-900 rounded-xl p-2 shadow-md hover:shadow-lg transition-all border border-neutral-800 group"
-                >
-                  <div className="overflow-hidden rounded-lg aspect-[16/10] bg-neutral-950 relative">
-                    <img 
-                      src={item.src} 
-                      alt={item.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
-                    />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                      <span className="opacity-0 group-hover:opacity-100 text-[10px] text-white font-bold bg-black/70 px-2 py-1 rounded">Zoom</span>
-                    </div>
-                  </div>
-                  <div className="p-2 text-white">
-                    <div className="text-xs font-bold truncate">{item.title}</div>
-                    <div className="text-[10px] text-neutral-400 mt-0.5 line-clamp-1">{item.caption}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Risk Score Comparison Box */}
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Typical SMM Panel Risk Score */}
-            <div className="p-7 rounded-2xl border border-red-200 bg-white shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wide text-neutral-500">Typical SMM Panel Signal</span>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">Flagged / Rejected</span>
-              </div>
-              <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-5xl font-black text-red-600">78</span>
-                <span className="text-lg font-bold text-neutral-400">/ 100 Risk Index</span>
-              </div>
-              <div className="w-full h-2.5 rounded-full bg-neutral-100 mt-4 overflow-hidden">
-                <div className="h-full bg-red-500 rounded-full" style={{ width: "78%" }} />
-              </div>
-              <p className="text-xs text-[#6b7078] mt-3 leading-relaxed">
-                Elevated bot risk score triggered by 1-sec drops and repetitive datacenter proxies. Submissions are marked fraudulent and disqualified.
-              </p>
-            </div>
-
-            {/* BotClips Safe Risk Score */}
-            <div className="p-7 rounded-2xl border border-emerald-200 bg-white shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wide text-neutral-500">BotClips Quality Signal</span>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">Approved / Paid Out</span>
-              </div>
-              <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-5xl font-black text-emerald-600">24</span>
-                <span className="text-lg font-bold text-neutral-400">/ 100 Risk Index</span>
-              </div>
-              <div className="w-full h-2.5 rounded-full bg-neutral-100 mt-4 overflow-hidden">
-                <div className="h-full bg-emerald-500 rounded-full" style={{ width: "24%" }} />
-              </div>
-              <p className="text-xs text-[#6b7078] mt-3 leading-relaxed">
-                Low risk score generated by authentic 3–7s retention and physical smartphones. Seamlessly clears automated verification filters.
-              </p>
-            </div>
-          </div>
-
           {/* Delivery Consistency SVG Graph */}
-          <div className="mt-8 p-7 rounded-2xl border border-[#e9e9ec] bg-white shadow-sm">
+          <div className="mt-14 p-7 rounded-2xl border border-[#e9e9ec] bg-white shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
               <div>
                 <h3 className="text-base font-bold text-neutral-900">Why Delivery Consistency Matters</h3>
@@ -742,7 +1080,6 @@ export default function HomePage() {
 
             <div className="w-full h-[220px] relative mt-4">
               <svg viewBox="0 0 900 220" className="w-full h-full" preserveAspectRatio="none">
-                {/* Horizontal Grid lines */}
                 <line x1="0" y1="40" x2="900" y2="40" stroke="#f1f2f4" strokeWidth="1" strokeDasharray="4 4" />
                 <line x1="0" y1="90" x2="900" y2="90" stroke="#f1f2f4" strokeWidth="1" strokeDasharray="4 4" />
                 <line x1="0" y1="140" x2="900" y2="140" stroke="#f1f2f4" strokeWidth="1" strokeDasharray="4 4" />
@@ -753,8 +1090,8 @@ export default function HomePage() {
                   d="M0 190 C90 110 130 205 210 145 S330 105 405 160 S520 70 590 130 S720 80 900 115" 
                   fill="none" 
                   stroke="#ef4444" 
-                  strokeWidth="3.5"
-                  strokeLinecap="round"
+                  strokeWidth="3.5" 
+                  strokeLinecap="round" 
                 />
 
                 {/* Steady organic curve (Blue) */}
@@ -762,11 +1099,11 @@ export default function HomePage() {
                   d="M0 190 C130 175 210 155 300 142 S470 120 580 105 S760 82 900 68" 
                   fill="none" 
                   stroke="#246bfe" 
-                  strokeWidth="4"
-                  strokeLinecap="round"
+                  strokeWidth="4" 
+                  strokeLinecap="round" 
                 />
 
-                {/* Animated active pulse beacon along the curve */}
+                {/* Animated active pulse beacon */}
                 <circle cx="580" cy="105" r="8" fill="#246bfe" fillOpacity="0.25" className="animate-ping" />
                 <circle cx="580" cy="105" r="4" fill="#246bfe" stroke="#ffffff" strokeWidth="1.5" />
 
@@ -775,8 +1112,8 @@ export default function HomePage() {
                   d="M0 205 C160 195 260 180 390 170 S620 150 900 138" 
                   fill="none" 
                   stroke="#06b6d4" 
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
+                  strokeWidth="2.5" 
+                  strokeLinecap="round" 
                 />
               </svg>
             </div>
@@ -807,7 +1144,7 @@ export default function HomePage() {
               <span className="text-xs font-black text-blue-600 block mb-3">STEP 01</span>
               <h3 className="text-lg font-bold text-neutral-900 mb-2">Submit Link</h3>
               <p className="text-sm text-[#6b7078] leading-relaxed">
-                Paste your TikTok or Instagram Reel clipping submission link and select your desired volume.
+                Paste your TikTok, Shorts, or Instagram Reel clipping submission link and select your desired volume.
               </p>
             </div>
 
@@ -821,9 +1158,9 @@ export default function HomePage() {
 
             <div className="p-6 rounded-2xl border border-[#e9e9ec] bg-white relative">
               <span className="text-xs font-black text-blue-600 block mb-3">STEP 03</span>
-              <h3 className="text-lg font-bold text-neutral-900 mb-2">Natural Retention</h3>
+              <h3 className="text-lg font-bold text-neutral-900 mb-2">Micro-Jitter Retention</h3>
               <p className="text-sm text-[#6b7078] leading-relaxed">
-                Views are watched for 3 to 7 genuine seconds, creating a safe, human engagement profile without drops.
+                Views are watched for 3 to 7 genuine seconds with randomized interval pacing, creating human FYP curves.
               </p>
             </div>
 
@@ -831,7 +1168,7 @@ export default function HomePage() {
               <span className="text-xs font-black text-blue-600 block mb-3">STEP 04</span>
               <h3 className="text-lg font-bold text-neutral-900 mb-2">Collect Rewards</h3>
               <p className="text-sm text-[#6b7078] leading-relaxed">
-                Submit on Whop, ContentReward, or Clipster. Clear compliance reviews smoothly and claim your reward.
+                Submit on Whop, ContentReward, or Clipster. Clear compliance reviews smoothly and claim your earnings.
               </p>
             </div>
           </div>
@@ -858,7 +1195,7 @@ export default function HomePage() {
               >
                 <button
                   onClick={() => toggleFaq(idx)}
-                  className="w-full px-6 py-4 text-left flex items-center justify-between font-bold text-sm sm:text-base text-neutral-900 hover:text-blue-600 transition-colors"
+                  className="w-full px-6 py-4 text-left flex items-center justify-between font-bold text-sm sm:text-base text-neutral-900 hover:text-blue-600 transition-colors cursor-pointer"
                 >
                   <span>{faq.q}</span>
                   {faqOpen === idx ? (
@@ -921,8 +1258,8 @@ export default function HomePage() {
         </div>
       </footer>
 
-      {/* ── INTERACTIVE LIGHTBOX MODAL WITH PROOF TELEMETRY & CONTROLS ── */}
-      {selectedProofIndex !== null && proofScreenshots[selectedProofIndex] && (
+      {/* ── INTERACTIVE LIGHTBOX MODAL (FOR ALL PROOF SCREENSHOTS) ── */}
+      {selectedProofIndex !== null && allProofs[selectedProofIndex] && (
         <div 
           onClick={() => setSelectedProofIndex(null)}
           className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md p-4 flex items-center justify-center cursor-pointer animate-in fade-in duration-200"
@@ -935,29 +1272,29 @@ export default function HomePage() {
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-800 bg-slate-950/60">
               <div className="flex items-center gap-3">
                 <span className="text-xs font-mono font-bold text-slate-400">
-                  Proof {selectedProofIndex + 1} of {proofScreenshots.length}
+                  Proof {selectedProofIndex + 1} of {allProofs.length}
                 </span>
                 <span className="h-4 w-px bg-slate-700" />
                 <span className="text-xs font-bold text-white">
-                  {proofScreenshots[selectedProofIndex].platform}
+                  {allProofs[selectedProofIndex].platform}
                 </span>
                 <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-mono font-bold text-xs border border-emerald-500/30">
-                  {proofScreenshots[selectedProofIndex].payout} Approved
+                  {allProofs[selectedProofIndex].payout} Approved
                 </span>
               </div>
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setSelectedProofIndex((selectedProofIndex - 1 + proofScreenshots.length) % proofScreenshots.length)}
+                  onClick={() => setSelectedProofIndex((selectedProofIndex - 1 + allProofs.length) % allProofs.length)}
                   className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center gap-1 cursor-pointer transition-colors"
-                  title="Previous Proof (Left Arrow)"
+                  title="Previous Proof"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => setSelectedProofIndex((selectedProofIndex + 1) % proofScreenshots.length)}
+                  onClick={() => setSelectedProofIndex((selectedProofIndex + 1) % allProofs.length)}
                   className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center gap-1 cursor-pointer transition-colors"
-                  title="Next Proof (Right Arrow)"
+                  title="Next Proof"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -974,8 +1311,8 @@ export default function HomePage() {
             {/* Modal Image Display */}
             <div className="relative bg-black flex items-center justify-center p-2 max-h-[65vh] overflow-hidden">
               <img 
-                src={proofScreenshots[selectedProofIndex].src} 
-                alt={proofScreenshots[selectedProofIndex].title} 
+                src={allProofs[selectedProofIndex].src} 
+                alt={allProofs[selectedProofIndex].title} 
                 className="max-h-[60vh] w-auto max-w-full rounded-lg shadow-xl object-contain" 
               />
             </div>
@@ -984,23 +1321,23 @@ export default function HomePage() {
             <div className="p-4 bg-slate-950 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
               <div className="space-y-1">
                 <div className="font-bold text-white text-sm flex items-center gap-2">
-                  <span>{proofScreenshots[selectedProofIndex].title}</span>
+                  <span>{allProofs[selectedProofIndex].title}</span>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
-                    {proofScreenshots[selectedProofIndex].badge}
+                    {allProofs[selectedProofIndex].badge}
                   </span>
                 </div>
                 <p className="text-slate-400 text-xs leading-relaxed max-w-2xl">
-                  {proofScreenshots[selectedProofIndex].caption}
+                  {allProofs[selectedProofIndex].caption}
                 </p>
               </div>
 
               <div className="flex items-center gap-3 shrink-0">
                 <div className="text-right">
                   <div className="font-mono font-bold text-slate-200">
-                    {proofScreenshots[selectedProofIndex].views}
+                    {allProofs[selectedProofIndex].views}
                   </div>
                   <div className="text-[10px] text-slate-500">
-                    {proofScreenshots[selectedProofIndex].likes} • 0 Bot Risk
+                    {allProofs[selectedProofIndex].likes} • 0 Bot Risk
                   </div>
                 </div>
                 <Link
@@ -1010,6 +1347,36 @@ export default function HomePage() {
                   Start Campaign
                 </Link>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── SINGLE IMAGE MODAL (ZOOM FOR COMPARISON / DASHBOARDS) ── */}
+      {selectedImageModal && (
+        <div 
+          onClick={() => setSelectedImageModal(null)}
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md p-4 flex items-center justify-center cursor-pointer animate-in fade-in duration-200"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-5xl w-full bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col cursor-default"
+          >
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800 bg-slate-950">
+              <span className="text-xs font-bold text-white">Full Screenshot Inspection</span>
+              <button 
+                onClick={() => setSelectedImageModal(null)}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-900/60 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="relative bg-black flex items-center justify-center p-3 max-h-[75vh] overflow-hidden">
+              <img 
+                src={selectedImageModal} 
+                alt="Full Screenshot Inspection" 
+                className="max-h-[70vh] w-auto max-w-full rounded-lg shadow-2xl object-contain" 
+              />
             </div>
           </div>
         </div>

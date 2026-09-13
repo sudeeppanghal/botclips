@@ -129,10 +129,6 @@ export default function HomePage() {
             <a href="#curves" className="hover:text-blue-600 transition-colors">Organic Curves</a>
             <a href="#how-it-works" className="hover:text-blue-600 transition-colors">How It Works</a>
             <a href="#faq" className="hover:text-blue-600 transition-colors">FAQ</a>
-            <Link href="/admin" className="text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Admin</span>
-            </Link>
           </nav>
 
           <div className="flex items-center gap-3">
@@ -490,8 +486,8 @@ export default function HomePage() {
           <div>© 2026 BotClips / DhillonSMM. Powered by Cloudflare & Vercel.</div>
           <div className="flex items-center gap-4 text-slate-500">
             <Link href="/login" className="hover:text-blue-600">Client Login</Link>
-            <Link href="/admin" className="hover:text-blue-600">Admin Portal</Link>
             <Link href="/dashboard/services" className="hover:text-blue-600">Services</Link>
+            <Link href="/signup" className="hover:text-blue-600">Create Account</Link>
           </div>
         </div>
       </footer>

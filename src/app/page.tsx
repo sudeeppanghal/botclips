@@ -582,7 +582,7 @@ export default function HomePage() {
                   className="rounded-2xl overflow-hidden border border-emerald-500/30 bg-neutral-950 relative group cursor-pointer mb-5 shadow-lg"
                 >
                   <div className="aspect-[16/10] overflow-hidden relative">
-                    <img loading="lazy" decoding="async" src="https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/whop-lockscreen-payouts.jpg" 
+                    <img  decoding="async" src="https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/whop-lockscreen-payouts.jpg" 
                       alt="Whop Lockscreen Payout Stream" 
                       className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
                     />
@@ -675,7 +675,7 @@ export default function HomePage() {
             >
               <div>
                 <div className="aspect-[9/14] rounded-xl overflow-hidden bg-black relative mb-3">
-                  <img loading="lazy" decoding="async" src="https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/content-reward-300-approved.jpg" 
+                  <img  decoding="async" src="https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/content-reward-300-approved.jpg" 
                     alt="Content Rewards $300 Approved" 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
                   />
@@ -723,7 +723,7 @@ export default function HomePage() {
             >
               <div>
                 <div className="aspect-[9/14] rounded-xl overflow-hidden bg-black relative mb-3">
-                  <img loading="lazy" decoding="async" src="https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/tier1-usa-audience.jpg" 
+                  <img  decoding="async" src="https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/tier1-usa-audience.jpg" 
                     alt="Tier 1 USA Audience" 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
                   />
@@ -1016,7 +1016,6 @@ export default function HomePage() {
                     <img loading="lazy" decoding="async" src={item.src} 
                       alt={item.title}
                       className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
-                      loading="lazy"
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
                       <span className="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1.5 rounded-lg bg-black/80 text-white text-xs font-bold backdrop-blur-sm shadow-md flex items-center gap-1.5">
@@ -1303,7 +1302,7 @@ export default function HomePage() {
 
             {/* Modal Image Display */}
             <div className="relative bg-black flex items-center justify-center p-2 max-h-[65vh] overflow-hidden">
-              <img loading="lazy" decoding="async" src={allProofs[selectedProofIndex].src} 
+              <img  decoding="async" src={allProofs[selectedProofIndex].src} 
                 alt={allProofs[selectedProofIndex].title} 
                 className="max-h-[60vh] w-auto max-w-full rounded-lg shadow-xl object-contain" 
               />

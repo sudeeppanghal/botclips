@@ -507,26 +507,26 @@ export default function HomePage() {
                   </span>
                 </div>
 
-                {/* Real Admin Screenshot: Goalkeeper_go caught with 37% Trust Score */}
+                {/* Real Admin Screenshot: Flagged & Disqualified Bot Submission */}
                 <div 
-                  onClick={() => setSelectedImageModal("https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/admin-caught-vs-passed.jpg")}
+                  onClick={() => setSelectedImageModal("https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/admin-rejected-bot-caught.jpg")}
                   className="rounded-2xl overflow-hidden border border-red-500/30 bg-neutral-950 relative group cursor-pointer mb-5 shadow-lg"
                 >
                   <div className="aspect-[16/10] overflow-hidden relative">
-                    <img loading="lazy" decoding="async" src="https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/admin-caught-vs-passed.jpg" 
-                      alt="Admin POV: Caught Botted Clipper" 
-                      className="w-full h-full object-cover object-bottom group-hover:scale-105 transition-transform duration-300"
+                    <img loading="lazy" decoding="async" src="https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/admin-rejected-bot-caught.jpg" 
+                      alt="Whop Moderation Panel: Submission Rejected ($0.00 Payout)" 
+                      className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
                     />
                     <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                       <span className="px-3.5 py-2 rounded-xl bg-red-950/90 text-red-200 border border-red-800 text-xs font-bold backdrop-blur-sm flex items-center gap-2">
                         <Maximize2 className="w-3.5 h-3.5" />
-                        <span>Inspect Admin Console Screen</span>
+                        <span>Inspect Flagged Console Screen</span>
                       </span>
                     </div>
                   </div>
                   <div className="p-3 bg-red-950/50 border-t border-red-900/50 text-xs text-red-300 flex items-center justify-between font-mono">
-                    <span>Target: @goalkeepergo</span>
-                    <span className="font-bold text-red-400">Trust Score 37% (Flagged Red)</span>
+                    <span>Whop AI Moderation Alert</span>
+                    <span className="font-bold text-red-400">Score 88/100 • $0.00 Disqualified</span>
                   </div>
                 </div>
 

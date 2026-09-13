@@ -19,10 +19,12 @@ import {
   DollarSign,
   TrendingUp,
   AlertCircle,
+  AlertTriangle,
   Eye,
   ExternalLink,
   Crown
 } from "lucide-react";
+import BotClipsLogo from "@/components/BotClipsLogo";
 
 type AdminTab = "OVERVIEW" | "ORDERS" | "USERS" | "PANELS" | "SERVICES" | "PAYMENTS" | "SETTINGS";
 
@@ -125,11 +127,57 @@ export default function AdminDashboardPage() {
     cloudinaryCloudName: "",
     cloudinaryUploadPreset: "",
     cloudinaryApiKey: "",
+    maintenanceMode: false,
+    maintenanceMessage: "Scheduled infrastructure maintenance in progress. All running orders continue running normally.",
   });
+
+  const [savingMaintenance, setSavingMaintenance] = useState(false);
 
   useEffect(() => {
     loadRealPayments();
+    loadMaintenanceStatus();
   }, []);
+
+  async function loadMaintenanceStatus() {
+    try {
+      const res = await fetch("/api/admin/maintenance");
+      const data = await res.json();
+      if (typeof data.maintenanceMode === "boolean") {
+        setSettings(prev => ({
+          ...prev,
+          maintenanceMode: data.maintenanceMode,
+          maintenanceMessage: data.maintenanceMessage || prev.maintenanceMessage,
+        }));
+      }
+    } catch {}
+  }
+
+  async function handleToggleMaintenance(newMode: boolean) {
+    setSavingMaintenance(true);
+    try {
+      const res = await fetch("/api/admin/maintenance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          maintenanceMode: newMode,
+          maintenanceMessage: settings.maintenanceMessage,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSettings(prev => ({ ...prev, maintenanceMode: data.maintenanceMode }));
+        notify(
+          newMode 
+            ? "🚨 Maintenance Mode ACTIVATED! Public visitors see maintenance screen. All running orders continue running uninterrupted."
+            : "✅ Maintenance Mode DEACTIVATED. Full website is now live for all visitors."
+        );
+      }
+    } catch (err) {
+      notify("Failed to update maintenance mode");
+    } finally {
+      setSavingMaintenance(false);
+    }
+  }
 
   async function loadRealPayments() {
     try {
@@ -211,20 +259,43 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-1 rounded-md bg-amber-500/10 text-amber-500 font-bold">
-              <ShieldCheck className="w-5 h-5" />
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-              Master Admin Panel
-            </h1>
+      {/* Maintenance Mode Warning Banner (if active) */}
+      {settings.maintenanceMode && (
+        <div className="p-4 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 animate-pulse" />
+            <div className="text-xs leading-relaxed">
+              <strong className="font-black text-sm block text-amber-800 dark:text-amber-300">
+                🚨 WEBSITE MAINTENANCE MODE IS CURRENTLY ACTIVE
+              </strong>
+              Public visitors see the maintenance screen. All running orders, background cron syncs, and provider engines continue operating 100% uninterrupted.
+            </div>
           </div>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Complete control over background SMM providers (smmsocialmedia.in, yoyomedia), UPI screenshot verification, and users.
-          </p>
+          <button
+            onClick={() => handleToggleMaintenance(false)}
+            disabled={savingMaintenance}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all shrink-0 cursor-pointer"
+          >
+            {savingMaintenance ? "Deactivating..." : "Deactivate Maintenance"}
+          </button>
+        </div>
+      )}
+
+      {/* Top Banner with BotClipsLogo */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <BotClipsLogo size="md" href="/admin" />
+          <div className="h-6 w-px bg-slate-200 dark:border-slate-800" />
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 text-[10px] font-black uppercase tracking-wider">
+                Admin Portal
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Fulfillment management, payment verification & system settings.
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -758,6 +829,87 @@ export default function AdminDashboardPage() {
             >
               Save Cloudinary Keys
             </button>
+          </div>
+
+          {/* Full-width Card: Website Maintenance Mode Control */}
+          <div className="lg:col-span-2 bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${
+                  settings.maintenanceMode 
+                    ? "bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400 animate-pulse" 
+                    : "bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"
+                }`}>
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                    Website Maintenance Mode
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Safely pause public-facing pages without interrupting background deliveries or order fulfillment.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wide ${
+                  settings.maintenanceMode 
+                    ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800" 
+                    : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800"
+                }`}>
+                  {settings.maintenanceMode ? "MAINTENANCE ACTIVE" : "NORMAL (LIVE)"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleToggleMaintenance(!settings.maintenanceMode)}
+                  disabled={savingMaintenance}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold text-white transition-all cursor-pointer shadow-xs ${
+                    settings.maintenanceMode
+                      ? "bg-emerald-600 hover:bg-emerald-700"
+                      : "bg-amber-600 hover:bg-amber-700"
+                  }`}
+                >
+                  {savingMaintenance 
+                    ? "Updating..." 
+                    : settings.maintenanceMode 
+                      ? "Turn OFF Maintenance" 
+                      : "Turn ON Maintenance"}
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 leading-relaxed space-y-2">
+              <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>Zero Disruption Guarantee:</span>
+              </div>
+              <p>
+                • <strong>Existing Orders & Active Campaigns:</strong> Background workers and upstream dispatching continue executing with 0% delay.
+              </p>
+              <p>
+                • <strong>Auto-Sync Cron Jobs:</strong> Order status checks and API deliveries operate normally.
+              </p>
+              <p>
+                • <strong>Admin Security:</strong> Administrators retain full access to this panel and can turn maintenance mode off at any time.
+              </p>
+              <p>
+                • <strong>Confidentiality:</strong> Visitors only see the official BotClips calibration screen. Internal SMM APIs and device configurations are completely concealed.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wider">
+                Maintenance Notice for Visitors
+              </label>
+              <input
+                type="text"
+                value={settings.maintenanceMessage}
+                onChange={(e) => setSettings({ ...settings, maintenanceMessage: e.target.value })}
+                placeholder="Scheduled infrastructure maintenance in progress. All running orders continue running normally."
+                className="w-full px-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:border-blue-500"
+              />
+            </div>
           </div>
         </div>
       )}

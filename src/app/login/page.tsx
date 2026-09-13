@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bot, ArrowRight, Lock, Mail, AlertCircle, ShieldCheck, Sparkles } from "lucide-react";
+import BotClipsLogo from "@/components/BotClipsLogo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -74,9 +75,9 @@ export default function LoginPage() {
       <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-3xl w-full max-w-md p-8 shadow-xl">
         {/* Brand */}
         <div className="flex flex-col items-center text-center pb-6 border-b border-slate-100 dark:border-slate-800">
-          <Link href="/" className="w-12 h-12 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600 mb-3 hover:scale-105 transition-transform">
-            <Bot className="w-7 h-7 stroke-[2.2]" />
-          </Link>
+          <div className="mb-4">
+            <BotClipsLogo size="lg" href="/" />
+          </div>
           <h1 className="text-2xl font-black text-slate-900 dark:text-white">Welcome Back</h1>
           <p className="text-xs text-slate-400 mt-1">Sign in to your BotClips dashboard</p>
         </div>

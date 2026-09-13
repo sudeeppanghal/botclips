@@ -324,7 +324,7 @@ export default function AutomationPage() {
                 </label>
                 <input
                   type="url"
-                  placeholder="https://justanotherpanel.com/api/v2 or https://smmsocialmedia.in/api/v2"
+                  placeholder="https://your-panel-provider.com/api/v2"
                   value={customApiUrl}
                   onChange={(e) => setCustomApiUrl(e.target.value)}
                   className="w-full px-3 py-2 text-xs font-mono bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white outline-none focus:border-purple-500"

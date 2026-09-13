@@ -21,6 +21,7 @@ import {
   Sparkles,
   Award
 } from "lucide-react";
+import BotClipsLogo from "@/components/BotClipsLogo";
 
 export default function HomePage() {
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
@@ -81,9 +82,7 @@ export default function HomePage() {
       {/* ── STICKY TOP NAVIGATION ── */}
       <nav className="sticky top-0 z-40 h-[74px] border-b border-[#e9e9ec] bg-white/90 backdrop-blur-md">
         <div className="max-w-[1180px] mx-auto px-6 h-full flex items-center justify-between">
-          <Link href="/" className="text-2xl font-black tracking-tight text-[#111214] flex items-center gap-1.5">
-            Bot<span className="text-[#246bfe]">Clips</span>
-          </Link>
+          <BotClipsLogo size="md" href="/" />
 
           <div className="hidden md:flex items-center gap-8 text-[14px] font-semibold text-[#62666e]">
             <a href="#why" className="hover:text-[#111214] transition-colors">Why BotClips</a>
@@ -112,9 +111,19 @@ export default function HomePage() {
       {/* ── HERO SECTION ── */}
       <header className="relative pt-20 pb-24 text-center overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-50/70 via-white to-white">
         <div className="max-w-[1180px] mx-auto px-6">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-blue-100 bg-blue-50/80 text-blue-700 text-xs font-extrabold tracking-wide uppercase">
-            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-            Built for the Clipping Industry
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-2">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-blue-100 bg-blue-50/80 text-blue-700 text-xs font-extrabold tracking-wide uppercase">
+              <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+              Built for the Clipping Industry
+            </div>
+
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-200 bg-emerald-50/90 text-emerald-800 text-[11px] font-bold shadow-xs">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span>20,480 Physical Smartphones Active</span>
+            </div>
           </div>
 
           <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-[#111214] mt-6 max-w-4xl mx-auto leading-[1.05]">
@@ -127,6 +136,14 @@ export default function HomePage() {
           <p className="mt-6 text-lg sm:text-xl text-[#6b7078] max-w-2xl mx-auto leading-relaxed font-normal">
             Undetectable views, genuine retention curves, and automated compliance designed specifically for <strong className="text-neutral-900 font-semibold">Whop</strong>, <strong className="text-neutral-900 font-semibold">ContentReward</strong>, and <strong className="text-neutral-900 font-semibold">Clipster</strong> reward campaigns.
           </p>
+
+          {/* Floating Live Activity Ticker */}
+          <div className="hidden sm:inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white border border-slate-200/90 text-xs text-slate-600 mt-5 animate-float shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-bold text-neutral-900">Live Verification:</span>
+            <span>Whop reward payout $420 approved</span>
+            <span className="text-slate-400 font-mono text-[10px]">• 3m ago</span>
+          </div>
 
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
             <Link
@@ -449,6 +466,10 @@ export default function HomePage() {
                   strokeLinecap="round"
                 />
 
+                {/* Animated active pulse beacon along the curve */}
+                <circle cx="580" cy="105" r="8" fill="#246bfe" fillOpacity="0.25" className="animate-ping" />
+                <circle cx="580" cy="105" r="4" fill="#246bfe" stroke="#ffffff" strokeWidth="1.5" />
+
                 {/* Baseline (Cyan) */}
                 <path 
                   d="M0 205 C160 195 260 180 390 170 S620 150 900 138" 
@@ -587,10 +608,10 @@ export default function HomePage() {
       {/* ── FOOTER ── */}
       <footer className="border-t border-[#e9e9ec] py-8 text-[#6b7078] text-xs">
         <div className="max-w-[1180px] mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-neutral-900">BotClips</span>
-            <span>—</span>
-            <span>High-Retention Clipping Infrastructure</span>
+          <div className="flex items-center gap-3">
+            <BotClipsLogo size="sm" href="/" />
+            <span className="text-slate-300">|</span>
+            <span className="text-slate-500 font-medium">High-Retention Clipping Infrastructure</span>
           </div>
           <div className="flex items-center gap-6">
             <Link href="/login" className="hover:text-neutral-900 transition-colors">Sign In</Link>

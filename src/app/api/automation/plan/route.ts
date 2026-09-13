@@ -3,10 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { SmmPanelClient } from "@/lib/delivery/panel-client";
 
-// Pricing in INR (based on $5/week and $25/month at ~₹88/USD)
+// Pricing in INR (based on $5/week and $25/month at 1 USDT / $1 = ₹96 INR)
 const PLAN_PRICES = {
-  WEEKLY: 440,   // $5 = ~₹440 INR
-  MONTHLY: 2200, // $25 = ~₹2,200 INR
+  WEEKLY: 480,   // $5 * 96 = ₹480 INR
+  MONTHLY: 2400, // $25 * 96 = ₹2,400 INR
 };
 
 // GET /api/automation/plan - Fetch user's current automation mode & plan status

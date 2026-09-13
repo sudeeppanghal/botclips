@@ -418,7 +418,7 @@ export default function WalletPage() {
                   </button>
                 </div>
               </div>
-              <p className="text-xs text-slate-500">Rate: 1 USDT = ₹88.00. Automatic confirmation after 1 block network confirmation.</p>
+              <p className="text-xs text-slate-500">Rate: 1 USDT = ₹96.00. Automatic confirmation after 1 block network confirmation.</p>
             </div>
           )}
         </div>

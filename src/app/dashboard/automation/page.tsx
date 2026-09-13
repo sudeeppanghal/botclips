@@ -268,7 +268,7 @@ export default function AutomationPage() {
               {/* Weekly Plan */}
               <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/15 text-center min-w-[170px]">
                 <div className="text-xs font-bold text-purple-200">Weekly Pass</div>
-                <div className="text-2xl font-black mt-1">$5 <span className="text-xs font-normal text-purple-200">(₹440)</span></div>
+                <div className="text-2xl font-black mt-1">$5 <span className="text-xs font-normal text-purple-200">(₹480)</span></div>
                 <div className="text-[10px] text-purple-300 mt-0.5">7 Days Active Access</div>
                 <button
                   onClick={() => handleSubscribe("WEEKLY")}
@@ -285,7 +285,7 @@ export default function AutomationPage() {
                   POPULAR
                 </span>
                 <div className="text-xs font-bold text-amber-300">Monthly Pro</div>
-                <div className="text-2xl font-black mt-1">$25 <span className="text-xs font-normal text-purple-200">(₹2,200)</span></div>
+                <div className="text-2xl font-black mt-1">$25 <span className="text-xs font-normal text-purple-200">(₹2,400)</span></div>
                 <div className="text-[10px] text-purple-300 mt-0.5">30 Days Active Access</div>
                 <button
                   onClick={() => handleSubscribe("MONTHLY")}

@@ -117,7 +117,7 @@ export default function AdminDashboardPage() {
   const [settings, setSettings] = useState({
     siteName: "BotClips",
     currencySymbol: "₹",
-    usdToInr: 88.0,
+    usdToInr: 96.0,
     upiId: "dhillonsmm@axl",
     telegram: "@dhillionsmm_support",
     whatsapp: "+91 99999 99999",

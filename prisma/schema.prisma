@@ -254,7 +254,7 @@ model AdminSettings {
   siteName        String        @default("BotClips") @map("site_name")
   currency        String        @default("INR")
   currencySymbol  String        @default("₹") @map("currency_symbol")
-  usdToInrRate    Float         @default(88.0) @map("usd_to_inr_rate")
+  usdToInrRate    Float         @default(96.0) @map("usd_to_inr_rate")
   upiId           String?       @default("dhillon@upi") @map("upi_id")
   upiQrCodeUrl    String?       @map("upi_qr_code_url")
   trc20Address    String?       @map("trc20_address")

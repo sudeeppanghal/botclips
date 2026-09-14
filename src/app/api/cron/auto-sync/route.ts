@@ -73,10 +73,46 @@ export async function GET(request: NextRequest) {
           const upstream = statusRes.status.toLowerCase();
           let newStatus = order.status;
 
-          if (upstream === "completed") newStatus = "COMPLETED";
-          else if (upstream === "in progress" || upstream === "processing") newStatus = "IN_PROGRESS";
-          else if (upstream === "partial") newStatus = "PARTIAL";
-          else if (upstream === "canceled" || upstream === "cancelled") newStatus = "CANCELLED";
+          if (upstream === "completed") {
+            newStatus = "COMPLETED";
+          } else if (upstream === "in progress" || upstream === "processing") {
+            newStatus = "IN_PROGRESS";
+          } else if (upstream === "partial") {
+            newStatus = "PARTIAL";
+            // Auto-refund remaining unfulfilled balance if order was charged
+            if (order.charge > 0 && order.quantity > 0 && statusRes.remains && Number(statusRes.remains) > 0 && order.userId) {
+              const refundAmount = Number(((Number(statusRes.remains) / order.quantity) * order.charge).toFixed(4));
+              if (refundAmount > 0) {
+                try {
+                  await prisma.user.update({
+                    where: { id: order.userId },
+                    data: {
+                      balance: { increment: refundAmount },
+                      totalSpent: { decrement: refundAmount },
+                    },
+                  });
+                } catch (refErr) {
+                  console.error(`Refund error for partial order #${order.id}:`, refErr);
+                }
+              }
+            }
+          } else if (upstream === "canceled" || upstream === "cancelled" || upstream === "refunded") {
+            newStatus = "CANCELLED";
+            // Auto-refund 100% of the charged balance to user
+            if (order.charge > 0 && order.userId) {
+              try {
+                await prisma.user.update({
+                  where: { id: order.userId },
+                  data: {
+                    balance: { increment: order.charge },
+                    totalSpent: { decrement: order.charge },
+                  },
+                });
+              } catch (refErr) {
+                console.error(`Refund error for cancelled order #${order.id}:`, refErr);
+              }
+            }
+          }
 
           await prisma.order.update({
             where: { id: order.id },

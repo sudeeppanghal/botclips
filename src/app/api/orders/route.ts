@@ -56,11 +56,25 @@ export async function POST(request: NextRequest) {
       comboData,
       jitterSchedule,
       platform,
+      minQty,
+      maxQty,
+      isAutomatedTask = false,
     } = body;
 
     const cleanQuantity = Math.floor(Number(quantity));
-    const cleanRuns = Math.max(1, Math.floor(Number(runs) || 1));
     const cleanInterval = Math.max(0, Math.floor(Number(intervalMinutes) || 0));
+
+    // Calculate runs and batch quantities for automated engagement tasks
+    let calculatedRuns = Math.max(1, Math.floor(Number(runs) || 1));
+    let batchQuantity = cleanQuantity;
+
+    if (isAutomatedTask && minQty && maxQty && (Number(minQty) + Number(maxQty) > 0)) {
+      const avgBatch = (Number(minQty) + Number(maxQty)) / 2;
+      calculatedRuns = Math.max(1, Math.ceil(cleanQuantity / avgBatch));
+      batchQuantity = Math.max(1, Math.round(cleanQuantity / calculatedRuns));
+    }
+
+    const cleanRuns = calculatedRuns;
 
     if (!link || !cleanQuantity || cleanQuantity <= 0 || isNaN(cleanQuantity)) {
       return NextResponse.json(
@@ -101,13 +115,26 @@ export async function POST(request: NextRequest) {
       let providerOrderId: string | null = null;
       try {
         const client = new SmmPanelClient(dbUser.customApiUrl!, dbUser.customApiKey!);
-        const result = await client.addOrder({
+        let result = await client.addOrder({
           serviceId: subscriberServiceId || "1",
           link,
-          quantity: Number(quantity),
-          runs: Number(runs),
-          interval: Number(intervalMinutes),
+          quantity: isAutomatedTask ? batchQuantity : Number(quantity),
+          runs: calculatedRuns > 1 ? calculatedRuns : undefined,
+          interval: cleanInterval > 0 ? cleanInterval : undefined,
         });
+
+        // Automatic Fallback Retry: If upstream rejects dripfeed parameters, retry as a clean single bulk order
+        if (result && result.error && (
+          result.error.toLowerCase().includes("drip") || 
+          result.error.toLowerCase().includes("runs") || 
+          result.error.toLowerCase().includes("interval")
+        )) {
+          result = await client.addOrder({
+            serviceId: subscriberServiceId || "1",
+            link,
+            quantity: Number(quantity),
+          });
+        }
 
         if (result && result.order) {
           providerOrderId = String(result.order);
@@ -280,7 +307,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const totalQuantity = cleanRuns > 1 ? cleanQuantity * cleanRuns : cleanQuantity;
+    const totalQuantity = isAutomatedTask ? cleanQuantity : (cleanRuns > 1 ? cleanQuantity * cleanRuns : cleanQuantity);
     // Server-enforced custom rate strictly from adminService (never trust client-submitted charge)
     const serverRate = Number(adminServiceRecord.customRate);
     const totalCost = Number(((totalQuantity / 1000) * serverRate).toFixed(4));
@@ -325,13 +352,26 @@ export async function POST(request: NextRequest) {
     if (panel && panel.apiUrl && panel.apiKeyEncrypted && panel.apiKeyEncrypted !== "PLACEHOLDER_KEY") {
       try {
         const client = new SmmPanelClient(panel.apiUrl, panel.apiKeyEncrypted);
-        const result = await client.addOrder({
+        let result = await client.addOrder({
           serviceId: mappedUpstreamServiceId,
           link,
-          quantity: Number(quantity),
-          runs: Number(runs),
-          interval: Number(intervalMinutes),
+          quantity: isAutomatedTask ? batchQuantity : Number(quantity),
+          runs: calculatedRuns > 1 ? calculatedRuns : undefined,
+          interval: cleanInterval > 0 ? cleanInterval : undefined,
         });
+
+        // Fallback retry without dripfeed if upstream panel returns dripfeed unsupported
+        if (result && result.error && (
+          result.error.toLowerCase().includes("drip") || 
+          result.error.toLowerCase().includes("runs") || 
+          result.error.toLowerCase().includes("interval")
+        )) {
+          result = await client.addOrder({
+            serviceId: mappedUpstreamServiceId,
+            link,
+            quantity: cleanQuantity,
+          });
+        }
 
         if (result && result.order) {
           providerOrderId = String(result.order);

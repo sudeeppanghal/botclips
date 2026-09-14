@@ -22,6 +22,7 @@ import {
   Sliders,
   Database
 } from "lucide-react";
+import EngagementTaskLauncher from "@/components/EngagementTaskLauncher";
 
 export default function AutomationPage() {
   const [activeMode, setActiveMode] = useState<"MANAGED" | "CUSTOM_API">("MANAGED");
@@ -645,8 +646,12 @@ export default function AutomationPage() {
         </div>
       )}
 
-      {/* Main Campaign Configuration & Waveform Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Active Mode Task Flow */}
+      {activeMode === "CUSTOM_API" ? (
+        <EngagementTaskLauncher walletBalance={userBalance} />
+      ) : (
+        /* Main Campaign Configuration & Waveform Grid */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Col: Setup & Configuration */}
         <div className="lg:col-span-7 bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-6">
           <form onSubmit={handleLaunchCampaign} className="space-y-4">
@@ -736,15 +741,10 @@ export default function AutomationPage() {
 
             <button
               type="submit"
-              disabled={activeMode === "CUSTOM_API" && !planActive}
-              className="w-full py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all cursor-pointer flex items-center justify-center gap-2"
             >
               <Zap className="w-4 h-4 fill-current" />
-              <span>
-                {activeMode === "CUSTOM_API" 
-                  ? "Launch via Connected SMM Panel API" 
-                  : "Launch Managed Viewfarm Campaign"}
-              </span>
+              <span>Launch Managed Viewfarm Campaign</span>
             </button>
           </form>
         </div>
@@ -793,11 +793,12 @@ export default function AutomationPage() {
               <div className="flex items-center justify-between">
                 <span>Average Retention:</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">3–7 Seconds / View</span>
-              </div>
             </div>
           </div>
         </div>
       </div>
+      </div>
+      )}
     </div>
   );
 }

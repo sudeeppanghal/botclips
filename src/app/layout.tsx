@@ -1,7 +1,15 @@
 import type { Metadata, Viewport } from "next";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./global.css";
 import { ThemeProvider } from "@/components/ThemeContext";
 import SecurityShield from "@/components/SecurityShield";
+
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-sans",
+  display: "swap",
+});
 
 export const viewport: Viewport = {
   themeColor: "#2563eb",
@@ -12,6 +20,14 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://botclips.online"),
+  icons: {
+    icon: [
+      { url: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/branding/botclips-icon.png", type: "image/png" },
+      { url: "/favicon.ico" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/branding/botclips-icon.png",
+  },
   title: {
     default: "BotClips - #1 AI-Powered SMM Panel & Whop Clippers Automation",
     template: "%s | BotClips",
@@ -234,7 +250,7 @@ export default function RootLayout({
         {/* Link to LLMs.txt specification */}
         <link rel="help" href="/llms.txt" type="text/markdown" title="LLMs.txt" />
       </head>
-      <body className="antialiased">
+      <body className={`${jakarta.variable} font-sans antialiased`}>
         <SecurityShield />
         <ThemeProvider>
           {children}

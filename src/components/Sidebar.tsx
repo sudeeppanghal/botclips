@@ -16,6 +16,7 @@ import {
   X,
   Sparkles
 } from "lucide-react";
+import BotClipsLogo from "@/components/BotClipsLogo";
 
 interface SidebarProps {
   mobileOpen?: boolean;
@@ -54,14 +55,7 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile, brandName =
         <div>
           {/* Brand Header */}
           <div className="flex items-center justify-between pb-6 px-1">
-            <Link href="/dashboard" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-600/10 dark:bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                <Bot className="w-6 h-6 stroke-[2.2]" />
-              </div>
-              <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-                {brandName}
-              </span>
-            </Link>
+            <BotClipsLogo size="md" href="/dashboard" />
             {onCloseMobile && (
               <button 
                 onClick={onCloseMobile}

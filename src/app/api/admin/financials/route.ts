@@ -28,13 +28,13 @@ export async function GET(request: NextRequest) {
     // 3. Crypto (USDT) Payments Breakdown
     const confirmedCrypto = await prisma.cryptoPayment.findMany({
       where: { status: "CONFIRMED" },
-      select: { amountUsdt: true, amountInr: true }
+      select: { amountUsdt: true }
     });
     const pendingCryptoCount = await prisma.cryptoPayment.count({
       where: { status: "PENDING" }
     });
     const totalCryptoUsdt = confirmedCrypto.reduce((acc, p) => acc + (Number(p.amountUsdt) || 0), 0);
-    const totalCryptoInr = confirmedCrypto.reduce((acc, p) => acc + (Number(p.amountInr) || Math.round(Number(p.amountUsdt) * 96)), 0);
+    const totalCryptoInr = confirmedCrypto.reduce((acc, p) => acc + Math.round((Number(p.amountUsdt) || 0) * 96), 0);
     const confirmedCryptoCount = confirmedCrypto.length;
 
     // 4. Combined Deposits

@@ -198,7 +198,13 @@ model CryptoPayment {
   walletAddress   String        @map("wallet_address")
   txHash          String        @unique @map("tx_hash")
   amountUsdt      Float         @map("amount_usdt")
+  amountInr       Float?        @map("amount_inr")
+  screenshot1     String?       @map("screenshot_1")
+  screenshot2     String?       @map("screenshot_2")
+  onChainVerified Boolean       @default(false) @map("on_chain_verified")
+  onChainDetails  String?       @map("on_chain_details") @db.Text
   status          PaymentStatus @default(PENDING)
+  rejectReason    String?       @map("reject_reason")
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 

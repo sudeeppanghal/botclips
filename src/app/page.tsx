@@ -499,50 +499,50 @@ export default function HomePage() {
                     </div>
                     <div>
                       <h3 className="text-lg font-black text-white">Admin POV: How They Catch Botting</h3>
-                      <p className="text-xs text-neutral-400">Score 88 Alert • Unnatural Drops • Broken Ratios</p>
+                      <p className="text-xs text-neutral-400">Score 100 Flag • Botted Sawtooth Graphs • Broken Ratios</p>
                     </div>
                   </div>
                   <span className="px-3 py-1 rounded-full bg-red-500/20 text-red-400 text-xs font-black uppercase tracking-wider border border-red-500/30">
-                    Flagged & Rejected ($0)
+                    Flagged &amp; Rejected ($0)
                   </span>
                 </div>
 
                 {/* Real Admin Screenshot: Flagged & Disqualified Bot Submission */}
                 <div 
-                  onClick={() => setSelectedImageModal("https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/admin-rejected-bot-caught.jpg")}
-                  className="rounded-2xl overflow-hidden border border-red-500/30 bg-neutral-950 relative group cursor-pointer mb-5 shadow-lg"
+                  onClick={() => setSelectedImageModal("https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/comparison-botted-breakdown.png")}
+                  className="rounded-2xl overflow-hidden border border-red-500/40 bg-[#0a0c10] relative group cursor-pointer mb-5 shadow-2xl transition-all hover:border-red-400/70"
                 >
-                  <div className="aspect-[16/10] overflow-hidden relative">
-                    <img loading="lazy" decoding="async" src="https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/admin-rejected-bot-caught.jpg" 
-                      alt="Whop Moderation Panel: Submission Rejected ($0.00 Payout)" 
-                      className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
+                  <div className="w-full aspect-[16/9] bg-black/90 flex items-center justify-center relative overflow-hidden">
+                    <img loading="lazy" decoding="async" src="https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/comparison-botted-breakdown.png" 
+                      alt="Whop Moderation Panel: High Bot Score (100) & Botted Graphs" 
+                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                     />
                     <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                      <span className="px-3.5 py-2 rounded-xl bg-red-950/90 text-red-200 border border-red-800 text-xs font-bold backdrop-blur-sm flex items-center gap-2">
+                      <span className="px-3.5 py-2 rounded-xl bg-red-950/90 text-red-200 border border-red-800 text-xs font-bold backdrop-blur-sm flex items-center gap-2 shadow-lg">
                         <Maximize2 className="w-3.5 h-3.5" />
-                        <span>Inspect Flagged Console Screen</span>
+                        <span>Inspect High Bot Score &amp; Botted Graphs</span>
                       </span>
                     </div>
                   </div>
                   <div className="p-3 bg-red-950/50 border-t border-red-900/50 text-xs text-red-300 flex items-center justify-between font-mono">
                     <span>Whop AI Moderation Alert</span>
-                    <span className="font-bold text-red-400">Score 88/100 • $0.00 Disqualified</span>
+                    <span className="font-bold text-red-400">Score 100/100 • $0.00 Rejected</span>
                   </div>
                 </div>
 
                 {/* 3 Critical Detection Traps */}
                 <div className="space-y-3">
                   <div className="p-3.5 rounded-xl bg-red-950/30 border border-red-900/30 text-xs text-neutral-300">
-                    <strong className="text-red-400 block mb-0.5">1. Whop AI Bot Score 88 / 100 Alert</strong>
-                    Datacenter cloud scrapers trigger immediate automated fraud flags, freezing submission balance.
+                    <strong className="text-red-400 block mb-0.5">1. HIGH BOT SCORE (Red Shield 100)</strong>
+                    Whop AI detection flags artificial views immediately with maximum 100/100 score, triggering the &quot;Reject&quot; button.
                   </div>
                   <div className="p-3.5 rounded-xl bg-neutral-950/60 border border-neutral-800 text-xs text-neutral-300">
-                    <strong className="text-red-400 block mb-0.5">2. Rigid Stair-Step Spike Graph</strong>
-                    Views surge in 1 second, then drop by thousands within hours, creating an unnatural steep cliff.
+                    <strong className="text-red-400 block mb-0.5">2. BOTTED GRAPHS (Robotic Sawtooth Spikes)</strong>
+                    Sawtooth staircase curves and flatlines followed by unnatural vertical jumps (+56k views) trip algorithmic fraud filters.
                   </div>
                   <div className="p-3.5 rounded-xl bg-neutral-950/60 border border-neutral-800 text-xs text-neutral-300">
-                    <strong className="text-red-400 block mb-0.5">3. Mismatched Engagement Ratio Trap</strong>
-                    50,000 Views with only 4 Likes & 0 Comments instantly trips platform anti-bot thresholds.
+                    <strong className="text-red-400 block mb-0.5">3. LOW ENGAGEMENT (Broken Interaction Ratios)</strong>
+                    56,714 Views with only 65 Likes &amp; 2 Comments (0.11% interaction rate). Submission disqualified ($0.00).
                   </div>
                 </div>
               </div>
@@ -567,51 +567,51 @@ export default function HomePage() {
                     </div>
                     <div>
                       <h3 className="text-lg font-black text-white">BotClips Algorithmic Bypass Engine</h3>
-                      <p className="text-xs text-neutral-400">Score 20 Clean • Micro-Jitter • Perfect Ratios</p>
+                      <p className="text-xs text-neutral-400">Score 0 Clean • Organic S-Curves • Perfect Ratios</p>
                     </div>
                   </div>
                   <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-wider border border-emerald-500/30 flex items-center gap-1">
                     <CheckCircle className="w-3.5 h-3.5" />
-                    <span>Verified & Transferred</span>
+                    <span>Verified &amp; Transferred</span>
                   </span>
                 </div>
 
-                {/* Real Approved Screenshot: Whop Lockscreen Payouts or $300 Approved */}
+                {/* Real Approved Screenshot: Organic Graphs & Perfect Engagement */}
                 <div 
-                  onClick={() => setSelectedImageModal("https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/whop-lockscreen-payouts.jpg")}
-                  className="rounded-2xl overflow-hidden border border-emerald-500/30 bg-neutral-950 relative group cursor-pointer mb-5 shadow-lg"
+                  onClick={() => setSelectedImageModal("https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/comparison-organic-breakdown.png")}
+                  className="rounded-2xl overflow-hidden border border-emerald-500/40 bg-[#0a0c10] relative group cursor-pointer mb-5 shadow-2xl transition-all hover:border-emerald-400/70"
                 >
-                  <div className="aspect-[16/10] overflow-hidden relative">
-                    <img  decoding="async" src="https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/whop-lockscreen-payouts.jpg" 
-                      alt="Whop Lockscreen Payout Stream" 
-                      className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
+                  <div className="w-full aspect-[16/9] bg-black/90 flex items-center justify-center relative overflow-hidden">
+                    <img loading="lazy" decoding="async" src="https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/comparison-organic-breakdown.png" 
+                      alt="Whop Moderation Panel: Low Bot Score (0) & Organic Graphs" 
+                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                     />
                     <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                      <span className="px-3.5 py-2 rounded-xl bg-emerald-950/90 text-emerald-200 border border-emerald-800 text-xs font-bold backdrop-blur-sm flex items-center gap-2">
+                      <span className="px-3.5 py-2 rounded-xl bg-emerald-950/90 text-emerald-200 border border-emerald-800 text-xs font-bold backdrop-blur-sm flex items-center gap-2 shadow-lg">
                         <Maximize2 className="w-3.5 h-3.5" />
-                        <span>Inspect Real Payout Alerts</span>
+                        <span>Inspect Low Bot Score &amp; Organic Graphs</span>
                       </span>
                     </div>
                   </div>
                   <div className="p-3 bg-emerald-950/50 border-t border-emerald-900/50 text-xs text-emerald-300 flex items-center justify-between font-mono">
-                    <span>Whop Payouts: $380, $288, $189...</span>
-                    <span className="font-bold text-emerald-400">All Approved ($1,487+)</span>
+                    <span>Whop Creator Rewards Verified</span>
+                    <span className="font-bold text-emerald-400">Score 0/100 • $37.05 Approved</span>
                   </div>
                 </div>
 
                 {/* 3 Algorithmic Bypass Points */}
                 <div className="space-y-3">
                   <div className="p-3.5 rounded-xl bg-emerald-950/30 border border-emerald-900/30 text-xs text-neutral-300">
-                    <strong className="text-emerald-400 block mb-0.5">1. Clean Bot Score (0 – 20 Safe Zone)</strong>
-                    20,000+ real physical smartphones delivering 3–7s human playback. Green shield rating guaranteed.
+                    <strong className="text-emerald-400 block mb-0.5">1. LOW BOT SCORE (Green Shield 0)</strong>
+                    Spotless 0/100 score on Whop campaign moderation console. Instant automated clearance without manual flags.
                   </div>
                   <div className="p-3.5 rounded-xl bg-neutral-950/60 border border-neutral-800 text-xs text-neutral-300">
-                    <strong className="text-emerald-400 block mb-0.5">2. 60fps Organic Delivery Jitter Curve</strong>
-                    Micro-time jitter (72-63-99-101) creates an authentic parabolic velocity that mirrors FYP virality.
+                    <strong className="text-emerald-400 block mb-0.5">2. ORGANIC GRAPHS (Smooth S-Curve Retention)</strong>
+                    Parabolic multi-signal growth (9.3k views, 315 likes, continuous retention) matching genuine FYP virality.
                   </div>
                   <div className="p-3.5 rounded-xl bg-neutral-950/60 border border-neutral-800 text-xs text-neutral-300">
-                    <strong className="text-emerald-400 block mb-0.5">3. Coordinated Engagement Harmony</strong>
-                    Balanced 10,000 views : 430 likes : 30 comments : 45 shares triggers instant approval.
+                    <strong className="text-emerald-400 block mb-0.5">3. PERFECT ENGAGEMENT (Healthy FYP Ratio)</strong>
+                    24,665 views with 885 likes and active creator comments. Full payout guaranteed ($37.05+ transferred).
                   </div>
                 </div>
               </div>

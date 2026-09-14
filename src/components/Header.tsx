@@ -217,14 +217,16 @@ export default function Header({
                 <span>Account Settings</span>
               </Link>
 
-              <Link
-                href="/admin"
-                onClick={() => setProfileMenuOpen(false)}
-                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40"
-              >
-                <ShieldCheck className="w-4 h-4 text-amber-500" />
-                <span>Admin Portal</span>
-              </Link>
+              {userRole?.toUpperCase() === "ADMIN" && (
+                <Link
+                  href="/admin"
+                  onClick={() => setProfileMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                >
+                  <ShieldCheck className="w-4 h-4 text-amber-500" />
+                  <span>Admin Portal</span>
+                </Link>
+              )}
 
               <div className="border-t border-slate-100 dark:border-slate-800/60 my-1" />
 

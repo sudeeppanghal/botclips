@@ -27,8 +27,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const session = await getSessionUser();
-    // Allow if authenticated admin or in test mode
-    if (session && session.role !== "ADMIN") {
+    if (!session || session.role !== "ADMIN") {
       return NextResponse.json({ error: "Unauthorized. Admin privileges required." }, { status: 403 });
     }
 

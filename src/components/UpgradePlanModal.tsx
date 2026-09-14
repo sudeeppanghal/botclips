@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import { Crown, Check, Zap, ArrowRight, Wallet, X, AlertCircle } from "lucide-react";
@@ -25,8 +25,8 @@ export default function UpgradePlanModal({
 
   if (!isOpen) return null;
 
-  const planCost = selectedPlan === "WEEKLY" ? 480 : 2400; // $5 = ₹480, $25 = ₹2,400
-  const planUsd = selectedPlan === "WEEKLY" ? "$5" : "$25";
+  const planCost = selectedPlan === "WEEKLY" ? 960 : 2400; // $10 = ₹960, $25 = ₹2,400
+  const planUsd = selectedPlan === "WEEKLY" ? "$10" : "$25";
   const hasEnoughBalance = walletBalance >= planCost;
   const shortfall = Math.max(0, planCost - walletBalance);
 
@@ -120,7 +120,7 @@ export default function UpgradePlanModal({
                   Weekly Pass
                 </div>
                 <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">
-                  $5 <span className="text-xs font-bold text-slate-400">/ ₹480</span>
+                  $10 <span className="text-xs font-bold text-slate-400">/ ₹960</span>
                 </div>
                 <div className="text-[11px] text-slate-500 mt-0.5">Valid for 7 days</div>
               </div>

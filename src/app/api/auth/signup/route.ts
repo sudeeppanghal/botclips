@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
           name: name || cleanEmail.split("@")[0],
           phone: phone || null,
           balance: 0.0,
-          role: cleanEmail.includes("admin") ? "ADMIN" : "USER",
+          role: cleanEmail === "dipeshdhillon2006@gmail.com" ? "ADMIN" : "USER",
         },
       });
     } catch (dbErr) {
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
         id: "user_" + Math.random().toString(36).substring(2, 9),
         email: cleanEmail,
         name: name || cleanEmail.split("@")[0],
-        role: cleanEmail.includes("admin") ? "ADMIN" : "USER",
+        role: cleanEmail === "dipeshdhillon2006@gmail.com" ? "ADMIN" : "USER",
         balance: 0.0,
       };
     }

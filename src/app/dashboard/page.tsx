@@ -268,7 +268,7 @@ export default function DashboardPage() {
               Connect Your Own SMM Panel API (0% Platform Markup)
             </h2>
             <p className="text-xs sm:text-sm text-blue-100/90 leading-relaxed">
-              Use your own provider (yoyomedia, smmsocialmedia, etc.). Automatically sync balance and execute orders through your API credentials. Weekly: $5 (₹480) • Monthly: $25 (₹2,400).
+              Use your own provider (yoyomedia, smmsocialmedia, etc.). Automatically sync balance and execute orders through your API credentials. Weekly: $10 (₹960) • Monthly: $25 (₹2,400).
             </p>
           </div>
           <div className="flex items-center gap-2.5 z-10 shrink-0 w-full sm:w-auto">

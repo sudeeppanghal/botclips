@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
     const isPlanActive = user.planActive && (!user.planExpiresAt || new Date(user.planExpiresAt) > new Date());
     if (!isPlanActive && user.role !== "ADMIN") {
       return NextResponse.json(
-        { error: "Active automation subscription (Weekly $5 or Monthly $25) required to use custom SMM panel APIs." },
+        { error: "Active automation subscription (Weekly $10 or Monthly $25) required to use custom SMM panel APIs." },
         { status: 403 }
       );
     }

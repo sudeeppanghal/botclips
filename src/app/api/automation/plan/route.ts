@@ -3,9 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { SmmPanelClient } from "@/lib/delivery/panel-client";
 
-// Pricing in INR (based on $5/week and $25/month at 1 USDT / $1 = ₹96 INR)
+// Pricing in INR (based on $10/week and $25/month at 1 USDT / $1 = ₹96 INR)
 const PLAN_PRICES = {
-  WEEKLY: 480,   // $5 * 96 = ₹480 INR
+  WEEKLY: 960,   // $10 * 96 = ₹960 INR
   MONTHLY: 2400, // $25 * 96 = ₹2,400 INR
 };
 
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     const { planType } = body; // "WEEKLY" or "MONTHLY"
 
     if (planType !== "WEEKLY" && planType !== "MONTHLY") {
-      return NextResponse.json({ error: "Invalid plan. Choose WEEKLY ($5) or MONTHLY ($25)." }, { status: 400 });
+      return NextResponse.json({ error: "Invalid plan. Choose WEEKLY ($10) or MONTHLY ($25)." }, { status: 400 });
     }
 
     const cost = PLAN_PRICES[planType as keyof typeof PLAN_PRICES];
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     if (user.balance < cost) {
       return NextResponse.json({
-        error: `Insufficient wallet balance. This plan costs ₹${cost} ($${planType === "WEEKLY" ? "5" : "25"}). Your balance is ₹${user.balance.toFixed(2)}. Please add funds.`,
+        error: `Insufficient wallet balance. This plan costs ₹${cost} ($${planType === "WEEKLY" ? "10" : "25"}). Your balance is ₹${user.balance.toFixed(2)}. Please add funds.`,
         required: cost,
         current: user.balance,
       }, { status: 400 });
@@ -157,7 +157,7 @@ export async function PUT(request: NextRequest) {
 
     if (!isPlanValid && automationMode === "CUSTOM_API") {
       return NextResponse.json({
-        error: "Active Premium Plan required to use Custom SMM Panel API mode. Please activate the Weekly ($5) or Monthly ($25) plan.",
+        error: "Active Premium Plan required to use Custom SMM Panel API mode. Please activate the Weekly ($10) or Monthly ($25) plan.",
       }, { status: 403 });
     }
 

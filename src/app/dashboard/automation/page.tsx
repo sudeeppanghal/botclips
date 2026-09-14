@@ -91,7 +91,7 @@ export default function AutomationPage() {
     } catch {}
   }
 
-  // Subscribe to Weekly ($5 / ₹480) or Monthly ($25 / ₹2,400) Plan
+  // Subscribe to Weekly ($10 / ₹960) or Monthly ($25 / ₹2,400) Plan
   const handleSubscribe = async (type: "WEEKLY" | "MONTHLY") => {
     setPlanLoading(true);
     setError(null);
@@ -404,7 +404,7 @@ export default function AutomationPage() {
                 disabled={planLoading}
                 className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30 transition-all cursor-pointer"
               >
-                {planLoading ? "Processing..." : "Weekly Plan ($5 / ₹480)"}
+                {planLoading ? "Processing..." : "Weekly Plan ($10 / ₹960)"}
               </button>
               <button
                 onClick={() => handleSubscribe("MONTHLY")}

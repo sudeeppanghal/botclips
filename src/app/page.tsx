@@ -374,7 +374,7 @@ export default function HomePage() {
     },
     {
       q: "Can I connect my own SMM panel via API?",
-      a: "Yes! BotClips offers both automated internal AI routing (using our hardware viewfarm) as well as Premium Automation where agency owners can connect custom external SMM panel APIs with a weekly ($5) or monthly ($25) license."
+      a: "Yes! BotClips offers both automated internal AI routing (using our hardware viewfarm) as well as Premium Automation where agency owners can connect custom external SMM panel APIs with a weekly ($10) or monthly ($25) license."
     }
   ];
 

@@ -4,20 +4,43 @@ import type { NextRequest } from "next/server";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. Bypass all internal and critical background services unconditionally:
-  // - Background cron syncs & automated orders MUST continue running 100% without interruption
-  // - Admin portal & authentication must remain accessible so admins can manage the site
-  // - Static assets, images, and next.js bundles must load properly
+  // 1. Strict route protection for /admin (requires verified ADMIN role)
+  if (pathname.startsWith("/admin")) {
+    const token = request.cookies.get("dhillion_token")?.value;
+    if (!token) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+    try {
+      const parts = token.split(".");
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], "base64").toString());
+        if (payload.role !== "ADMIN") {
+          return NextResponse.redirect(new URL("/dashboard", request.url));
+        }
+      } else {
+        return NextResponse.redirect(new URL("/login", request.url));
+      }
+    } catch {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+  }
+
+  // 2. Protected /dashboard routes (require authenticated user session)
+  if (pathname.startsWith("/dashboard")) {
+    const token = request.cookies.get("dhillion_token")?.value;
+    if (!token) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
+  // 3. Bypass internal services, API routes & static assets:
   if (
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/api/cron") ||
-    pathname.startsWith("/api/v2") ||
-    pathname.startsWith("/api/orders") ||
-    pathname.startsWith("/api/upload") ||
-    pathname.startsWith("/api/billing") ||
-    pathname.startsWith("/api/auth") ||
-    pathname.startsWith("/api/admin") ||
-    pathname.startsWith("/admin") ||
+    pathname.startsWith("/api") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
     pathname.startsWith("/maintenance") ||

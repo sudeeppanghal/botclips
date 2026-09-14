@@ -58,9 +58,13 @@ export async function POST(request: NextRequest) {
       platform,
     } = body;
 
-    if (!link || !quantity || Number(quantity) <= 0) {
+    const cleanQuantity = Math.floor(Number(quantity));
+    const cleanRuns = Math.max(1, Math.floor(Number(runs) || 1));
+    const cleanInterval = Math.max(0, Math.floor(Number(intervalMinutes) || 0));
+
+    if (!link || !cleanQuantity || cleanQuantity <= 0 || isNaN(cleanQuantity)) {
       return NextResponse.json(
-        { error: "Target link and valid quantity are required" },
+        { error: "Target link and valid positive quantity are required" },
         { status: 400 }
       );
     }
@@ -162,6 +166,13 @@ export async function POST(request: NextRequest) {
     if (isCombo) {
       const totalCost = Number(charge || 0);
 
+      if (totalCost <= 0 || isNaN(totalCost)) {
+        return NextResponse.json(
+          { error: "Invalid combo package price. Please select a valid combo package." },
+          { status: 400 }
+        );
+      }
+
       if (dbUser.balance < totalCost) {
         return NextResponse.json(
           {
@@ -225,7 +236,6 @@ export async function POST(request: NextRequest) {
     // ──────────────── MODE 1: MANAGED SMM AUTO-DISPATCH WITH CUSTOM PRICING ────────────────
     // Look up service in AdminService catalog to determine custom selling price and upstream ID
     let mappedUpstreamServiceId = serviceId || "1";
-    let calculatedRate = Number(charge || 0);
     let targetPanelId: string | null = null;
     let adminServiceRecord: any = null;
 
@@ -245,13 +255,42 @@ export async function POST(request: NextRequest) {
       if (adminService) {
         adminServiceRecord = adminService;
         mappedUpstreamServiceId = adminService.serviceId;
-        calculatedRate = adminService.customRate;
         targetPanelId = adminService.panelId;
       }
     } catch {}
 
-    const totalQuantity = Number(runs) > 1 ? Number(quantity) * Number(runs) : Number(quantity);
-    const totalCost = calculatedRate > 0 ? (totalQuantity / 1000) * calculatedRate : Number(charge || 0);
+    if (!adminServiceRecord || Number(adminServiceRecord.customRate) <= 0) {
+      return NextResponse.json(
+        { error: "Selected service is currently unavailable or has invalid pricing. Please select another service." },
+        { status: 400 }
+      );
+    }
+
+    // Enforce min and max quantity limits
+    if (adminServiceRecord.minQuantity && cleanQuantity < adminServiceRecord.minQuantity) {
+      return NextResponse.json(
+        { error: `Minimum quantity for this service is ${adminServiceRecord.minQuantity.toLocaleString()}` },
+        { status: 400 }
+      );
+    }
+    if (adminServiceRecord.maxQuantity && cleanQuantity > adminServiceRecord.maxQuantity) {
+      return NextResponse.json(
+        { error: `Maximum quantity for this service is ${adminServiceRecord.maxQuantity.toLocaleString()}` },
+        { status: 400 }
+      );
+    }
+
+    const totalQuantity = cleanRuns > 1 ? cleanQuantity * cleanRuns : cleanQuantity;
+    // Server-enforced custom rate strictly from adminService (never trust client-submitted charge)
+    const serverRate = Number(adminServiceRecord.customRate);
+    const totalCost = Number(((totalQuantity / 1000) * serverRate).toFixed(4));
+
+    if (totalCost <= 0 || isNaN(totalCost)) {
+      return NextResponse.json(
+        { error: "Error calculating order cost. Please check service quantity." },
+        { status: 400 }
+      );
+    }
 
     // Verify wallet balance
     if (dbUser.balance < totalCost) {

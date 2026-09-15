@@ -267,24 +267,43 @@ export async function POST(request: NextRequest) {
     let adminServiceRecord: any = null;
 
     try {
-      const adminService = await prisma.adminService.findFirst({
-        where: {
-          OR: [
-            { id: String(serviceId) },
-            { serviceId: String(serviceId) },
-            { name: { contains: String(serviceName || ""), mode: "insensitive" } },
-          ],
-          isActive: true,
-        },
-        include: { panel: true },
-      });
+      // 1. First priority: Exact match by serviceId (e.g. "5245") or internal id
+      let adminService = null;
+      if (serviceId) {
+        adminService = await prisma.adminService.findFirst({
+          where: {
+            OR: [
+              { id: String(serviceId) },
+              { serviceId: String(serviceId) },
+            ],
+            isActive: true,
+          },
+          include: { panel: true },
+        });
+      }
+
+      // 2. Fallback: only if serviceId not matched and serviceName has valid search text
+      if (!adminService && serviceName && String(serviceName).trim().length >= 3) {
+        const cleanSearch = String(serviceName).replace(/\s*\(\d+\)\s*$/, "").trim();
+        if (cleanSearch.length >= 2) {
+          adminService = await prisma.adminService.findFirst({
+            where: {
+              name: { contains: cleanSearch, mode: "insensitive" },
+              isActive: true,
+            },
+            include: { panel: true },
+          });
+        }
+      }
 
       if (adminService) {
         adminServiceRecord = adminService;
         mappedUpstreamServiceId = adminService.serviceId;
         targetPanelId = adminService.panelId;
       }
-    } catch {}
+    } catch (lookupErr) {
+      console.error("Error looking up service in database:", lookupErr);
+    }
 
     if (!adminServiceRecord || Number(adminServiceRecord.customRate) <= 0) {
       return NextResponse.json(

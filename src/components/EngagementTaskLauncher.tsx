@@ -3,24 +3,26 @@
 import React, { useState, useEffect } from "react";
 import { 
   Zap, 
-  Plus, 
   Sliders, 
   ChevronDown, 
   CheckCircle, 
   AlertCircle, 
-  RefreshCw, 
   Play, 
   Pause, 
   Trash2, 
-  ExternalLink,
-  Layers
+  Wallet,
+  Calculator
 } from "lucide-react";
 
-interface ServiceItem {
+interface AdminCatalogService {
   id: string;
+  serviceId: string;
   name: string;
-  category?: string;
-  rate?: number;
+  cat?: string;
+  platform?: string;
+  rate: number;
+  min?: number;
+  max?: number;
 }
 
 interface ActiveTask {
@@ -31,6 +33,7 @@ interface ActiveTask {
   minQty: number;
   maxQty: number;
   goal: number;
+  cost: number;
   currentCount: number;
   intervalMinutes: number;
   status: "ACTIVE" | "PAUSED" | "COMPLETED";
@@ -44,20 +47,21 @@ export default function EngagementTaskLauncher({
   walletBalance?: number;
   onTaskCreated?: (task: any) => void;
 }) {
-  // Services
-  const [services, setServices] = useState<ServiceItem[]>([
-    { id: "5245", name: "views" },
-    { id: "1026", name: "likes" },
-    { id: "3018", name: "shares" },
-    { id: "4092", name: "saves" },
+  // Admin Panel Services only (default fallback while loading)
+  const [catalogServices, setCatalogServices] = useState<AdminCatalogService[]>([
+    { id: "srv_1789388608016", serviceId: "5245", name: "Special Instagram VIEWS [Real Farm Organic]", rate: 20.50, min: 100, max: 2000000 },
+    { id: "srv_1026", serviceId: "1026", name: "Instagram Reels Views [Fast Viral Boost]", rate: 6.00, min: 100, max: 10000000 },
+    { id: "srv_ig_106", serviceId: "106", name: "Instagram Reels Views [Push Algorithm Farm]", rate: 28.00, min: 100, max: 5000000 },
+    { id: "srv_ig_107", serviceId: "107", name: "Instagram High Retention Reels Views", rate: 35.00, min: 100, max: 5000000 },
+    { id: "srv_1025", serviceId: "1025", name: "Instagram High Retention Likes [Real Active]", rate: 11.00, min: 50, max: 500000 },
+    { id: "srv_1789388890825", serviceId: "4806", name: "Instagram Likes [Main Provider]", rate: 14.00, min: 50, max: 500000 },
+    { id: "srv_1789388730338", serviceId: "4897", name: "Special Instagram Likes [Smartphone Farm]", rate: 18.00, min: 50, max: 200000 },
+    { id: "srv_ig_104", serviceId: "104", name: "Instagram High Quality Likes", rate: 45.00, min: 50, max: 100000 },
+    { id: "srv_ig_110", serviceId: "110", name: "Instagram Saves & Shares Combo", rate: 39.00, min: 100, max: 50000 },
   ]);
+
   const [selectedServiceId, setSelectedServiceId] = useState<string>("5245");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-  // Add Service Modal / Inline
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newServiceName, setNewServiceName] = useState("");
-  const [newServiceId, setNewServiceId] = useState("");
 
   // Form State
   const [postLink, setPostLink] = useState("");
@@ -66,7 +70,8 @@ export default function EngagementTaskLauncher({
   const [goal, setGoal] = useState(1000);
   const [intervalMinutes, setIntervalMinutes] = useState(20);
 
-  // UI state
+  // Live Wallet & Feedback State
+  const [currentBalance, setCurrentBalance] = useState<number>(walletBalance);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -74,26 +79,65 @@ export default function EngagementTaskLauncher({
   // Active Queue State
   const [activeQueue, setActiveQueue] = useState<ActiveTask[]>([]);
 
-  // Load existing tasks from localStorage / API
+  // 1. Fetch live user balance
+  useEffect(() => {
+    async function fetchUserBalance() {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        if (data.authenticated && data.user) {
+          setCurrentBalance(Number(data.user.balance || 0));
+        }
+      } catch {}
+    }
+    fetchUserBalance();
+  }, [walletBalance]);
+
+  // 2. Fetch all active services from admin panel API
+  useEffect(() => {
+    async function loadAdminServices() {
+      try {
+        const res = await fetch("/api/services");
+        const data = await res.json();
+        if (data.success && Array.isArray(data.services) && data.services.length > 0) {
+          const list: AdminCatalogService[] = data.services.map((s: any) => ({
+            id: String(s.id),
+            serviceId: String(s.serviceId || s.id),
+            name: s.name,
+            cat: s.cat || s.category,
+            platform: s.platform,
+            rate: Number(s.rate || s.customRate || 0),
+            min: s.min,
+            max: s.max,
+          }));
+
+          setCatalogServices(list);
+          // Default to 5245 if present
+          if (list.some(s => s.serviceId === "5245")) {
+            setSelectedServiceId("5245");
+          } else if (list.length > 0) {
+            setSelectedServiceId(list[0].serviceId);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load admin services in task launcher:", err);
+      }
+    }
+    loadAdminServices();
+  }, []);
+
+  // 3. Load active tasks from localStorage
   useEffect(() => {
     try {
       const savedTasks = localStorage.getItem("botclips_active_queue");
       if (savedTasks) {
         setActiveQueue(JSON.parse(savedTasks));
       }
-      const savedServices = localStorage.getItem("botclips_custom_services");
-      if (savedServices) {
-        const parsed = JSON.parse(savedServices);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setServices(parsed);
-        }
-      }
     } catch (e) {
       console.error(e);
     }
   }, []);
 
-  // Save to localStorage when updated
   const saveQueue = (queue: ActiveTask[]) => {
     setActiveQueue(queue);
     try {
@@ -101,25 +145,16 @@ export default function EngagementTaskLauncher({
     } catch {}
   };
 
-  const handleAddService = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newServiceId.trim() || !newServiceName.trim()) return;
-    const newItem: ServiceItem = {
-      id: newServiceId.trim(),
-      name: newServiceName.trim().toLowerCase(),
-    };
-    const updated = [newItem, ...services.filter(s => s.id !== newItem.id)];
-    setServices(updated);
-    setSelectedServiceId(newItem.id);
-    setNewServiceId("");
-    setNewServiceName("");
-    setShowAddModal(false);
-    try {
-      localStorage.setItem("botclips_custom_services", JSON.stringify(updated));
-    } catch {}
-  };
+  // Find currently selected service
+  const selectedService = 
+    catalogServices.find(s => s.serviceId === selectedServiceId || s.id === selectedServiceId) || 
+    catalogServices[0];
 
-  const selectedService = services.find(s => s.id === selectedServiceId) || services[0];
+  const serviceRate = Number(selectedService?.rate || 20.50);
+  const cleanGoal = Math.max(1, Number(goal) || 1);
+  const estimatedCost = Number(((cleanGoal / 1000) * serviceRate).toFixed(2));
+  const hasSufficientBalance = currentBalance >= estimatedCost;
+  const remainingBalance = Math.max(0, currentBalance - estimatedCost);
 
   const isValidUrl = (url: string) => {
     try {
@@ -140,23 +175,27 @@ export default function EngagementTaskLauncher({
       return;
     }
 
-    if (minQty <= 0 || maxQty < minQty || goal < maxQty) {
+    if (minQty <= 0 || maxQty < minQty || cleanGoal < maxQty) {
       setError("Check quantities: Min Qty must be ≤ Max Qty, and Goal must be ≥ Max Qty.");
+      return;
+    }
+
+    if (!hasSufficientBalance) {
+      setError(`Insufficient wallet balance. Available: ₹${currentBalance.toFixed(2)}, Required: ₹${estimatedCost.toFixed(2)}. Please add funds on your Wallet page.`);
       return;
     }
 
     setSubmitting(true);
 
     try {
-      // Call orders API
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          serviceId: selectedService.id,
-          serviceName: `${selectedService.name} (${selectedService.id})`,
+          serviceId: selectedService.serviceId || selectedService.id,
+          serviceName: selectedService.name,
           link: postLink,
-          quantity: goal,
+          quantity: cleanGoal,
           minQty,
           maxQty,
           intervalMinutes,
@@ -169,14 +208,22 @@ export default function EngagementTaskLauncher({
         throw new Error(data.error || "Failed to launch task");
       }
 
+      // Update balance locally for instant responsiveness
+      if (data.balance !== undefined) {
+        setCurrentBalance(Number(data.balance));
+      } else {
+        setCurrentBalance(prev => Math.max(0, prev - estimatedCost));
+      }
+
       const newTask: ActiveTask = {
         id: data.order?.id || "task_" + Math.random().toString(36).substring(2, 9),
-        serviceId: selectedService.id,
+        serviceId: selectedService.serviceId,
         serviceName: selectedService.name,
         link: postLink,
         minQty,
         maxQty,
-        goal,
+        goal: cleanGoal,
+        cost: estimatedCost,
         currentCount: 0,
         intervalMinutes,
         status: "ACTIVE",
@@ -184,7 +231,7 @@ export default function EngagementTaskLauncher({
       };
 
       saveQueue([newTask, ...activeQueue]);
-      setSuccessMessage(`Automated task for ${selectedService.name} (${selectedService.id}) successfully activated!`);
+      setSuccessMessage(`Automated task for ${selectedService.name} (ID: ${selectedService.serviceId}) activated! ₹${estimatedCost.toFixed(2)} deducted.`);
       setPostLink("");
       if (onTaskCreated) onTaskCreated(newTask);
     } catch (err: any) {
@@ -216,65 +263,83 @@ export default function EngagementTaskLauncher({
         <div className="absolute top-0 right-0 w-96 h-96 bg-red-600/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 space-y-6">
-          {/* Header */}
-          <div>
-            <h2 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-2.5 tracking-tight">
-              <Zap className="w-6 h-6 text-red-500 fill-red-500 shrink-0" />
-              <span>New Engagement Task</span>
-            </h2>
-            <p className="text-sm text-neutral-400 mt-1 font-medium">
-              Define your own Service IDs and launch tasks.
-            </p>
+          {/* Header with Live Wallet Display */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-2.5 tracking-tight">
+                <Zap className="w-6 h-6 text-red-500 fill-red-500 shrink-0" />
+                <span>New Engagement Task</span>
+              </h2>
+              <p className="text-sm text-neutral-400 mt-1 font-medium">
+                Select your service, view live rates per 1,000, and launch drip-fed automated tasks.
+              </p>
+            </div>
+
+            {/* Wallet pill */}
+            <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-[#140808] border border-red-900/60 text-xs self-start sm:self-auto">
+              <Wallet className="w-4 h-4 text-red-400" />
+              <span className="text-neutral-400">Wallet:</span>
+              <span className="font-bold text-white font-mono text-sm">₹{currentBalance.toFixed(2)}</span>
+            </div>
           </div>
 
           {/* Form */}
           <form onSubmit={handleActivateTask} className="space-y-6">
             {/* Row 1: Select Service & Post / Video Link */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
-              {/* Left: Select Service */}
+              {/* Left: Select Service (Admin Services Only) */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-sm font-semibold text-neutral-300 flex items-center gap-2">
                     <Sliders className="w-4 h-4 text-neutral-400" />
                     <span>Select Service</span>
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddModal(true)}
-                    className="text-xs font-bold text-red-500 hover:text-red-400 uppercase tracking-wider flex items-center gap-1 border border-red-900/60 hover:border-red-500 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Service ID</span>
-                  </button>
+                  <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider">
+                    {catalogServices.length} Services Available
+                  </span>
                 </div>
 
-                {/* Dropdown Box */}
+                {/* Dropdown Box with Rate Display */}
                 <div className="relative">
                   <button
                     type="button"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                     className="w-full h-12 px-4 rounded-xl bg-[#120808] border border-red-900/50 hover:border-red-500/80 text-left text-neutral-200 text-sm font-medium flex items-center justify-between transition-colors cursor-pointer"
                   >
-                    <span className="font-mono">{selectedService ? `${selectedService.name} (${selectedService.id})` : "Select Service"}</span>
-                    <ChevronDown className="w-4 h-4 text-neutral-500" />
+                    <div className="flex items-center gap-2 truncate">
+                      <span className="font-mono font-bold text-white truncate max-w-[200px] sm:max-w-xs">
+                        {selectedService?.name} ({selectedService?.serviceId})
+                      </span>
+                      <span className="shrink-0 px-2 py-0.5 rounded bg-red-950 text-red-400 text-xs font-bold border border-red-900/60 font-mono">
+                        ₹{serviceRate.toFixed(2)} / 1k
+                      </span>
+                    </div>
+                    <ChevronDown className="w-4 h-4 text-neutral-500 shrink-0 ml-2" />
                   </button>
 
                   {isDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-1.5 bg-[#140808] border border-red-900/60 rounded-xl shadow-2xl py-1 z-30 max-h-56 overflow-y-auto">
-                      {services.map((svc) => (
+                    <div className="absolute top-full left-0 right-0 mt-1.5 bg-[#140808] border border-red-900/60 rounded-xl shadow-2xl py-1 z-30 max-h-72 overflow-y-auto">
+                      {catalogServices.map((svc) => (
                         <button
-                          key={svc.id}
+                          key={svc.serviceId || svc.id}
                           type="button"
                           onClick={() => {
-                            setSelectedServiceId(svc.id);
+                            setSelectedServiceId(svc.serviceId);
                             setIsDropdownOpen(false);
                           }}
-                          className={`w-full px-4 py-2.5 text-left text-xs font-mono flex items-center justify-between hover:bg-red-950/40 transition-colors cursor-pointer ${
-                            selectedServiceId === svc.id ? "text-red-400 font-bold bg-red-950/30" : "text-neutral-300"
+                          className={`w-full px-4 py-3 text-left text-xs font-mono flex items-center justify-between hover:bg-red-950/40 transition-colors cursor-pointer border-b border-red-950/40 last:border-0 ${
+                            selectedServiceId === svc.serviceId ? "text-red-400 font-bold bg-red-950/30" : "text-neutral-300"
                           }`}
                         >
-                          <span>{svc.name} ({svc.id})</span>
-                          {selectedServiceId === svc.id && <span className="text-red-500 text-xs">●</span>}
+                          <div className="flex flex-col gap-0.5 truncate mr-3">
+                            <span className="font-bold text-white text-sm truncate">{svc.name}</span>
+                            <span className="text-[11px] text-neutral-400">
+                              Service ID: {svc.serviceId} {svc.cat ? `• ${svc.cat}` : ""}
+                            </span>
+                          </div>
+                          <span className="shrink-0 px-2.5 py-1 rounded-md bg-red-950/90 text-red-300 font-black text-xs border border-red-900/70 font-mono">
+                            ₹{svc.rate.toFixed(2)} / 1k
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -370,6 +435,38 @@ export default function EngagementTaskLauncher({
               </div>
             </div>
 
+            {/* ── LIVE CALCULATED ORDER COST & WALLET STATUS ── */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-[#140808] border border-red-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+              <div className="space-y-1">
+                <div className="text-neutral-400 font-semibold flex items-center gap-1.5">
+                  <Calculator className="w-3.5 h-3.5 text-red-500" />
+                  <span>Calculated Order Cost</span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-black text-red-500 font-mono tracking-tight">
+                    ₹{estimatedCost.toFixed(2)}
+                  </span>
+                  <span className="text-xs font-mono text-neutral-400">
+                    ({cleanGoal.toLocaleString()} volume × ₹{serviceRate.toFixed(2)} / 1,000)
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 pt-3 sm:pt-0 border-t sm:border-t-0 border-red-950/80">
+                <div className="text-left sm:text-right">
+                  <span className="text-neutral-400 block text-[11px]">Your Wallet</span>
+                  <span className="font-black text-white font-mono text-sm">₹{currentBalance.toFixed(2)}</span>
+                </div>
+
+                <div className="text-left sm:text-right pl-4 border-l border-red-900/50">
+                  <span className="text-neutral-400 block text-[11px]">After Order</span>
+                  <span className={`font-black font-mono text-sm ${hasSufficientBalance ? "text-emerald-400" : "text-red-400"}`}>
+                    {hasSufficientBalance ? `₹${remainingBalance.toFixed(2)}` : "Insufficient Balance"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             {/* Error / Success Feedback */}
             {error && (
               <div className="p-3.5 rounded-xl bg-red-950/50 border border-red-800/80 text-xs text-red-300 flex items-center gap-2">
@@ -387,13 +484,19 @@ export default function EngagementTaskLauncher({
             {/* Big Red Button */}
             <button
               type="submit"
-              disabled={submitting}
-              className="w-full h-14 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black text-base shadow-[0_0_25px_rgba(239,68,68,0.4)] hover:shadow-[0_0_35px_rgba(239,68,68,0.6)] transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+              disabled={submitting || !hasSufficientBalance}
+              className="w-full h-14 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black text-base shadow-[0_0_25px_rgba(239,68,68,0.4)] hover:shadow-[0_0_35px_rgba(239,68,68,0.6)] transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <div className="w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold">
                 +
               </div>
-              <span>{submitting ? "Launching Automated Task..." : "Activate Automated Task"}</span>
+              <span>
+                {submitting 
+                  ? "Launching Automated Task..." 
+                  : !hasSufficientBalance 
+                  ? `Insufficient Balance (Requires ₹${estimatedCost.toFixed(2)})`
+                  : `Activate Automated Task • Pay ₹${estimatedCost.toFixed(2)}`}
+              </span>
             </button>
           </form>
         </div>
@@ -432,7 +535,7 @@ export default function EngagementTaskLauncher({
                 <div className="space-y-1 max-w-lg">
                   <div className="flex items-center gap-2">
                     <span className="px-2 py-0.5 rounded-md bg-red-950 text-red-400 text-[11px] font-mono font-bold border border-red-900/60">
-                      ID {task.serviceId} • {task.serviceName}
+                      ID {task.serviceId}
                     </span>
                     <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
                       task.status === "ACTIVE" 
@@ -445,7 +548,10 @@ export default function EngagementTaskLauncher({
                       Every {task.intervalMinutes}m
                     </span>
                   </div>
-                  <div className="text-xs font-mono text-neutral-300 truncate max-w-md">
+                  <div className="text-xs font-mono text-white font-bold truncate max-w-md">
+                    {task.serviceName}
+                  </div>
+                  <div className="text-[11px] font-mono text-neutral-400 truncate max-w-md">
                     {task.link}
                   </div>
                 </div>
@@ -459,9 +565,16 @@ export default function EngagementTaskLauncher({
                   </div>
 
                   <div className="text-right font-mono">
+                    <div className="text-xs text-neutral-400">Cost</div>
+                    <div className="text-sm font-bold text-white">
+                      ₹{task.cost ? task.cost.toFixed(2) : "0.00"}
+                    </div>
+                  </div>
+
+                  <div className="text-right font-mono">
                     <div className="text-xs text-neutral-400">Goal</div>
                     <div className="text-sm font-black text-red-400">
-                      {task.goal}
+                      {task.goal.toLocaleString()}
                     </div>
                   </div>
 
@@ -489,67 +602,6 @@ export default function EngagementTaskLauncher({
           </div>
         )}
       </div>
-
-      {/* ── MODAL: ADD SERVICE ID ── */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#120808] border border-red-900/80 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 text-white">
-            <h3 className="text-lg font-bold flex items-center gap-2">
-              <Plus className="w-5 h-5 text-red-500" />
-              <span>Add Custom Service ID</span>
-            </h3>
-            <p className="text-xs text-neutral-400">
-              Define a Service ID from your connected SMM panel to use in automated tasks.
-            </p>
-
-            <form onSubmit={handleAddService} className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-neutral-300 block mb-1">
-                  Service ID (Numeric)
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. 5245"
-                  value={newServiceId}
-                  onChange={(e) => setNewServiceId(e.target.value)}
-                  className="w-full h-11 px-3.5 rounded-xl bg-[#0a0404] border border-red-900/50 focus:border-red-500 text-white font-mono text-sm outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-neutral-300 block mb-1">
-                  Service Label
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. views, likes, custom"
-                  value={newServiceName}
-                  onChange={(e) => setNewServiceName(e.target.value)}
-                  className="w-full h-11 px-3.5 rounded-xl bg-[#0a0404] border border-red-900/50 focus:border-red-500 text-white font-mono text-sm outline-none"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-neutral-400 hover:text-white transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-all shadow-md cursor-pointer"
-                >
-                  Save Service
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

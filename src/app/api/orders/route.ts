@@ -337,6 +337,58 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // 3. Dynamic Upstream Catalog Lookup (BotClips Premium Mode 3x auto-service)
+      if (!adminService && serviceId) {
+        const activePanels = await prisma.panel.findMany({
+          where: { isActive: true },
+          orderBy: { priority: "asc" }
+        });
+        for (const p of activePanels) {
+          if (p.apiUrl && p.apiKeyEncrypted && p.apiKeyEncrypted !== "PLACEHOLDER_KEY") {
+            try {
+              const client = new SmmPanelClient(p.apiUrl, p.apiKeyEncrypted);
+              const upstreamServices = await client.getServices();
+              const matched = Array.isArray(upstreamServices) ? upstreamServices.find((u: any) => String(u.service) === String(serviceId)) : null;
+              if (matched) {
+                const rawCost = parseFloat(String(matched.rate || 0));
+                let costInr = rawCost;
+                if (p.currency?.toUpperCase() === "USD") {
+                  costInr = rawCost * 96;
+                }
+                const sellingRate = Math.max(1, Math.round(costInr * 3 * 100) / 100);
+
+                adminService = await prisma.adminService.upsert({
+                  where: { id: `prem_${p.id}_${matched.service}` },
+                  create: {
+                    id: `prem_${p.id}_${matched.service}`,
+                    panelId: p.id,
+                    platform: "INSTAGRAM",
+                    category: matched.category || "Premium Services",
+                    name: `BotClips Premium - ${matched.name || ("Service " + matched.service)}`,
+                    serviceId: String(matched.service),
+                    originalRate: costInr,
+                    customRate: sellingRate, // 3x price
+                    minQuantity: Number(matched.min) || 10,
+                    maxQuantity: Number(matched.max) || 1000000,
+                    isFarm: false,
+                    badge: "PREMIUM SPEED",
+                    isActive: true,
+                  },
+                  update: {
+                    originalRate: costInr,
+                    customRate: sellingRate,
+                  },
+                  include: { panel: true },
+                });
+                break;
+              }
+            } catch (err: any) {
+              console.error("Dynamic service lookup error:", err.message);
+            }
+          }
+        }
+      }
+
       if (adminService) {
         adminServiceRecord = adminService;
         mappedUpstreamServiceId = adminService.serviceId;

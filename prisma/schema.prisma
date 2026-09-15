@@ -100,6 +100,8 @@ model AdminService {
   refill          Boolean       @default(false)
   cancel          Boolean       @default(false)
   description     String?       @db.Text
+  isFarm          Boolean       @default(false) @map("is_farm")
+  badge           String?       // e.g. "SMARTPHONE FARM", "ALGORITHM FAVORITE", "VIP PUSH"
   isActive        Boolean       @default(true) @map("is_active")
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
@@ -109,6 +111,7 @@ model AdminService {
   @@index([panelId])
   @@index([platform])
   @@index([category])
+  @@index([isFarm])
   @@index([isActive])
   @@index([isActive, platform])
   @@map("admin_services")

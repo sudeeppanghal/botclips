@@ -6,8 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const queryKey = searchParams.get("key");
+    const queryKey = request.nextUrl.searchParams.get("key") || new URL(request.url).searchParams.get("key");
     const authHeader = request.headers.get("authorization");
     const knownSecrets = [
       process.env.CRON_SECRET,

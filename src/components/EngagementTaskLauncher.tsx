@@ -61,6 +61,14 @@ interface ActiveTask {
   status: "ACTIVE" | "PAUSED" | "COMPLETED";
   createdAt: string;
   remainingSeconds?: number;
+  batches?: any[];
+  nextBatch?: {
+    batchNumber: number;
+    views: number;
+    likes?: number;
+    timeFormatted: string;
+    scheduledAt?: string;
+  };
 }
 
 export default function EngagementTaskLauncher({
@@ -144,9 +152,27 @@ export default function EngagementTaskLauncher({
       intervalMinutes: 20,
       status: "ACTIVE",
       createdAt: "19:50",
-      remainingSeconds: 19 * 60 + 50, // 19:50 exactly like in screenshot!
+      remainingSeconds: 18 * 60 + 12,
+      nextBatch: {
+        batchNumber: 2,
+        views: 189,
+        likes: 5,
+        timeFormatted: "+2.1m",
+        scheduledAt: new Date(Date.now() + 1092 * 1000).toISOString(),
+      },
+      batches: [
+        { batchNumber: 1, views: 123, likes: 2, timeFormatted: "Immediate (+0m)", status: "DISPATCHED", upstreamOrderId: "984210" },
+        { batchNumber: 2, views: 189, likes: 5, timeFormatted: "+2.1m", status: "PENDING", scheduledAt: new Date(Date.now() + 1092 * 1000).toISOString() },
+        { batchNumber: 3, views: 137, likes: 3, timeFormatted: "+4.5m", status: "PENDING", scheduledAt: new Date(Date.now() + 2500 * 1000).toISOString() },
+        { batchNumber: 4, views: 144, likes: 8, timeFormatted: "+6.8m", status: "PENDING", scheduledAt: new Date(Date.now() + 3800 * 1000).toISOString() },
+        { batchNumber: 5, views: 149, likes: 4, timeFormatted: "+8.9m", status: "PENDING", scheduledAt: new Date(Date.now() + 5000 * 1000).toISOString() },
+        { batchNumber: 6, views: 147, likes: 6, timeFormatted: "+11.2m", status: "PENDING", scheduledAt: new Date(Date.now() + 6300 * 1000).toISOString() },
+        { batchNumber: 7, views: 111, likes: 7, timeFormatted: "+13.5m", status: "PENDING", scheduledAt: new Date(Date.now() + 7600 * 1000).toISOString() },
+      ]
     }
   ]);
+
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
 
   // Edit Modal State
   const [editingTask, setEditingTask] = useState<ActiveTask | null>(null);
@@ -252,73 +278,110 @@ export default function EngagementTaskLauncher({
   };
 
   // 4. Load active tasks from DB orders and localStorage
-  useEffect(() => {
-    async function loadActiveTasks() {
-      try {
-        const res = await fetch("/api/orders?limit=15");
-        const data = await res.json();
-        if (data.success && Array.isArray(data.orders)) {
-          const jitterOrders = data.orders.filter((o: any) => 
-            (o.curveStyle === "ALGORITHMIC_JITTER" || o.comboData) && 
-            (o.status === "IN_PROGRESS" || o.status === "PROCESSING" || o.status === "PENDING")
-          );
+  const loadActiveTasks = async () => {
+    try {
+      const res = await fetch("/api/orders?limit=15");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.orders)) {
+        const jitterOrders = data.orders.filter((o: any) => 
+          (o.curveStyle === "ALGORITHMIC_JITTER" || o.comboData) && 
+          (o.status === "IN_PROGRESS" || o.status === "PROCESSING" || o.status === "PENDING")
+        );
 
-          if (jitterOrders.length > 0) {
-            const parsedList: ActiveTask[] = jitterOrders.map((o: any) => {
-              let minQ = 100;
-              let maxQ = 150;
-              let sentCount = 123;
-              let sId = o.service?.serviceId || "5245";
+        if (jitterOrders.length > 0) {
+          const parsedList: ActiveTask[] = jitterOrders.map((o: any) => {
+            let minQ = 101;
+            let maxQ = 199;
+            let sentCount = 123;
+            let sId = o.service?.serviceId || "5245";
+            let orderBatches: any[] = [];
+            let nextDueBatch: any = null;
+            let remSec = 18 * 60 + 12;
 
-              if (o.comboData) {
-                try {
-                  const combo = JSON.parse(o.comboData);
-                  sId = combo.upstreamServiceId || sId;
-                  if (combo.batches && Array.isArray(combo.batches) && combo.batches.length > 0) {
-                    minQ = Math.min(...combo.batches.map((b: any) => b.views));
-                    maxQ = Math.max(...combo.batches.map((b: any) => b.views));
-                    const dispatched = combo.batches.filter((b: any) => b.status === "DISPATCHED" || b.status === "COMPLETED");
-                    sentCount = dispatched.reduce((acc: number, b: any) => acc + b.views, 0) || combo.batches[0].views;
+            if (o.comboData) {
+              try {
+                const combo = JSON.parse(o.comboData);
+                sId = combo.upstreamServiceId || sId;
+                if (combo.batches && Array.isArray(combo.batches) && combo.batches.length > 0) {
+                  orderBatches = combo.batches;
+                  minQ = Math.min(...combo.batches.map((b: any) => b.views));
+                  maxQ = Math.max(...combo.batches.map((b: any) => b.views));
+                  const dispatched = combo.batches.filter((b: any) => b.status === "DISPATCHED" || b.status === "COMPLETED");
+                  sentCount = dispatched.reduce((acc: number, b: any) => acc + (b.views || b.quantity || 0), 0) || combo.batches[0].views;
+
+                  nextDueBatch = combo.batches.find((b: any) => b.status === "PENDING");
+                  if (nextDueBatch && nextDueBatch.scheduledAt) {
+                    remSec = Math.max(0, Math.round((new Date(nextDueBatch.scheduledAt).getTime() - Date.now()) / 1000));
+                  } else if (combo.allBatchesDispatched) {
+                    remSec = 0;
                   }
-                } catch {}
-              }
+                }
+              } catch {}
+            }
 
-              return {
-                id: o.id,
-                serviceId: sId,
-                serviceName: "Automated engagement",
-                link: o.link,
-                minQty: minQ,
-                maxQty: maxQ,
-                goal: o.quantity || 1000,
-                cost: o.charge || 20.50,
-                currentCount: sentCount || 123,
-                intervalMinutes: o.intervalMinutes || 20,
-                status: "ACTIVE",
-                createdAt: new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                remainingSeconds: 19 * 60 + 50,
-              };
-            });
+            return {
+              id: o.id,
+              serviceId: sId,
+              serviceName: "Automated engagement",
+              link: o.link,
+              minQty: minQ,
+              maxQty: maxQ,
+              goal: o.quantity || 1000,
+              cost: o.charge || 20.50,
+              currentCount: sentCount || 123,
+              intervalMinutes: o.intervalMinutes || 2,
+              status: "ACTIVE",
+              createdAt: new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              remainingSeconds: remSec,
+              batches: orderBatches,
+              nextBatch: nextDueBatch ? {
+                batchNumber: nextDueBatch.batchNumber,
+                views: nextDueBatch.views,
+                likes: nextDueBatch.likes,
+                timeFormatted: nextDueBatch.timeFormatted,
+                scheduledAt: nextDueBatch.scheduledAt,
+              } : undefined,
+            };
+          });
 
-            setActiveQueue(parsedList);
-            return;
-          }
+          setActiveQueue(parsedList);
+          return;
         }
-      } catch {}
+      }
+    } catch {}
 
-      // Check localStorage fallback
-      try {
-        const saved = localStorage.getItem("botclips_active_queue");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setActiveQueue(parsed);
-          }
+    // Check localStorage fallback
+    try {
+      const saved = localStorage.getItem("botclips_active_queue");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setActiveQueue(parsed);
         }
-      } catch {}
-    }
+      }
+    } catch {}
+  };
 
+  useEffect(() => {
     loadActiveTasks();
+  }, []);
+
+  // 4b. Background Pulse Runner: Trigger pulse check every 18 seconds so batches fire automatically on time
+  useEffect(() => {
+    const checkAndDispatchPulses = () => {
+      fetch("/api/orders/pulse")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data && data.batchesDispatched > 0) {
+            loadActiveTasks();
+          }
+        })
+        .catch(() => {});
+    };
+
+    checkAndDispatchPulses();
+    const pulseTimer = setInterval(checkAndDispatchPulses, 18000);
+    return () => clearInterval(pulseTimer);
   }, []);
 
   // 5. Live Countdown Timer Tick every 1 second
@@ -964,10 +1027,10 @@ export default function EngagementTaskLauncher({
           ) : (
             <div className="divide-y divide-black/15">
               {activeQueue.map((task) => (
-                <div
-                  key={task.id}
-                  className="grid grid-cols-12 gap-2 px-6 py-4 items-center bg-[#7b0606] hover:bg-[#860707] transition-colors text-xs"
-                >
+                <React.Fragment key={task.id}>
+                  <div
+                    className="grid grid-cols-12 gap-2 px-6 py-4 items-center bg-[#7b0606] hover:bg-[#860707] transition-colors text-xs"
+                  >
                   {/* 1. Status Pill */}
                   <div className="col-span-2 sm:col-span-1">
                     <span className="inline-block px-3.5 py-1 rounded-full bg-red-600 text-white font-black text-[11px] uppercase tracking-wider shadow-md">
@@ -997,10 +1060,10 @@ export default function EngagementTaskLauncher({
                   {/* 3. Interval */}
                   <div className="col-span-2 sm:col-span-2 text-center sm:text-left font-mono">
                     <div className="text-xs text-neutral-200 font-bold">
-                      {task.minQty || 100}-{task.maxQty || 150}
+                      {task.minQty || 101}-{task.maxQty || 199}
                     </div>
                     <div className="text-xs text-neutral-400">
-                      {task.intervalMinutes || 20}min
+                      {task.intervalMinutes || 2}min pacing
                     </div>
                   </div>
 
@@ -1020,17 +1083,36 @@ export default function EngagementTaskLauncher({
                       <Timer className="w-4 h-4 shrink-0 text-red-500" />
                       <span>{formatTimer(task.remainingSeconds, task.intervalMinutes)}</span>
                     </div>
+                    {task.nextBatch ? (
+                      <div className="text-[10px] text-neutral-300 font-sans truncate mt-0.5">
+                        Next: Batch #{task.nextBatch.batchNumber} ({task.nextBatch.views}v)
+                      </div>
+                    ) : (
+                      <div className="text-[10px] text-emerald-400 font-sans truncate mt-0.5">
+                        All Batches Sent
+                      </div>
+                    )}
                   </div>
 
-                  {/* 6. Manage Icons */}
-                  <div className="col-span-1 sm:col-span-1 flex items-center justify-end gap-3.5">
+                  {/* 6. Manage Icons + Schedule Expander */}
+                  <div className="col-span-1 sm:col-span-1 flex items-center justify-end gap-2.5 sm:gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
+                      className={`text-xs transition-colors cursor-pointer p-1 rounded-md ${
+                        expandedTaskId === task.id ? "text-white bg-black/40" : "text-neutral-300 hover:text-white"
+                      }`}
+                      title="View full schedule & timeline"
+                    >
+                      {expandedTaskId === task.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleOpenEditModal(task)}
                       className="text-neutral-300 hover:text-white transition-colors cursor-pointer"
                       title="Edit task parameters"
                     >
-                      <Pencil className="w-4 h-4" />
+                      <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button
                       type="button"
@@ -1038,13 +1120,81 @@ export default function EngagementTaskLauncher({
                       className="text-neutral-300 hover:text-white transition-colors cursor-pointer"
                       title="Delete task from queue"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+
+                {/* ── EXPANDED FULL BATCH DISPATCH TIMELINE ── */}
+                {expandedTaskId === task.id && (
+                  <div className="bg-[#610404] border-t border-black/25 p-4 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-black/20 pb-2">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-red-400" />
+                        <span className="font-bold text-white text-xs uppercase tracking-wider">
+                          Full Jitter Dispatch Schedule ({task.batches?.length || 0} Batches)
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-neutral-300 font-sans">
+                        Stochastic Poisson Timing • Automatic SMM Panel Dispatch Active
+                      </span>
+                    </div>
+
+                    {/* Schedule Grid Table */}
+                    <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-neutral-400 uppercase tracking-wider px-3 py-1.5 bg-black/25 rounded-lg font-mono">
+                      <div className="col-span-2">Batch #</div>
+                      <div className="col-span-3">Views (Jitter)</div>
+                      <div className="col-span-2">Likes</div>
+                      <div className="col-span-3">Dispatch Timing</div>
+                      <div className="col-span-2 text-right">Status</div>
+                    </div>
+
+                    <div className="divide-y divide-black/15 font-mono text-xs max-h-52 overflow-y-auto">
+                      {(task.batches || []).map((b: any) => {
+                        const isDispatched = b.status === "DISPATCHED" || b.status === "COMPLETED";
+                        const isNext = !isDispatched && task.nextBatch?.batchNumber === b.batchNumber;
+
+                        return (
+                          <div key={b.batchNumber} className="grid grid-cols-12 gap-2 px-3 py-2 items-center hover:bg-black/15 transition-colors">
+                            <div className="col-span-2 font-bold text-white">
+                              #{b.batchNumber}
+                            </div>
+                            <div className="col-span-3 text-white font-bold">
+                              {b.views || b.quantity} <span className="text-[10px] text-neutral-400 font-normal">views</span>
+                            </div>
+                            <div className="col-span-2 text-pink-300 font-medium text-[11px]">
+                              +{b.likes || 0} <span className="text-[10px] text-neutral-400 font-normal">likes</span>
+                            </div>
+                            <div className="col-span-3 text-neutral-200 text-[11px]">
+                              {b.timeFormatted || "+0m"}
+                            </div>
+                            <div className="col-span-2 text-right">
+                              {isDispatched ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-700/50 text-[10px] font-bold">
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  <span>Sent</span>
+                                </span>
+                              ) : isNext ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black animate-pulse">
+                                  <Timer className="w-3 h-3" />
+                                  <span>Next</span>
+                                </span>
+                              ) : (
+                                <span className="inline-block px-2 py-0.5 rounded-full bg-black/30 text-neutral-400 text-[10px]">
+                                  Queued
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+        )}
         </div>
       </div>
 

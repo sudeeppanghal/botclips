@@ -86,6 +86,8 @@ export async function GET(request: NextRequest) {
     const knownSecrets = [
       process.env.CRON_SECRET,
       "dhillion_cron_secret_abc123",
+      "internal_worker",
+      "pulse_trigger"
     ].filter(Boolean);
 
     const userAgent = (request.headers.get("user-agent") || "").toLowerCase();

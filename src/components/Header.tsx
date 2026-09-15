@@ -16,6 +16,7 @@ import {
   ExternalLink
 } from "lucide-react";
 import { useTheme } from "./ThemeContext";
+import BotClipsLogo from "@/components/BotClipsLogo";
 
 interface HeaderProps {
   userName?: string;
@@ -76,11 +77,16 @@ export default function Header({
       <div className="flex items-center gap-3 flex-1 max-w-xl">
         <button
           onClick={onOpenMobile}
-          className="lg:hidden p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+          className="lg:hidden p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0 cursor-pointer"
           aria-label="Toggle Navigation"
         >
           <Menu className="w-5 h-5" />
         </button>
+
+        {/* Mobile BotClips Logo - Visible on mobile so branding is never hidden */}
+        <div className="lg:hidden shrink-0 mr-1">
+          <BotClipsLogo size="sm" href="/dashboard" />
+        </div>
 
         {/* Global Search Bar */}
         <div ref={searchRef} className="relative w-full">

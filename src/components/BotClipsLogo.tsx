@@ -17,43 +17,37 @@ export default function BotClipsLogo({
   className = ""
 }: LogoProps) {
   const sizeMap = {
-    sm: { icon: 32, text: "text-lg", gap: "gap-2" },
-    md: { icon: 40, text: "text-xl sm:text-2xl", gap: "gap-2.5" },
-    lg: { icon: 48, text: "text-2xl sm:text-3xl", gap: "gap-3" },
-    xl: { icon: 60, text: "text-3xl sm:text-4xl", gap: "gap-3.5" }
+    sm: { icon: 36, text: "text-lg", gap: "gap-2.5", sub: "text-[9px]" },
+    md: { icon: 44, text: "text-xl sm:text-2xl", gap: "gap-3", sub: "text-[10px]" },
+    lg: { icon: 54, text: "text-2xl sm:text-3xl", gap: "gap-3.5", sub: "text-[11px]" },
+    xl: { icon: 66, text: "text-3xl sm:text-4xl", gap: "gap-4", sub: "text-[12px]" }
   };
 
   const currentSize = sizeMap[size] || sizeMap.md;
   const [imgError, setImgError] = useState(false);
 
-  const mascotIconUrl = "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/branding/botclips-icon.png";
+  // High-res BotClips mascot with local fallback
+  const mascotIconUrl = imgError
+    ? "/logo-icon.png"
+    : "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/branding/botclips-icon.png";
 
   const logoMark = (
     <div className="relative shrink-0 flex items-center justify-center group">
-      {/* Ambient neon cyan/blue glow */}
+      {/* Dynamic neon cyan/blue ambient glow */}
       <div 
-        className="absolute -inset-1.5 rounded-full bg-gradient-to-tr from-blue-600/40 via-cyan-400/30 to-blue-500/40 blur-md opacity-70 group-hover:opacity-100 transition-opacity duration-500" 
+        className="absolute -inset-2 rounded-full bg-gradient-to-tr from-blue-600/50 via-cyan-400/40 to-sky-400/50 blur-md opacity-80 group-hover:opacity-100 transition-opacity duration-300" 
       />
 
       {/* 3D Robot Mascot Icon */}
-      {!imgError ? (
-        <img
-          src={mascotIconUrl}
-          alt="BotClips Mascot"
-          width={currentSize.icon}
-          height={currentSize.icon}
-          onError={() => setImgError(true)}
-          className="relative object-contain transform transition-transform duration-300 group-hover:scale-110 drop-shadow-[0_0_12px_rgba(0,180,255,0.4)]"
-          style={{ width: currentSize.icon, height: currentSize.icon }}
-        />
-      ) : (
-        <div 
-          className="relative rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center text-white font-black"
-          style={{ width: currentSize.icon, height: currentSize.icon }}
-        >
-          🤖
-        </div>
-      )}
+      <img
+        src={mascotIconUrl}
+        alt="BotClips Mascot"
+        width={currentSize.icon}
+        height={currentSize.icon}
+        onError={() => setImgError(true)}
+        className="relative object-contain transform transition-all duration-300 group-hover:scale-110 drop-shadow-[0_2px_14px_rgba(0,180,255,0.5)]"
+        style={{ width: currentSize.icon, height: currentSize.icon }}
+      />
     </div>
   );
 
@@ -70,15 +64,17 @@ export default function BotClipsLogo({
   const content = (
     <div className={`inline-flex items-center ${currentSize.gap} group ${className}`}>
       {logoMark}
-      <div className="flex flex-col select-none">
+      <div className="flex flex-col select-none justify-center">
+        {/* Main Title: BotClips */}
         <div className={`font-black tracking-tight leading-none ${currentSize.text} flex items-center`}>
-          <span className="text-[#111214] dark:text-white transition-colors">Bot</span>
-          <span className="bg-gradient-to-r from-blue-600 via-cyan-500 to-blue-400 bg-clip-text text-transparent ml-0.5">
+          <span className="text-slate-950 dark:text-white transition-colors font-extrabold">Bot</span>
+          <span className="bg-gradient-to-r from-blue-600 via-cyan-500 to-sky-400 bg-clip-text text-transparent ml-0.5 font-black">
             Clips
           </span>
-          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 ml-1 shadow-[0_0_8px_#00f2fe] animate-pulse" />
+          <span className="w-2 h-2 rounded-full bg-cyan-400 ml-1.5 shadow-[0_0_10px_#00f2fe] animate-pulse" />
         </div>
-        <span className="text-[9px] font-bold text-slate-400 tracking-wider uppercase mt-0.5 hidden sm:block">
+        {/* Tagline: VIRAL AUTOMATION - Never hidden! Life of our branding */}
+        <span className={`block font-extrabold tracking-[0.2em] uppercase mt-1 text-slate-500 dark:text-cyan-400/90 leading-tight ${currentSize.sub}`}>
           Viral Automation
         </span>
       </div>

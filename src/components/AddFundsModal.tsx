@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { X, Wallet, QrCode, Copy, Check, ShieldCheck, ArrowRight } from "lucide-react";
 
 interface AddFundsModalProps {
@@ -210,21 +211,55 @@ export default function AddFundsModal({
             </button>
           </form>
         ) : (
-          <div className="space-y-4 pt-4">
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-              <span className="text-xs font-bold uppercase text-slate-400">USDT TRC20 Address</span>
-              <p className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200 break-all mt-1">
-                TVTjQKqYuntgk6EfD6PqeFvezZnVCCimjz
-              </p>
+          <div className="space-y-4 pt-2">
+            {/* USDT TRC20 QR Code Container */}
+            <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+              <div className="w-44 h-44 bg-white p-2.5 rounded-2xl shadow-xs shrink-0 flex items-center justify-center">
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent("TVTjQKqYuntgk6EfD6PqeFvezZnVCCimjz")}`} 
+                  alt="USDT TRC20 QR Code" 
+                  className="w-full h-full object-contain rounded-xl"
+                />
+              </div>
+              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-2">Scan with Binance, TrustWallet, or TronLink</span>
             </div>
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-              <span className="text-xs font-bold uppercase text-slate-400">USDT BEP20 (BSC) Address</span>
-              <p className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200 break-all mt-1">
+
+            {/* TRC20 Address with Copy Button */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <span className="text-[10px] font-bold uppercase text-slate-400 block">USDT TRC20 Address (TRON Network)</span>
+                <p className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200 truncate mt-0.5">
+                  TVTjQKqYuntgk6EfD6PqeFvezZnVCCimjz
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText("TVTjQKqYuntgk6EfD6PqeFvezZnVCCimjz");
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-slate-200/80 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copied ? "Copied" : "Copy"}</span>
+              </button>
+            </div>
+
+            {/* BEP20 Address */}
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+              <span className="text-[10px] font-bold uppercase text-slate-400 block">USDT BEP20 (BSC) Address</span>
+              <p className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200 truncate mt-0.5">
                 0x71C3Ba8921e10FdB89C40a12F8e312A7C3241410
               </p>
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Send USDT to either address and contact live support or submit txHash on the full Wallet page for instant automated credit.
+
+            <p className="text-xs text-slate-500 leading-relaxed text-center">
+              Send USDT to the address or scan the QR code above. Submit txHash on the{" "}
+              <Link href="/dashboard/wallet" onClick={onClose} className="text-blue-600 dark:text-blue-400 font-bold underline">
+                Wallet page
+              </Link>{" "}
+              for automated on-chain credit.
             </p>
           </div>
         )}

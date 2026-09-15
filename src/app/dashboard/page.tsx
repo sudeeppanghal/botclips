@@ -243,7 +243,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-2.5 w-full sm:w-auto">
             <Link
-              href="/dashboard/automation"
+              href="/dashboard/m-automation"
               className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs"
             >
               <span>Manage SMM API</span>
@@ -268,7 +268,7 @@ export default function DashboardPage() {
               Connect Your Own SMM Panel API (0% Platform Markup)
             </h2>
             <p className="text-xs sm:text-sm text-blue-100/90 leading-relaxed">
-              Use your own provider (yoyomedia, smmsocialmedia, etc.). Automatically sync balance and execute orders through your API credentials. Weekly: $10 (₹960) • Monthly: $25 (₹2,400).
+              Use your own provider endpoint. Automatically sync balance and execute orders through your API credentials. Weekly: $10 (₹960) • Monthly: $25 (₹2,400).
             </p>
           </div>
           <div className="flex items-center gap-2.5 z-10 shrink-0 w-full sm:w-auto">
@@ -280,7 +280,7 @@ export default function DashboardPage() {
               <span>Upgrade to Premium</span>
             </button>
             <Link
-              href="/dashboard/automation"
+              href="/dashboard/m-automation"
               className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5"
             >
               <span>Learn More</span>
@@ -542,7 +542,7 @@ export default function DashboardPage() {
             </Link>
 
             <Link
-              href="/dashboard/automation"
+              href="/dashboard/m-automation"
               className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900 hover:bg-blue-50/40 dark:hover:bg-blue-950/20 transition-all text-left group"
             >
               <div className="flex items-center gap-3">
@@ -671,7 +671,7 @@ export default function DashboardPage() {
                   Mode 2: BYO SMM Panel API
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 max-w-[180px]">
-                  Hook your yoyomedia or smmsocialmedia API key to bypass all markups.
+                  Hook your own SMM panel API key to bypass all platform markups.
                 </p>
               </div>
               <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center text-white shadow-md shadow-amber-500/30">
@@ -680,7 +680,7 @@ export default function DashboardPage() {
             </div>
 
             <Link
-              href="/dashboard/automation"
+              href="/dashboard/m-automation"
               className="mt-6 w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-1.5"
             >
               <span>Explore Mode 2 Settings</span>

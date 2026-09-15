@@ -14,7 +14,8 @@ import {
   Crown, 
   ChevronRight,
   X,
-  Sparkles
+  Sparkles,
+  Cpu
 } from "lucide-react";
 import BotClipsLogo from "@/components/BotClipsLogo";
 
@@ -30,6 +31,7 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile, brandName =
   const navItems = [
     { label: "Home", href: "/dashboard", icon: Home },
     { label: "Automation", href: "/dashboard/automation", icon: Zap },
+    { label: "M-Automation", href: "/dashboard/m-automation", icon: Cpu, badge: "PRO" },
     { label: "Wallet", href: "/dashboard/wallet", icon: Wallet },
     { label: "Settings", href: "/dashboard/settings", icon: Settings },
     { label: "Contact Us", href: "/dashboard/tickets", icon: Headphones },
@@ -76,14 +78,21 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile, brandName =
                   key={item.href}
                   href={item.href}
                   onClick={onCloseMobile}
-                  className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium transition-colors ${
+                  className={`flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-medium transition-colors ${
                     isActive
                       ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold"
                       : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200"
                   }`}
                 >
-                  <Icon className={`w-5 h-5 ${isActive ? "text-blue-600 dark:text-blue-400" : "text-slate-500 dark:text-slate-400"}`} />
-                  <span>{item.label}</span>
+                  <div className="flex items-center gap-3">
+                    <Icon className={`w-5 h-5 ${isActive ? "text-blue-600 dark:text-blue-400" : "text-slate-500 dark:text-slate-400"}`} />
+                    <span>{item.label}</span>
+                  </div>
+                  {item.badge && (
+                    <span className="text-[10px] uppercase font-black tracking-wider px-1.5 py-0.5 rounded-md bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs">
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -93,7 +102,7 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile, brandName =
         {/* Bottom VIP Upgrade Card */}
         <div className="pt-4">
           <Link
-            href="/dashboard/automation"
+            href="/dashboard/m-automation"
             className="block p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent hover:from-amber-500/15 border border-amber-500/20 hover:border-amber-500/30 transition-all group cursor-pointer shadow-xs"
           >
             <div className="flex items-start justify-between">
@@ -104,7 +113,7 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile, brandName =
               <ChevronRight className="w-4 h-4 text-amber-500 group-hover:translate-x-0.5 transition-transform" />
             </div>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-relaxed pl-7">
-              Connect your own SMM API ($5/wk • $25/mo)
+              Connect your own SMM API ($10/wk • $25/mo)
             </p>
           </Link>
         </div>

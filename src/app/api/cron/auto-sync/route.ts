@@ -442,6 +442,17 @@ export async function GET(request: NextRequest) {
                       providerOrderId: String(result.order),
                     },
                   });
+                } else if (result && result.error) {
+                  // If provider is busy or previous order on same link is still delivering,
+                  // delay this pulse by 2.5 minutes so it retries automatically
+                  batch.scheduledAt = new Date(Date.now() + 150 * 1000).toISOString();
+                  batch.lastError = result.error;
+                  await prisma.order.update({
+                    where: { id: jOrder.id },
+                    data: {
+                      comboData: JSON.stringify(data),
+                    },
+                  });
                 }
               } catch (err) {
                 console.error(`Error processing jitter pulse for order #${jOrder.id}:`, err);

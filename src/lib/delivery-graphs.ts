@@ -1380,6 +1380,7 @@ export function generateOrganicPacedBatches(params: {
   maxQty: number;
   avgIntervalMinutes: number;
   startTime?: Date;
+  serviceMin?: number;
 }): OrganicJitterBatch[] {
   const {
     goal,
@@ -1387,79 +1388,134 @@ export function generateOrganicPacedBatches(params: {
     maxQty,
     avgIntervalMinutes = 20,
     startTime = new Date(),
+    serviceMin = 50,
   } = params;
 
   const cleanGoal = Math.max(1, Math.floor(goal));
-  const cleanMin = Math.max(10, Math.min(minQty, cleanGoal));
-  const cleanMax = Math.max(cleanMin, Math.min(maxQty, cleanGoal));
-  const avgBatch = (cleanMin + cleanMax) / 2;
+  const effectiveMin = Math.max(serviceMin, Math.min(minQty, cleanGoal));
+  const effectiveMax = Math.max(effectiveMin, Math.min(maxQty, cleanGoal));
+  const targetAvg = (effectiveMin + effectiveMax) / 2;
 
-  // Approximate number of batches
-  const estBatches = Math.max(1, Math.round(cleanGoal / avgBatch));
+  // Approximate number of pulses
+  let numPulses = Math.max(2, Math.round(cleanGoal / targetAvg));
+  if (cleanGoal <= effectiveMin) numPulses = 1;
 
-  // Generate non-linear weights using Poisson/Gaussian perturbation
-  const rawWeights: number[] = [];
-  for (let i = 0; i < estBatches; i++) {
-    const x = (i + 1) / (estBatches + 1);
-    // Parabolic viral bell curve with asymmetric right skew
-    const curve = Math.sin(x * Math.PI) * 0.85 + Math.pow(x, 1.2) * 0.45 + 0.25;
-    // Multiplicative pseudo-random jitter between 0.72 and 1.28
-    const jitter = 0.72 + ((Math.sin(i * 5.17 + 2.31) + 1) / 2) * 0.56;
-    rawWeights.push(curve * jitter);
+  if (numPulses === 1) {
+    return [{
+      batchNumber: 1,
+      views: cleanGoal,
+      timeOffsetMinutes: 0,
+      timeFormatted: "Immediate (+0m)",
+      scheduledAt: startTime.toISOString(),
+      status: "PENDING",
+    }];
   }
 
-  const sumWeights = rawWeights.reduce((a, b) => a + b, 0);
-  const normalizedWeights = rawWeights.map(w => w / sumWeights);
+  // 1. Generate Organic Non-Flat Distribution Across All Pulses
+  // Avoids flat repetitive clamps like 100, 100, 150, 150
+  const viewCounts: number[] = [];
+  let remainingViews = cleanGoal;
 
-  const batches: OrganicJitterBatch[] = [];
-  let allocated = 0;
-  let currentMinutes = 0;
-
-  for (let i = 0; i < estBatches; i++) {
-    const isLast = i === estBatches - 1;
-    let qty = 0;
-
+  for (let i = 0; i < numPulses; i++) {
+    const isLast = (i === numPulses - 1);
     if (isLast) {
-      qty = cleanGoal - allocated;
-      if (qty <= 0) qty = Math.max(1, cleanGoal - allocated);
-    } else {
-      const target = Math.round(cleanGoal * normalizedWeights[i]);
-      qty = Math.max(cleanMin, Math.min(cleanMax, target));
-      if (allocated + qty >= cleanGoal) {
-        qty = Math.max(cleanMin, cleanGoal - allocated);
-      }
+      viewCounts.push(remainingViews);
+      break;
     }
 
-    allocated += qty;
+    const remainingPulses = numPulses - i;
+    const avgNeeded = remainingViews / remainingPulses;
 
-    // Time jitter: interval * (0.68 to 1.32)
-    const intervalJitter = 0.68 + ((Math.cos(i * 3.89 + 1.45) + 1) / 2) * 0.64;
-    const stepInterval = Math.max(3, Math.round(avgIntervalMinutes * intervalJitter));
+    // Organic wave curve: natural parabolic wave with ±25% dynamic variance
+    const waveProgress = i / (numPulses - 1);
+    const waveShape = 1 + Math.sin(waveProgress * Math.PI) * 0.20 - 0.08;
+
+    // Stochastic entropy multiplier
+    const jitter = 0.80 + Math.random() * 0.40;
+
+    // Raw pulse quantity with natural odd-number variance (never flat round numbers)
+    let pulseQty = Math.round(avgNeeded * waveShape * jitter);
+    const oddVariance = Math.floor(Math.random() * 15) - 7; // -7 to +7
+    pulseQty += oddVariance;
+
+    // Keep within realistic human boundaries
+    pulseQty = Math.max(effectiveMin, Math.min(Math.round(effectiveMax * 1.22), pulseQty));
+
+    // Ensure enough views remain for the remaining pulses
+    const minNeededForRest = (remainingPulses - 1) * effectiveMin;
+    if (remainingViews - pulseQty < minNeededForRest) {
+      pulseQty = Math.max(effectiveMin, remainingViews - minNeededForRest);
+    }
+
+    viewCounts.push(pulseQty);
+    remainingViews -= pulseQty;
+  }
+
+  // 2. Smoothing: Redistribute excess or deficit to prevent last-batch skew
+  if (viewCounts.length >= 2) {
+    const last = viewCounts[viewCounts.length - 1];
+    if (last < effectiveMin || last > effectiveMax * 1.25) {
+      const diff = last < effectiveMin ? (effectiveMin - last) + Math.floor(Math.random() * 12 + 4) : (last - effectiveMax);
+      if (last < effectiveMin) {
+        viewCounts[viewCounts.length - 1] += diff;
+        let toSubtract = diff;
+        for (let j = viewCounts.length - 2; j >= 0 && toSubtract > 0; j--) {
+          const avail = viewCounts[j] - effectiveMin;
+          if (avail > 0) {
+            const take = Math.min(avail, toSubtract);
+            viewCounts[j] -= take;
+            toSubtract -= take;
+          }
+        }
+      } else {
+        viewCounts[viewCounts.length - 1] -= diff;
+        let toAdd = diff;
+        for (let j = viewCounts.length - 2; j >= 0 && toAdd > 0; j--) {
+          const portion = Math.ceil(toAdd / (j + 1));
+          viewCounts[j] += portion;
+          toAdd -= portion;
+        }
+      }
+    }
+  }
+
+  // 3. Ensure no two consecutive batches have identical quantities
+  for (let i = 1; i < viewCounts.length; i++) {
+    if (viewCounts[i] === viewCounts[i - 1]) {
+      const shift = (Math.random() > 0.5 ? 4 : -4) + (Math.floor(Math.random() * 6) - 3);
+      if (viewCounts[i] + shift >= effectiveMin && viewCounts[i - 1] - shift >= effectiveMin) {
+        viewCounts[i] += shift;
+        viewCounts[i - 1] -= shift;
+      }
+    }
+  }
+
+  // 4. Assemble Batches with True Stochastic Non-Linear Time Jitter
+  const batches: OrganicJitterBatch[] = [];
+  let currentMinutes = 0;
+
+  for (let i = 0; i < viewCounts.length; i++) {
     if (i > 0) {
-      currentMinutes += stepInterval;
+      // True stochastic interval: avgInterval * (0.60 to 1.45)
+      const timeJitterFactor = 0.60 + Math.random() * 0.85;
+      const step = Math.max(1, Math.round(avgIntervalMinutes * timeJitterFactor));
+      currentMinutes += step;
     }
 
     const hrs = Math.floor(currentMinutes / 60);
     const mins = currentMinutes % 60;
-    const timeFormatted = currentMinutes === 0 ? "Immediate (+0m)" : (hrs > 0 ? `+${hrs}h ${mins.toString().padStart(2, "0")}m` : `+${mins}m`);
-    const scheduledAt = new Date(startTime.getTime() + currentMinutes * 60 * 1000).toISOString();
+    const timeFormatted = currentMinutes === 0
+      ? "Immediate (+0m)"
+      : (hrs > 0 ? `+${hrs}h ${mins.toString().padStart(2, "0")}m` : `+${mins}m`);
 
     batches.push({
       batchNumber: i + 1,
-      views: qty,
+      views: viewCounts[i],
       timeOffsetMinutes: currentMinutes,
       timeFormatted,
-      scheduledAt,
+      scheduledAt: new Date(startTime.getTime() + currentMinutes * 60 * 1000).toISOString(),
       status: "PENDING",
     });
-
-    if (allocated >= cleanGoal) break;
-  }
-
-  // Ensure total sum equals exact goal
-  const totalAllocated = batches.reduce((sum, b) => sum + b.views, 0);
-  if (totalAllocated !== cleanGoal && batches.length > 0) {
-    batches[batches.length - 1].views += (cleanGoal - totalAllocated);
   }
 
   return batches;

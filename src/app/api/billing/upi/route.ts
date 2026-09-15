@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const isAdmin = session.role === "ADMIN" || session.email?.includes("admin");
+    const isAdmin = session.role === "ADMIN";
 
     if (isAdmin) {
       const payments = await prisma.upiPayment.findMany({
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const session = await getSessionUser();
-    const isAdmin = session?.role === "ADMIN" || session?.email?.includes("admin");
+    const isAdmin = session?.role === "ADMIN";
     
     if (!isAdmin) {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });

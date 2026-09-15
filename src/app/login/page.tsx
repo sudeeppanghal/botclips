@@ -41,7 +41,7 @@ export default function LoginPage() {
         throw new Error(data.error || "Invalid credentials");
       }
 
-      if (loginEmail.toLowerCase().includes("admin")) {
+      if (data.user?.role === "ADMIN") {
         router.push("/admin");
       } else {
         router.push("/dashboard");

@@ -13,10 +13,13 @@ export async function GET(request: NextRequest) {
 
     // Allow trigger if secret matches via header or ?key= query, or in dev mode
     const isAuthorized = 
-      !cronSecret ||
       queryKey === cronSecret ||
       authHeader === `Bearer ${cronSecret}` ||
       request.headers.get("user-agent")?.includes("cron-job.org");
+
+    if (!isAuthorized) {
+      return NextResponse.json({ error: "Unauthorized. Valid cron secret required." }, { status: 401 });
+    }
 
     // 1. Auto-expire expired Mode 2 BYO-API plans
     const now = new Date();

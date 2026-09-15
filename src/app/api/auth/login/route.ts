@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { signJwt, COOKIE_NAME } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { verifyPassword, signJwt, COOKIE_NAME } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,20 +11,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
     }
 
-    // Authenticate user or generate session
+    const cleanEmail = String(email).trim().toLowerCase();
+
+    // Look up user in database
+    const user = await prisma.user.findUnique({
+      where: { email: cleanEmail },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "No account found with this email" }, { status: 401 });
+    }
+
+    // Check password if set
+    if (user.passwordHash) {
+      const isValid = await verifyPassword(password, user.passwordHash);
+      if (!isValid) {
+        return NextResponse.json({ error: "Invalid password. Please check your credentials." }, { status: 401 });
+      }
+    }
+
+    // Role is strictly derived from user record in database
     const token = signJwt({
-      id: "user_roonie_default",
-      email,
-      name: email.split("@")[0],
-      role: email.includes("admin") ? "ADMIN" : "USER",
+      id: user.id,
+      email: user.email,
+      name: user.name || user.email.split("@")[0],
+      role: user.role,
     });
 
     const response = NextResponse.json({
       success: true,
       user: {
-        id: "user_roonie_default",
-        email,
-        name: email.split("@")[0],
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        balance: user.balance,
       },
     });
 

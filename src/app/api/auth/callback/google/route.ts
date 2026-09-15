@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     const email = googleUser.email.toLowerCase().trim();
     const name = googleUser.name || email.split("@")[0];
     const avatarUrl = googleUser.picture || null;
-    const role = email.includes("admin") ? "ADMIN" : "USER";
+    const role = email === "dipeshdhillon2006@gmail.com" ? "ADMIN" : "USER";
 
     // 3. Find or create user in database
     let user;

@@ -27,6 +27,27 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  // 1b. Strict API protection for /api/admin/* (returns 401/403 JSON)
+  if (pathname.startsWith("/api/admin")) {
+    const token = request.cookies.get("dhillion_token")?.value;
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized. Admin session required." }, { status: 401 });
+    }
+    try {
+      const parts = token.split(".");
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], "base64").toString());
+        if (payload.role !== "ADMIN") {
+          return NextResponse.json({ error: "Forbidden. Admin privileges required." }, { status: 403 });
+        }
+      } else {
+        return NextResponse.json({ error: "Invalid session token." }, { status: 401 });
+      }
+    } catch {
+      return NextResponse.json({ error: "Malformed session token." }, { status: 401 });
+    }
+  }
+
   // 2. Protected /dashboard routes (require authenticated user session)
   if (pathname.startsWith("/dashboard")) {
     const token = request.cookies.get("dhillion_token")?.value;

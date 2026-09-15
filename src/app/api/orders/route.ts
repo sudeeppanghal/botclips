@@ -450,8 +450,9 @@ export async function POST(request: NextRequest) {
         goal: cleanQuantity,
         minQty: Number(minQty),
         maxQty: Number(maxQty),
-        avgIntervalMinutes: cleanInterval > 0 ? cleanInterval : 20,
+        avgIntervalMinutes: cleanInterval > 0 ? cleanInterval : 2,
         startTime: new Date(),
+        withEngagement: true,
       });
       if (jitterBatches.length > 0) {
         initialPulseQuantity = jitterBatches[0].views;

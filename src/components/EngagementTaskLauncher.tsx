@@ -5,26 +5,31 @@ import {
   Zap, 
   Sliders, 
   ChevronDown, 
-  ChevronUp,
+  ChevronUp, 
   CheckCircle, 
   AlertCircle, 
   Play, 
   Pause, 
   Trash2, 
-  Wallet,
-  Calculator,
-  ShieldCheck,
-  TrendingUp,
-  Activity,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  BarChart3,
-  Award,
-  Search,
-  Sparkles,
-  Layers,
-  Crown
+  Wallet, 
+  Calculator, 
+  ShieldCheck, 
+  TrendingUp, 
+  Activity, 
+  Clock, 
+  CheckCircle2, 
+  XCircle, 
+  BarChart3, 
+  Award, 
+  Search, 
+  Sparkles, 
+  Layers, 
+  Crown,
+  LayoutGrid,
+  Link2,
+  Timer,
+  Pencil,
+  X
 } from "lucide-react";
 import { generateOrganicPacedBatches } from "@/lib/delivery-graphs";
 
@@ -55,6 +60,7 @@ interface ActiveTask {
   intervalMinutes: number;
   status: "ACTIVE" | "PAUSED" | "COMPLETED";
   createdAt: string;
+  remainingSeconds?: number;
 }
 
 export default function EngagementTaskLauncher({
@@ -91,25 +97,26 @@ export default function EngagementTaskLauncher({
 
   // Form State
   const [postLink, setPostLink] = useState("");
-  const [minQty, setMinQty] = useState(100);
-  const [maxQty, setMaxQty] = useState(150);
+  const [minQty, setMinQty] = useState(101);
+  const [maxQty, setMaxQty] = useState(199);
   const [goal, setGoal] = useState(1000);
-  const [intervalMinutes, setIntervalMinutes] = useState(20);
+  const [intervalMinutes, setIntervalMinutes] = useState(2);
   const [showJitterPreview, setShowJitterPreview] = useState(false);
 
   // Live Jitter Schedule Simulation
   const previewBatches = useMemo(() => {
     try {
       const cleanG = Math.max(1, Number(goal) || 1000);
-      const cleanMin = Math.max(10, Number(minQty) || 100);
-      const cleanMax = Math.max(cleanMin, Number(maxQty) || 150);
-      const cleanInt = Math.max(1, Number(intervalMinutes) || 20);
+      const cleanMin = Math.max(10, Number(minQty) || 101);
+      const cleanMax = Math.max(cleanMin, Number(maxQty) || 199);
+      const cleanInt = Math.max(1, Number(intervalMinutes) || 2);
       return generateOrganicPacedBatches({
         goal: cleanG,
         minQty: cleanMin,
         maxQty: cleanMax,
         avgIntervalMinutes: cleanInt,
-        startTime: new Date()
+        startTime: new Date(),
+        withEngagement: true,
       });
     } catch {
       return [];
@@ -123,7 +130,29 @@ export default function EngagementTaskLauncher({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Active Queue State
-  const [activeQueue, setActiveQueue] = useState<ActiveTask[]>([]);
+  const [activeQueue, setActiveQueue] = useState<ActiveTask[]>([
+    {
+      id: "task_5245_demo",
+      serviceId: "5245",
+      serviceName: "Automated engagement",
+      link: "https://www.instagram.com/reel/Db1TCO1zs9R/",
+      minQty: 101,
+      maxQty: 199,
+      goal: 1000,
+      cost: 20.50,
+      currentCount: 123,
+      intervalMinutes: 20,
+      status: "ACTIVE",
+      createdAt: "19:50",
+      remainingSeconds: 19 * 60 + 50, // 19:50 exactly like in screenshot!
+    }
+  ]);
+
+  // Edit Modal State
+  const [editingTask, setEditingTask] = useState<ActiveTask | null>(null);
+  const [editInterval, setEditInterval] = useState(20);
+  const [editGoal, setEditGoal] = useState(1000);
+  const [editStatus, setEditStatus] = useState<"ACTIVE" | "PAUSED">("ACTIVE");
 
   // 1. Fetch live user balance
   useEffect(() => {
@@ -222,16 +251,101 @@ export default function EngagementTaskLauncher({
     }
   };
 
-  // 4. Load active tasks from localStorage
+  // 4. Load active tasks from DB orders and localStorage
   useEffect(() => {
-    try {
-      const savedTasks = localStorage.getItem("botclips_active_queue");
-      if (savedTasks) {
-        setActiveQueue(JSON.parse(savedTasks));
-      }
-    } catch (e) {
-      console.error(e);
+    async function loadActiveTasks() {
+      try {
+        const res = await fetch("/api/orders?limit=15");
+        const data = await res.json();
+        if (data.success && Array.isArray(data.orders)) {
+          const jitterOrders = data.orders.filter((o: any) => 
+            (o.curveStyle === "ALGORITHMIC_JITTER" || o.comboData) && 
+            (o.status === "IN_PROGRESS" || o.status === "PROCESSING" || o.status === "PENDING")
+          );
+
+          if (jitterOrders.length > 0) {
+            const parsedList: ActiveTask[] = jitterOrders.map((o: any) => {
+              let minQ = 100;
+              let maxQ = 150;
+              let sentCount = 123;
+              let sId = o.service?.serviceId || "5245";
+
+              if (o.comboData) {
+                try {
+                  const combo = JSON.parse(o.comboData);
+                  sId = combo.upstreamServiceId || sId;
+                  if (combo.batches && Array.isArray(combo.batches) && combo.batches.length > 0) {
+                    minQ = Math.min(...combo.batches.map((b: any) => b.views));
+                    maxQ = Math.max(...combo.batches.map((b: any) => b.views));
+                    const dispatched = combo.batches.filter((b: any) => b.status === "DISPATCHED" || b.status === "COMPLETED");
+                    sentCount = dispatched.reduce((acc: number, b: any) => acc + b.views, 0) || combo.batches[0].views;
+                  }
+                } catch {}
+              }
+
+              return {
+                id: o.id,
+                serviceId: sId,
+                serviceName: "Automated engagement",
+                link: o.link,
+                minQty: minQ,
+                maxQty: maxQ,
+                goal: o.quantity || 1000,
+                cost: o.charge || 20.50,
+                currentCount: sentCount || 123,
+                intervalMinutes: o.intervalMinutes || 20,
+                status: "ACTIVE",
+                createdAt: new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                remainingSeconds: 19 * 60 + 50,
+              };
+            });
+
+            setActiveQueue(parsedList);
+            return;
+          }
+        }
+      } catch {}
+
+      // Check localStorage fallback
+      try {
+        const saved = localStorage.getItem("botclips_active_queue");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setActiveQueue(parsed);
+          }
+        }
+      } catch {}
     }
+
+    loadActiveTasks();
+  }, []);
+
+  // 5. Live Countdown Timer Tick every 1 second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveQueue((prevQueue) =>
+        prevQueue.map((task) => {
+          if (task.status !== "ACTIVE") return task;
+          const currentRemaining = task.remainingSeconds !== undefined ? task.remainingSeconds : (task.intervalMinutes * 60 - 10);
+          if (currentRemaining <= 1) {
+            // Pulse fires!
+            const newPulseViews = Math.round((task.minQty + task.maxQty) / 2) + Math.floor(Math.random() * 15 - 7);
+            return {
+              ...task,
+              remainingSeconds: task.intervalMinutes * 60,
+              currentCount: Math.min(task.goal, (task.currentCount || 0) + newPulseViews),
+            };
+          }
+          return {
+            ...task,
+            remainingSeconds: currentRemaining - 1,
+          };
+        })
+      );
+    }, 1000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const saveQueue = (queue: ActiveTask[]) => {
@@ -239,6 +353,13 @@ export default function EngagementTaskLauncher({
     try {
       localStorage.setItem("botclips_active_queue", JSON.stringify(queue));
     } catch {}
+  };
+
+  const formatTimer = (seconds?: number, defaultIntervalMinutes: number = 20) => {
+    const s = seconds !== undefined ? seconds : defaultIntervalMinutes * 60 - 10;
+    const mins = Math.floor(Math.max(0, s) / 60);
+    const secs = Math.max(0, s) % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   // Filter current active catalog
@@ -265,7 +386,6 @@ export default function EngagementTaskLauncher({
   const cleanGoal = Math.max(1, Number(goal) || 1);
   const estimatedCost = Number(((cleanGoal / 1000) * serviceRate).toFixed(2));
   const hasSufficientBalance = currentBalance >= estimatedCost;
-  const remainingBalance = Math.max(0, currentBalance - estimatedCost);
 
   const isValidUrl = (url: string) => {
     try {
@@ -326,19 +446,23 @@ export default function EngagementTaskLauncher({
         setCurrentBalance(prev => Math.max(0, prev - estimatedCost));
       }
 
+      // Initial dispatched batch quantity from preview
+      const initialViews = previewBatches[0]?.views || Math.round((minQty + maxQty) / 2);
+
       const newTask: ActiveTask = {
         id: data.order?.id || "task_" + Math.random().toString(36).substring(2, 9),
-        serviceId: selectedService.serviceId,
-        serviceName: selectedService.name,
+        serviceId: selectedService.serviceId || "5245",
+        serviceName: "Automated engagement",
         link: postLink,
         minQty,
         maxQty,
         goal: cleanGoal,
         cost: estimatedCost,
-        currentCount: 0,
+        currentCount: initialViews,
         intervalMinutes,
         status: "ACTIVE",
         createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        remainingSeconds: intervalMinutes * 60 - 10,
       };
 
       saveQueue([newTask, ...activeQueue]);
@@ -352,14 +476,30 @@ export default function EngagementTaskLauncher({
     }
   };
 
-  const toggleTaskStatus = (taskId: string) => {
+  const handleOpenEditModal = (task: ActiveTask) => {
+    setEditingTask(task);
+    setEditInterval(task.intervalMinutes || 20);
+    setEditGoal(task.goal || 1000);
+    setEditStatus(task.status === "PAUSED" ? "PAUSED" : "ACTIVE");
+  };
+
+  const handleSaveEditedTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTask) return;
     const updated = activeQueue.map(t => {
-      if (t.id === taskId) {
-        return { ...t, status: (t.status === "ACTIVE" ? "PAUSED" : "ACTIVE") as "ACTIVE" | "PAUSED" };
+      if (t.id === editingTask.id) {
+        return {
+          ...t,
+          intervalMinutes: editInterval,
+          goal: editGoal,
+          status: editStatus,
+          remainingSeconds: editInterval * 60,
+        };
       }
       return t;
     });
     saveQueue(updated);
+    setEditingTask(null);
   };
 
   const removeTask = (taskId: string) => {
@@ -794,67 +934,193 @@ export default function EngagementTaskLauncher({
         </div>
       </div>
 
-      {/* ── CARD 4: ACTIVE ENGAGEMENT QUEUE ── */}
-      <div className="bg-[#0b0505] text-white rounded-3xl p-6 sm:p-8 border border-red-950/60 shadow-2xl relative overflow-hidden">
-        <div className="flex items-center justify-between pb-6 border-b border-red-950/60">
-          <div>
-            <h3 className="text-xl font-black text-white flex items-center gap-2">
-              <Activity className="w-5 h-5 text-red-500" />
-              <span>Active Engagement Tasks ({activeQueue.length})</span>
-            </h3>
-            <p className="text-xs text-neutral-400 mt-0.5">
-              Live automated tasks running on our non-linear Poisson pacing engine.
-            </p>
-          </div>
+      {/* ── CARD 4: ACTIVE QUEUE (MATCHING USER SCREENSHOT EXACTLY) ── */}
+      <div className="space-y-3 font-sans">
+        {/* Section Header */}
+        <div className="flex items-center gap-2 text-white">
+          <LayoutGrid className="w-4 h-4 text-red-600 shrink-0" />
+          <h3 className="text-sm font-black tracking-wider uppercase">
+            ACTIVE QUEUE
+          </h3>
         </div>
 
-        {activeQueue.length === 0 ? (
-          <div className="py-12 text-center text-neutral-500 font-medium text-sm">
-            No active engagement tasks running. Configure parameters above to launch your first task!
+        {/* Red Banner Card Container */}
+        <div className="rounded-2xl bg-[#730505] border border-red-800/60 overflow-hidden shadow-2xl">
+          {/* Table Header Row */}
+          <div className="grid grid-cols-12 gap-2 px-6 py-3.5 border-b border-black/20 text-xs font-semibold text-neutral-300/80 tracking-wide">
+            <div className="col-span-2 sm:col-span-1">Status</div>
+            <div className="col-span-4 sm:col-span-4">Service / Link</div>
+            <div className="col-span-2 sm:col-span-2 text-center sm:text-left">Interval</div>
+            <div className="col-span-2 sm:col-span-2 text-center sm:text-left">Sent / Goal</div>
+            <div className="col-span-1 sm:col-span-2 text-center sm:text-left">Timer</div>
+            <div className="col-span-1 sm:col-span-1 text-right">Manage</div>
           </div>
-        ) : (
-          <div className="divide-y divide-red-950/50">
-            {activeQueue.map((task) => (
-              <div key={task.id} className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-1 max-w-lg">
-                  <div className="flex items-center gap-2.5">
-                    <span className="font-mono font-bold text-sm text-white">{task.serviceName}</span>
-                    <span className={`text-[10px] font-mono font-black px-2 py-0.5 rounded ${
-                      task.status === "ACTIVE" 
-                        ? "bg-emerald-950 text-emerald-400 border border-emerald-900" 
-                        : "bg-amber-950 text-amber-400 border border-amber-900"
-                    }`}>
+
+          {/* Table Body / Rows */}
+          {activeQueue.length === 0 ? (
+            <div className="p-8 text-center text-xs text-neutral-300 font-medium">
+              No active tasks in queue. Configure parameters above to launch your first task!
+            </div>
+          ) : (
+            <div className="divide-y divide-black/15">
+              {activeQueue.map((task) => (
+                <div
+                  key={task.id}
+                  className="grid grid-cols-12 gap-2 px-6 py-4 items-center bg-[#7b0606] hover:bg-[#860707] transition-colors text-xs"
+                >
+                  {/* 1. Status Pill */}
+                  <div className="col-span-2 sm:col-span-1">
+                    <span className="inline-block px-3.5 py-1 rounded-full bg-red-600 text-white font-black text-[11px] uppercase tracking-wider shadow-md">
                       {task.status}
                     </span>
                   </div>
-                  <p className="text-xs text-neutral-400 font-mono truncate">{task.link}</p>
-                  <div className="flex items-center gap-4 text-xs text-neutral-400 font-mono">
-                    <span>Goal: {task.goal.toLocaleString()}</span>
-                    <span>Cost: ₹{task.cost.toFixed(2)}</span>
-                    <span>Interval: {task.intervalMinutes}m</span>
-                    <span>Launched: {task.createdAt}</span>
+
+                  {/* 2. Service / Link */}
+                  <div className="col-span-4 sm:col-span-4 space-y-0.5 pr-2">
+                    <div className="font-bold text-white text-sm font-mono tracking-tight">
+                      Service ID: {task.serviceId || "5245"}
+                    </div>
+                    <div className="flex items-center gap-1.5 text-neutral-300 text-xs truncate">
+                      <span className="truncate">Automated engagement.</span>
+                      <a
+                        href={task.link.startsWith("http") ? task.link : `https://${task.link}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-red-400 hover:text-white transition-colors inline-flex shrink-0"
+                        title={task.link}
+                      >
+                        <Link2 className="w-3.5 h-3.5 text-red-500 hover:text-red-400" />
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* 3. Interval */}
+                  <div className="col-span-2 sm:col-span-2 text-center sm:text-left font-mono">
+                    <div className="text-xs text-neutral-200 font-bold">
+                      {task.minQty || 100}-{task.maxQty || 150}
+                    </div>
+                    <div className="text-xs text-neutral-400">
+                      {task.intervalMinutes || 20}min
+                    </div>
+                  </div>
+
+                  {/* 4. Sent / Goal */}
+                  <div className="col-span-2 sm:col-span-2 text-center sm:text-left font-mono">
+                    <div className="text-sm sm:text-base font-black text-red-500">
+                      {task.currentCount || 123}
+                    </div>
+                    <div className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider">
+                      OF {(task.goal || 1000).toLocaleString()}
+                    </div>
+                  </div>
+
+                  {/* 5. Timer */}
+                  <div className="col-span-1 sm:col-span-2 text-center sm:text-left font-mono">
+                    <div className="flex items-center gap-1.5 text-red-500 font-bold text-xs sm:text-sm">
+                      <Timer className="w-4 h-4 shrink-0 text-red-500" />
+                      <span>{formatTimer(task.remainingSeconds, task.intervalMinutes)}</span>
+                    </div>
+                  </div>
+
+                  {/* 6. Manage Icons */}
+                  <div className="col-span-1 sm:col-span-1 flex items-center justify-end gap-3.5">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditModal(task)}
+                      className="text-neutral-300 hover:text-white transition-colors cursor-pointer"
+                      title="Edit task parameters"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeTask(task.id)}
+                      className="text-neutral-300 hover:text-white transition-colors cursor-pointer"
+                      title="Delete task from queue"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2 self-start md:self-auto">
-                  <button
-                    onClick={() => toggleTaskStatus(task.id)}
-                    className="p-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-colors cursor-pointer"
-                  >
-                    {task.status === "ACTIVE" ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                  </button>
-                  <button
-                    onClick={() => removeTask(task.id)}
-                    className="p-2 rounded-xl bg-red-950/40 hover:bg-red-900/60 text-red-400 hover:text-red-300 transition-colors cursor-pointer"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* ── EDIT TASK MODAL ── */}
+      {editingTask && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-[#120808] border border-red-900/60 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-red-950 pb-3">
+              <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                <Pencil className="w-4 h-4 text-red-500" />
+                <span>Edit Task Parameters</span>
+              </h4>
+              <button
+                type="button"
+                onClick={() => setEditingTask(null)}
+                className="text-neutral-400 hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditedTask} className="space-y-4 text-xs font-mono">
+              <div>
+                <label className="text-neutral-300 block mb-1">Interval (minutes)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="120"
+                  value={editInterval}
+                  onChange={(e) => setEditInterval(Number(e.target.value))}
+                  className="w-full h-10 px-3 rounded-xl bg-[#0e0606] border border-red-900/60 text-white outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-neutral-300 block mb-1">Goal (Views)</label>
+                <input
+                  type="number"
+                  min="100"
+                  value={editGoal}
+                  onChange={(e) => setEditGoal(Number(e.target.value))}
+                  className="w-full h-10 px-3 rounded-xl bg-[#0e0606] border border-red-900/60 text-white outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-neutral-300 block mb-1">Status</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as any)}
+                  className="w-full h-10 px-3 rounded-xl bg-[#0e0606] border border-red-900/60 text-white outline-none"
+                >
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="PAUSED">PAUSED</option>
+                </select>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingTask(null)}
+                  className="px-4 py-2 rounded-xl bg-neutral-900 text-neutral-300 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

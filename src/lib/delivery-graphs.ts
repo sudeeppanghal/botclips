@@ -1366,6 +1366,9 @@ export function generateJitterSchedule(params: {
 export interface OrganicJitterBatch {
   batchNumber: number;
   views: number;
+  likes?: number;
+  comments?: number;
+  shares?: number;
   timeOffsetMinutes: number;
   timeFormatted: string;
   scheduledAt?: string;
@@ -1381,6 +1384,7 @@ export function generateOrganicPacedBatches(params: {
   avgIntervalMinutes: number;
   startTime?: Date;
   serviceMin?: number;
+  withEngagement?: boolean;
 }): OrganicJitterBatch[] {
   const {
     goal,
@@ -1389,14 +1393,15 @@ export function generateOrganicPacedBatches(params: {
     avgIntervalMinutes = 20,
     startTime = new Date(),
     serviceMin = 50,
+    withEngagement = false,
   } = params;
 
   const cleanGoal = Math.max(1, Math.floor(goal));
   const effectiveMin = Math.max(serviceMin, Math.min(minQty, cleanGoal));
   const effectiveMax = Math.max(effectiveMin, Math.min(maxQty, cleanGoal));
-  const targetAvg = (effectiveMin + effectiveMax) / 2;
 
-  // Approximate number of pulses
+  // Determine realistic pulse count across [effectiveMin, effectiveMax]
+  const targetAvg = (effectiveMin + effectiveMax) / 2;
   let numPulses = Math.max(2, Math.round(cleanGoal / targetAvg));
   if (cleanGoal <= effectiveMin) numPulses = 1;
 
@@ -1404,6 +1409,8 @@ export function generateOrganicPacedBatches(params: {
     return [{
       batchNumber: 1,
       views: cleanGoal,
+      likes: withEngagement ? Math.max(2, Math.round(cleanGoal * 0.08)) : 0,
+      comments: withEngagement ? Math.max(1, Math.round(cleanGoal * 0.012)) : 0,
       timeOffsetMinutes: 0,
       timeFormatted: "Immediate (+0m)",
       scheduledAt: startTime.toISOString(),
@@ -1411,8 +1418,8 @@ export function generateOrganicPacedBatches(params: {
     }];
   }
 
-  // 1. Generate Organic Non-Flat Distribution Across All Pulses
-  // Avoids flat repetitive clamps like 100, 100, 150, 150
+  // 1. Generate Organic Non-Linear Distribution Across Batches
+  // Guarantees true stochastic randomness between min and max (e.g. 100, 111, 102, 117, 199)
   const viewCounts: number[] = [];
   let remainingViews = cleanGoal;
 
@@ -1424,27 +1431,31 @@ export function generateOrganicPacedBatches(params: {
     }
 
     const remainingPulses = numPulses - i;
-    const avgNeeded = remainingViews / remainingPulses;
 
-    // Organic wave curve: natural parabolic wave with ±25% dynamic variance
+    // Stochastic randomized draw in [effectiveMin, effectiveMax]
+    const randomRatio = Math.random();
+    let pulseQty = Math.round(effectiveMin + randomRatio * (effectiveMax - effectiveMin));
+
+    // Dynamic wave modulation (organic momentum fluctuation)
     const waveProgress = i / (numPulses - 1);
-    const waveShape = 1 + Math.sin(waveProgress * Math.PI) * 0.20 - 0.08;
+    const waveShape = Math.sin(waveProgress * Math.PI) * 0.16;
+    pulseQty = Math.round(pulseQty * (1 + waveShape));
 
-    // Stochastic entropy multiplier
-    const jitter = 0.80 + Math.random() * 0.40;
-
-    // Raw pulse quantity with natural odd-number variance (never flat round numbers)
-    let pulseQty = Math.round(avgNeeded * waveShape * jitter);
-    const oddVariance = Math.floor(Math.random() * 15) - 7; // -7 to +7
+    // Odd-number variance (natural human numbers, never static flat values)
+    const oddVariance = [-7, -5, -3, -1, 1, 3, 5, 7, 9, 11][Math.floor(Math.random() * 10)];
     pulseQty += oddVariance;
 
-    // Keep within realistic human boundaries
-    pulseQty = Math.max(effectiveMin, Math.min(Math.round(effectiveMax * 1.22), pulseQty));
+    // Hard bounds clamp
+    pulseQty = Math.max(effectiveMin, Math.min(effectiveMax, pulseQty));
 
-    // Ensure enough views remain for the remaining pulses
-    const minNeededForRest = (remainingPulses - 1) * effectiveMin;
-    if (remainingViews - pulseQty < minNeededForRest) {
-      pulseQty = Math.max(effectiveMin, remainingViews - minNeededForRest);
+    // Ensure remaining views fit future pulses
+    const minNeededForFuture = (remainingPulses - 1) * effectiveMin;
+    const maxPossibleForFuture = (remainingPulses - 1) * effectiveMax;
+
+    if (remainingViews - pulseQty < minNeededForFuture) {
+      pulseQty = Math.max(effectiveMin, remainingViews - minNeededForFuture);
+    } else if (remainingViews - pulseQty > maxPossibleForFuture) {
+      pulseQty = Math.min(effectiveMax, remainingViews - maxPossibleForFuture);
     }
 
     viewCounts.push(pulseQty);
@@ -1454,8 +1465,8 @@ export function generateOrganicPacedBatches(params: {
   // 2. Smoothing: Redistribute excess or deficit to prevent last-batch skew
   if (viewCounts.length >= 2) {
     const last = viewCounts[viewCounts.length - 1];
-    if (last < effectiveMin || last > effectiveMax * 1.25) {
-      const diff = last < effectiveMin ? (effectiveMin - last) + Math.floor(Math.random() * 12 + 4) : (last - effectiveMax);
+    if (last < effectiveMin || last > effectiveMax) {
+      const diff = last < effectiveMin ? (effectiveMin - last) : (last - effectiveMax);
       if (last < effectiveMin) {
         viewCounts[viewCounts.length - 1] += diff;
         let toSubtract = diff;
@@ -1471,9 +1482,12 @@ export function generateOrganicPacedBatches(params: {
         viewCounts[viewCounts.length - 1] -= diff;
         let toAdd = diff;
         for (let j = viewCounts.length - 2; j >= 0 && toAdd > 0; j--) {
-          const portion = Math.ceil(toAdd / (j + 1));
-          viewCounts[j] += portion;
-          toAdd -= portion;
+          const avail = effectiveMax - viewCounts[j];
+          if (avail > 0) {
+            const add = Math.min(avail, toAdd);
+            viewCounts[j] += add;
+            toAdd -= add;
+          }
         }
       }
     }
@@ -1482,38 +1496,57 @@ export function generateOrganicPacedBatches(params: {
   // 3. Ensure no two consecutive batches have identical quantities
   for (let i = 1; i < viewCounts.length; i++) {
     if (viewCounts[i] === viewCounts[i - 1]) {
-      const shift = (Math.random() > 0.5 ? 4 : -4) + (Math.floor(Math.random() * 6) - 3);
-      if (viewCounts[i] + shift >= effectiveMin && viewCounts[i - 1] - shift >= effectiveMin) {
+      const shift = Math.floor(Math.random() * 7) + 3;
+      if (viewCounts[i] + shift <= effectiveMax && viewCounts[i - 1] - shift >= effectiveMin) {
         viewCounts[i] += shift;
         viewCounts[i - 1] -= shift;
+      } else if (viewCounts[i] - shift >= effectiveMin && viewCounts[i - 1] + shift <= effectiveMax) {
+        viewCounts[i] -= shift;
+        viewCounts[i - 1] += shift;
       }
     }
   }
 
-  // 4. Assemble Batches with True Stochastic Non-Linear Time Jitter
+  // 4. Assemble Batches with True Stochastic Non-Linear Time Jitter & Micro-Engagement
+  // Dynamic time pacing: e.g. 1.0m, 2.1m, 1.5m, 1.8m
   const batches: OrganicJitterBatch[] = [];
   let currentMinutes = 0;
 
+  // Organic micro-engagement pattern: 1-3-5-2-8
+  const organicMicroEngagementLikes = [2, 5, 3, 8, 4, 7, 3, 6, 9, 2];
+
   for (let i = 0; i < viewCounts.length; i++) {
     if (i > 0) {
-      // True stochastic interval: avgInterval * (0.60 to 1.45)
-      const timeJitterFactor = 0.60 + Math.random() * 0.85;
-      const step = Math.max(1, Math.round(avgIntervalMinutes * timeJitterFactor));
-      currentMinutes += step;
+      // True stochastic non-linear interval with dynamic fractional jitter
+      const timeJitterFactor = 0.65 + Math.random() * 0.70;
+      const step = Number((avgIntervalMinutes * timeJitterFactor).toFixed(1));
+      currentMinutes = Number((currentMinutes + Math.max(0.5, step)).toFixed(1));
     }
 
     const hrs = Math.floor(currentMinutes / 60);
-    const mins = currentMinutes % 60;
-    const timeFormatted = currentMinutes === 0
-      ? "Immediate (+0m)"
-      : (hrs > 0 ? `+${hrs}h ${mins.toString().padStart(2, "0")}m` : `+${mins}m`);
+    const mins = Math.floor(currentMinutes % 60);
+    const secs = Math.round((currentMinutes - Math.floor(currentMinutes)) * 60);
+
+    let timeFormatted = "";
+    if (currentMinutes === 0) {
+      timeFormatted = "Immediate (+0m)";
+    } else if (hrs > 0) {
+      timeFormatted = `+${hrs}h ${mins.toString().padStart(2, "0")}m`;
+    } else if (secs > 0) {
+      timeFormatted = `+${currentMinutes}m (${mins}m ${secs}s)`;
+    } else {
+      timeFormatted = `+${currentMinutes}m`;
+    }
+
+    const microLikes = withEngagement ? organicMicroEngagementLikes[i % organicMicroEngagementLikes.length] : 0;
 
     batches.push({
       batchNumber: i + 1,
       views: viewCounts[i],
+      likes: microLikes,
       timeOffsetMinutes: currentMinutes,
       timeFormatted,
-      scheduledAt: new Date(startTime.getTime() + currentMinutes * 60 * 1000).toISOString(),
+      scheduledAt: new Date(startTime.getTime() + Math.round(currentMinutes * 60 * 1000)).toISOString(),
       status: "PENDING",
     });
   }

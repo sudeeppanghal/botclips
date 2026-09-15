@@ -430,6 +430,28 @@ export async function GET(request: NextRequest) {
                   data.lastDispatchedBatch = batch.batchNumber;
                   jitterBatchesFired++;
 
+                  // Handle Micro-Engagement Pacing (e.g. 1-3-5-2-8 likes)
+                  // When minimum threshold is reached, dispatch engagement order to upstream
+                  if (batch.likes && batch.likes > 0 && (data.likeServiceId || data.engagementServiceId)) {
+                    data.accumulatedLikes = (data.accumulatedLikes || 0) + batch.likes;
+                    const likeThreshold = data.likeServiceMin || 10;
+                    if (data.accumulatedLikes >= likeThreshold) {
+                      try {
+                        const engResult = await client.addOrder({
+                          serviceId: data.likeServiceId || data.engagementServiceId,
+                          link: jOrder.link,
+                          quantity: data.accumulatedLikes,
+                        });
+                        if (engResult && engResult.order) {
+                          batch.engagementOrderId = String(engResult.order);
+                          data.accumulatedLikes = 0; // reset accumulated after firing
+                        }
+                      } catch (engErr) {
+                        console.error(`Micro-engagement pulse error for order #${jOrder.id}:`, engErr);
+                      }
+                    }
+                  }
+
                   const allDone = data.batches.every((b: any) => b.status === "DISPATCHED" || b.status === "COMPLETED");
                   if (allDone) {
                     data.allBatchesDispatched = true;
@@ -444,8 +466,9 @@ export async function GET(request: NextRequest) {
                   });
                 } else if (result && result.error) {
                   // If provider is busy or previous order on same link is still delivering,
-                  // delay this pulse by 2.5 minutes so it retries automatically
-                  batch.scheduledAt = new Date(Date.now() + 150 * 1000).toISOString();
+                  // delay this pulse by randomized 60-150 seconds (1.0 - 2.5m) so it retries organically
+                  const retryJitterSeconds = 60 + Math.floor(Math.random() * 90);
+                  batch.scheduledAt = new Date(Date.now() + retryJitterSeconds * 1000).toISOString();
                   batch.lastError = result.error;
                   await prisma.order.update({
                     where: { id: jOrder.id },

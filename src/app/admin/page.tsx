@@ -33,7 +33,11 @@ import {
   Share2,
   Bookmark,
   Heart,
-  MessageSquare
+  MessageSquare,
+  Coins,
+  Scale,
+  BadgePercent,
+  Wine
 } from "lucide-react";
 import BotClipsLogo from "@/components/BotClipsLogo";
 
@@ -44,13 +48,11 @@ export default function AdminDashboardPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  // ── State for Orders ──
-  const [orders, setOrders] = useState([
-    { id: "1024", user: "dipeshdhillon2006@gmail.com", service: "Instagram Real HQ Followers", link: "https://instagram.com/creator_reel", quantity: 1000, charge: 180, status: "COMPLETED", date: "Sep 13, 2026" },
-    { id: "1023", user: "creator99@gmail.com", service: "YouTube High Retention Views", link: "https://youtube.com/watch?v=k38x92aL", quantity: 5000, charge: 1200, status: "PROCESSING", date: "Sep 12, 2026" },
-    { id: "1022", user: "agency@socials.com", service: "TikTok Real Followers", link: "https://tiktok.com/@agency_growth", quantity: 2000, charge: 380, status: "COMPLETED", date: "Sep 12, 2026" },
-    { id: "1021", user: "crypto_alpha@t.me", service: "Telegram Channel Members", link: "https://t.me/channel_alpha", quantity: 500, charge: 60, status: "PENDING", date: "Sep 11, 2026" },
-  ]);
+  // ── State for Orders & Upstream Provider Tracking ──
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [orderSearch, setOrderSearch] = useState("");
+  const [selectedProviderFilter, setSelectedProviderFilter] = useState("ALL");
 
   // ── State for Users ──
   const [users, setUsers] = useState([
@@ -157,6 +159,14 @@ export default function AdminDashboardPage() {
     },
   ]);
 
+  // ── State for Financials & Partner Distribution ──
+  const [financials, setFinancials] = useState<any>(null);
+  const [loadingFinancials, setLoadingFinancials] = useState(false);
+
+  // ── State for Crypto Payments Queue ──
+  const [cryptoPayments, setCryptoPayments] = useState<any[]>([]);
+  const [paymentSubTab, setPaymentSubTab] = useState<"ALL" | "UPI" | "CRYPTO">("ALL");
+
   // ── State for Settings ──
   const [settings, setSettings] = useState({
     siteName: "BotClips",
@@ -188,7 +198,127 @@ export default function AdminDashboardPage() {
     loadPanels();
     loadServices();
     loadComboSettings();
+    loadFinancials();
+    loadCryptoPayments();
+    loadOrders();
   }, []);
+
+  async function loadOrders() {
+    setLoadingOrders(true);
+    try {
+      const res = await fetch("/api/orders");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.orders)) {
+        setOrders(data.orders.map((o: any) => {
+          let providerCode = "S1";
+          let providerName = "SMMSocialMedia";
+          let providerBadgeClass = "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30";
+
+          if (o.panel?.id === "panel_yoyomedia" || o.panel?.apiUrl?.includes("yoyo")) {
+            providerCode = "Y1";
+            providerName = "YoyoMedia";
+            providerBadgeClass = "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30";
+          } else if (o.panel?.id === "panel_jap" || o.panel?.apiUrl?.includes("justanotherpanel")) {
+            providerCode = "J1";
+            providerName = "JAP Provider";
+            providerBadgeClass = "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30";
+          } else if (o.curveStyle?.includes("CUSTOM_API") || (!o.panel && o.charge === 0)) {
+            providerCode = "BYO";
+            providerName = "User SMM API";
+            providerBadgeClass = "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-cyan-500/30";
+          }
+
+          return {
+            id: o.id,
+            user: o.user?.email || o.userId || "Client",
+            userName: o.user?.name || "",
+            service: o.service?.name || "Service #" + (o.service?.serviceId || o.serviceId),
+            serviceId: o.service?.serviceId || o.serviceId,
+            platform: o.service?.platform || "INSTAGRAM",
+            link: o.link,
+            quantity: o.quantity,
+            charge: o.charge,
+            status: o.status,
+            date: new Date(o.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
+            providerCode,
+            providerName,
+            providerBadgeClass,
+            providerOrderId: o.providerOrderId,
+            panelId: o.panelId || o.panel?.id,
+            runs: o.runs,
+            intervalMinutes: o.intervalMinutes,
+            failReason: o.failReason,
+          };
+        }));
+      }
+    } catch (e) {
+      console.error("Failed to load orders in admin:", e);
+    } finally {
+      setLoadingOrders(false);
+    }
+  }
+
+  async function loadFinancials() {
+    setLoadingFinancials(true);
+    try {
+      const res = await fetch("/api/admin/financials");
+      const data = await res.json();
+      if (data.success && data.data) {
+        setFinancials(data.data);
+      }
+    } catch {} finally {
+      setLoadingFinancials(false);
+    }
+  }
+
+  async function loadCryptoPayments() {
+    try {
+      const res = await fetch("/api/billing/crypto");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.payments)) {
+        setCryptoPayments(data.payments.map((p: any) => ({
+          id: p.id,
+          user: p.user?.email || p.userId,
+          txHash: p.txHash,
+          amountUsdt: p.amountUsdt,
+          amountInr: p.amountInr || Math.round(p.amountUsdt * 96),
+          network: p.network,
+          onChainVerified: p.onChainVerified,
+          onChainDetails: p.onChainDetails,
+          status: p.status,
+          screenshot1: p.screenshot1,
+          screenshot2: p.screenshot2,
+          time: new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        })));
+      }
+    } catch {}
+  }
+
+  const handleApproveCrypto = async (id: string, amountUsdt: number, amountInr: number, user: string) => {
+    setCryptoPayments(prev => prev.map(p => p.id === id ? { ...p, status: "CONFIRMED" } : p));
+    notify("Approved " + amountUsdt + " USDT (~₹" + amountInr + ") for " + user + "! Balance credited.");
+    try {
+      await fetch("/api/billing/crypto", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentId: id, action: "APPROVE" }),
+      });
+      loadFinancials();
+    } catch {}
+  };
+
+  const handleRejectCrypto = async (id: string) => {
+    setCryptoPayments(prev => prev.map(p => p.id === id ? { ...p, status: "REJECTED" } : p));
+    notify("Crypto deposit rejected.");
+    try {
+      await fetch("/api/billing/crypto", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentId: id, action: "REJECT" }),
+      });
+      loadFinancials();
+    } catch {}
+  };
 
   async function loadComboSettings() {
     setLoadingCombos(true);
@@ -544,20 +674,50 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Screenshot Zoom Modal */}
+      {/* Screenshot Fullscreen Zoom Modal */}
       {previewImage && (
         <div 
           onClick={() => setPreviewImage(null)}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer animate-in fade-in duration-150"
         >
-          <div className="relative max-w-2xl max-h-[85vh] bg-white rounded-2xl overflow-hidden p-2 shadow-2xl">
-            <button 
-              onClick={() => setPreviewImage(null)}
-              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center font-bold hover:bg-black"
-            >
-              ✕
-            </button>
-            <img src={previewImage} alt="Proof Fullscreen Preview" className="max-w-full max-h-[80vh] object-contain rounded-xl" />
+          <div 
+            onClick={(e) => e.stopPropagation()} 
+            className="relative max-w-4xl max-h-[90vh] bg-slate-900 border border-slate-700/80 rounded-3xl overflow-hidden p-3 shadow-2xl flex flex-col items-center cursor-default"
+          >
+            {/* Header Controls */}
+            <div className="w-full flex items-center justify-between pb-3 px-2 border-b border-slate-800 text-xs text-slate-300">
+              <span className="font-bold flex items-center gap-1.5 text-white">
+                <Eye className="w-4 h-4 text-blue-400" />
+                Payment Proof Screenshot
+              </span>
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewImage}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Open Full Resolution</span>
+                </a>
+                <button 
+                  onClick={() => setPreviewImage(null)}
+                  className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center font-bold transition-colors cursor-pointer"
+                  title="Close preview"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Image display */}
+            <div className="p-2 overflow-auto max-h-[78vh] flex items-center justify-center">
+              <img 
+                src={previewImage} 
+                alt="Proof Fullscreen Preview" 
+                className="max-w-full max-h-[74vh] object-contain rounded-2xl shadow-lg"
+              />
+            </div>
           </div>
         </div>
       )}
@@ -631,7 +791,7 @@ export default function AdminDashboardPage() {
           { id: "PANELS", label: "Upstream SMM APIs", icon: Server },
           { id: "SERVICES", label: "Services & Markups", icon: Layers },
           { id: "COMBOS", label: "Whop & Combos Config", icon: Sparkles },
-          { id: "PAYMENTS", label: "UPI & Screenshot Queue", icon: CreditCard, badge: payments.filter(p => p.status === "PENDING").length },
+          { id: "PAYMENTS", label: "Deposit Queue (UPI & Crypto)", icon: CreditCard, badge: payments.filter(p => p.status === "PENDING").length + cryptoPayments.filter(p => p.status === "PENDING").length },
           { id: "SETTINGS", label: "Site & Cloudinary", icon: Settings },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -661,30 +821,168 @@ export default function AdminDashboardPage() {
       {/* ──────────────── TAB 1: OVERVIEW ──────────────── */}
       {activeTab === "OVERVIEW" && (
         <div className="space-y-6">
+          {/* Main Financial & System Metrics */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
-              <span className="text-xs font-bold text-slate-400">Total Deposits (30D)</span>
-              <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">₹42,500</div>
-              <span className="text-[11px] font-bold text-emerald-600">Min deposit: ₹50</span>
+              <span className="text-xs font-bold text-slate-400">Total Users</span>
+              <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">
+                {financials?.totalUsers ?? users.length}
+              </div>
+              <span className="text-[11px] font-bold text-emerald-600">Registered Clients</span>
             </div>
+
             <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
-              <span className="text-xs font-bold text-slate-400">Total Orders Placed</span>
-              <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">{orders.length}</div>
-              <span className="text-[11px] font-bold text-blue-600">Dispatched automatically</span>
+              <span className="text-xs font-bold text-slate-400">Total Deposits (Combined)</span>
+              <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">
+                ₹{(financials?.deposits?.totalCombinedInr || 0).toLocaleString()}
+              </div>
+              <span className="text-[11px] font-bold text-blue-600">UPI + USDT TRC20</span>
             </div>
+
             <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
-              <span className="text-xs font-bold text-slate-400">Registered Users</span>
-              <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">{users.length}</div>
-              <span className="text-[11px] font-bold text-emerald-600">Active</span>
+              <span className="text-xs font-bold text-slate-400">Real Provider Cost</span>
+              <div className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">
+                ₹{(financials?.costs?.realCostInr || 0).toLocaleString()}
+              </div>
+              <span className="text-[11px] font-bold text-slate-400">Upstream Wholesale</span>
             </div>
+
             <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
-              <span className="text-xs font-bold text-slate-400">Pending Screenshot Verifications</span>
+              <span className="text-xs font-bold text-slate-400">Pending Verifications</span>
               <div className="text-2xl font-black text-amber-500 mt-1">
-                {payments.filter(p => p.status === "PENDING").length}
+                {payments.filter(p => p.status === "PENDING").length + cryptoPayments.filter(p => p.status === "PENDING").length}
               </div>
               <button onClick={() => setActiveTab("PAYMENTS")} className="text-[11px] font-bold text-amber-600 hover:underline cursor-pointer">
-                Review Queue (2 Proofs) →
+                Review UPI & Crypto Queue →
               </button>
+            </div>
+          </div>
+
+          {/* ──────────────── PARTNER PROFIT DISTRIBUTION & SETTLEMENT WIDGET ──────────────── */}
+          <div className="bg-gradient-to-br from-slate-900 via-[#131b2e] to-slate-900 border border-slate-800 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="relative z-10 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                    <Scale className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-black tracking-tight text-white">
+                        Founder Profit Distribution & Settlement
+                      </h3>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-black uppercase tracking-wider">
+                        All Settled
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Net Profit = (Total Confirmed Deposits - Real Wholesale Cost) split 50/50 between 2 partners
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-left sm:text-right">
+                  <span className="text-xs text-slate-400 font-bold block uppercase tracking-wider">Remaining Net Profit</span>
+                  <span className="text-2xl font-black text-emerald-400">
+                    ₹{(financials?.profit?.netProfit || 0).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              {/* 2 Partners Cards: Jack & Daniel with a Wine Bottle */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Partner 1: Jack */}
+                <div className="p-5 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 transition-all space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-300 font-black text-xs flex items-center justify-center shadow-xs">
+                        <Wine className="w-4 h-4 text-amber-400" />
+                      </div>
+                      <div>
+                        <div className="font-bold text-sm text-white flex items-center gap-1.5">
+                          <span>Partner: Jack</span>
+                          <span className="text-xs">🍾</span>
+                        </div>
+                        <div className="text-[11px] text-slate-400">50% Equity Settlement</div>
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-[10px] font-bold flex items-center gap-1">
+                      <Wine className="w-3 h-3 text-amber-400" />
+                      <span>Settled</span>
+                    </span>
+                  </div>
+
+                  <div className="pt-2 border-t border-white/10 flex items-baseline justify-between">
+                    <span className="text-xs text-slate-400 font-medium">Distributable Share:</span>
+                    <span className="text-xl font-black text-emerald-400">
+                      ₹{(financials?.profit?.partners?.jack?.shareInr || financials?.profit?.partners?.ram?.shareInr || 0).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Partner 2: Daniel */}
+                <div className="p-5 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 transition-all space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-purple-500/20 text-purple-300 font-black text-xs flex items-center justify-center shadow-xs">
+                        <Wine className="w-4 h-4 text-purple-400" />
+                      </div>
+                      <div>
+                        <div className="font-bold text-sm text-white flex items-center gap-1.5">
+                          <span>Partner: Daniel</span>
+                          <span className="text-xs">🍷</span>
+                        </div>
+                        <div className="text-[11px] text-slate-400">50% Equity Settlement</div>
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-[10px] font-bold flex items-center gap-1">
+                      <Wine className="w-3 h-3 text-purple-400" />
+                      <span>Settled</span>
+                    </span>
+                  </div>
+
+                  <div className="pt-2 border-t border-white/10 flex items-baseline justify-between">
+                    <span className="text-xs text-slate-400 font-medium">Distributable Share:</span>
+                    <span className="text-xl font-black text-purple-400">
+                      ₹{(financials?.profit?.partners?.daniel?.shareInr || financials?.profit?.partners?.dhillown?.shareInr || 0).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Separate Breakdown of UPI and Crypto Deposits */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <CreditCard className="w-5 h-5 text-blue-400 shrink-0" />
+                    <div>
+                      <div className="text-xs font-bold text-white">UPI Deposits Total</div>
+                      <div className="text-[11px] text-slate-400">
+                        {financials?.deposits?.upi?.confirmedCount || 0} Confirmed Payments
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right font-black text-sm text-blue-300">
+                    ₹{(financials?.deposits?.upi?.totalInr || 0).toLocaleString()}
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Coins className="w-5 h-5 text-emerald-400 shrink-0" />
+                    <div>
+                      <div className="text-xs font-bold text-white">Crypto Deposits Total</div>
+                      <div className="text-[11px] text-slate-400">
+                        {financials?.deposits?.crypto?.confirmedCount || 0} Confirmed ({financials?.deposits?.crypto?.totalUsdt || 0} USDT)
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right font-black text-sm text-emerald-300">
+                    ₹{(financials?.deposits?.crypto?.totalInr || 0).toLocaleString()}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -708,50 +1006,273 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* ──────────────── TAB 2: ORDERS MANAGER ──────────────── */}
-      {activeTab === "ORDERS" && (
-        <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
-          <div className="flex items-center justify-between pb-4">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white">All Client Orders</h2>
-            <span className="text-xs font-bold text-slate-400">{orders.length} Total Orders</span>
-          </div>
+      {/* ──────────────── TAB 2: ORDERS MANAGER & UPSTREAM SMM DISPATCH TRACKER ──────────────── */}
+      {activeTab === "ORDERS" && (() => {
+        const filteredOrders = orders.filter((o) => {
+          const matchProvider = 
+            selectedProviderFilter === "ALL" || 
+            o.providerCode === selectedProviderFilter;
 
-          <div className="overflow-x-auto -mx-6 px-6">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase">
-                  <th className="py-3 px-2">Order ID</th>
-                  <th className="py-3 px-2">Client Email</th>
-                  <th className="py-3 px-2">Service</th>
-                  <th className="py-3 px-2">Link</th>
-                  <th className="py-3 px-2">Qty</th>
-                  <th className="py-3 px-2">Charge</th>
-                  <th className="py-3 px-2">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                {orders.map((o) => (
-                  <tr key={o.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
-                    <td className="py-3.5 px-2 font-mono font-bold text-blue-600">#{o.id}</td>
-                    <td className="py-3.5 px-2 font-medium">{o.user}</td>
-                    <td className="py-3.5 px-2 font-semibold">{o.service}</td>
-                    <td className="py-3.5 px-2 font-mono text-[11px] text-slate-400 truncate max-w-[180px]">{o.link}</td>
-                    <td className="py-3.5 px-2 font-bold">{o.quantity}</td>
-                    <td className="py-3.5 px-2 font-bold text-slate-900 dark:text-white">₹{o.charge}</td>
-                    <td className="py-3.5 px-2">
-                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                        o.status === "COMPLETED" ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-blue-600"
-                      }`}>
-                        {o.status}
-                      </span>
-                    </td>
+          const query = orderSearch.trim().toLowerCase();
+          const matchSearch = 
+            !query ||
+            String(o.id).toLowerCase().includes(query) ||
+            String(o.providerOrderId || "").toLowerCase().includes(query) ||
+            String(o.user).toLowerCase().includes(query) ||
+            String(o.service).toLowerCase().includes(query) ||
+            String(o.link).toLowerCase().includes(query);
+
+          return matchProvider && matchSearch;
+        });
+
+        const countS1 = orders.filter(o => o.providerCode === "S1").length;
+        const countY1 = orders.filter(o => o.providerCode === "Y1").length;
+        const countBYO = orders.filter(o => o.providerCode === "BYO").length;
+
+        return (
+          <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-5">
+            {/* Header with Title & Stats */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                    Client Orders & Upstream SMM Provider Tracker
+                  </h2>
+                  <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 text-[10px] font-black uppercase">
+                    Live Database
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Track every client order in real-time and monitor which upstream API (<strong className="text-emerald-500 font-bold">S1: SMMSocialMedia</strong>, <strong className="text-purple-500 font-bold">Y1: YoyoMedia</strong>, or <strong className="text-cyan-500 font-bold">BYO API</strong>) executed the dispatch.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={loadOrders}
+                  disabled={loadingOrders}
+                  className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer flex items-center gap-1.5 transition-all shadow-xs"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingOrders ? "animate-spin text-blue-600" : ""}`} />
+                  <span>{loadingOrders ? "Refreshing..." : "Refresh Orders"}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Provider Filter Badges & Search Bar */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
+                <button
+                  onClick={() => setSelectedProviderFilter("ALL")}
+                  className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
+                    selectedProviderFilter === "ALL"
+                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-transparent shadow-xs"
+                      : "bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <span>All Providers</span>
+                  <span className="px-1.5 py-0.2 rounded-md bg-white/20 dark:bg-black/20 text-[10px]">
+                    {orders.length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setSelectedProviderFilter("S1")}
+                  className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
+                    selectedProviderFilter === "S1"
+                      ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                      : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
+                  }`}
+                >
+                  <Server className="w-3 h-3" />
+                  <span>S1 • SMMSocialMedia</span>
+                  <span className="px-1.5 py-0.2 rounded-md bg-emerald-700/20 text-[10px]">
+                    {countS1}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setSelectedProviderFilter("Y1")}
+                  className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
+                    selectedProviderFilter === "Y1"
+                      ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                      : "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30 hover:bg-purple-500/20"
+                  }`}
+                >
+                  <Server className="w-3 h-3" />
+                  <span>Y1 • YoyoMedia</span>
+                  <span className="px-1.5 py-0.2 rounded-md bg-purple-700/20 text-[10px]">
+                    {countY1}
+                  </span>
+                </button>
+
+                {countBYO > 0 && (
+                  <button
+                    onClick={() => setSelectedProviderFilter("BYO")}
+                    className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
+                      selectedProviderFilter === "BYO"
+                        ? "bg-cyan-600 text-white border-cyan-600 shadow-xs"
+                        : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/20"
+                    }`}
+                  >
+                    <Zap className="w-3 h-3" />
+                    <span>BYO • User API</span>
+                    <span className="px-1.5 py-0.2 rounded-md bg-cyan-700/20 text-[10px]">
+                      {countBYO}
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              {/* Search Box */}
+              <div className="relative min-w-[260px]">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                <input
+                  type="text"
+                  value={orderSearch}
+                  onChange={(e) => setOrderSearch(e.target.value)}
+                  placeholder="Search order ID, upstream #, link, user..."
+                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Orders Table */}
+            <div className="overflow-x-auto -mx-6 px-6">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    <th className="py-3 px-2">Order ID</th>
+                    <th className="py-3 px-2">Client</th>
+                    <th className="py-3 px-2">Provider / API</th>
+                    <th className="py-3 px-2">Upstream Order #</th>
+                    <th className="py-3 px-2">Service</th>
+                    <th className="py-3 px-2">Target Link</th>
+                    <th className="py-3 px-2">Qty & Pacing</th>
+                    <th className="py-3 px-2">Charge</th>
+                    <th className="py-3 px-2">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                  {filteredOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="py-12 text-center text-slate-400 font-medium">
+                        {loadingOrders ? "Loading live orders..." : "No orders match your filter criteria."}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredOrders.map((o) => (
+                      <tr key={o.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
+                        {/* Order ID */}
+                        <td className="py-3.5 px-2">
+                          <div className="font-mono font-bold text-blue-600 dark:text-blue-400">
+                            #{String(o.id).slice(-8)}
+                          </div>
+                          <div className="text-[10px] text-slate-400">{o.date}</div>
+                        </td>
+
+                        {/* Client */}
+                        <td className="py-3.5 px-2">
+                          <div className="font-semibold text-slate-900 dark:text-white max-w-[150px] truncate" title={o.user}>
+                            {o.user}
+                          </div>
+                          {o.userName && (
+                            <div className="text-[10px] text-slate-400">{o.userName}</div>
+                          )}
+                        </td>
+
+                        {/* Provider / API Badge (S1, Y1, BYO) */}
+                        <td className="py-3.5 px-2">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-black border shadow-xs ${o.providerBadgeClass}`}>
+                            <Server className="w-3 h-3 shrink-0" />
+                            <span>{o.providerCode}</span>
+                            <span className="opacity-80 font-semibold">• {o.providerName}</span>
+                          </span>
+                        </td>
+
+                        {/* Upstream Order ID */}
+                        <td className="py-3.5 px-2">
+                          {o.providerOrderId ? (
+                            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-mono font-bold text-[11px]">
+                              <CheckCircle2 className="w-3 h-3 shrink-0" />
+                              <span>#{o.providerOrderId}</span>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-amber-500 font-medium italic">
+                              Pending dispatch
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Service & ID */}
+                        <td className="py-3.5 px-2">
+                          <div className="font-semibold text-slate-900 dark:text-white max-w-[180px] truncate" title={o.service}>
+                            {o.service}
+                          </div>
+                          <div className="text-[10px] font-mono text-slate-400">
+                            ID: <strong className="text-slate-600 dark:text-slate-300 font-bold">{o.serviceId}</strong> • {o.platform}
+                          </div>
+                        </td>
+
+                        {/* Link */}
+                        <td className="py-3.5 px-2 font-mono text-[11px]">
+                          <a
+                            href={o.link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-500 hover:text-blue-600 underline flex items-center gap-1 max-w-[160px] truncate cursor-pointer"
+                            title={o.link}
+                          >
+                            <span className="truncate">{o.link}</span>
+                            <ExternalLink className="w-3 h-3 shrink-0" />
+                          </a>
+                        </td>
+
+                        {/* Qty & Pacing */}
+                        <td className="py-3.5 px-2">
+                          <div className="font-bold text-slate-900 dark:text-white">
+                            {Number(o.quantity).toLocaleString()}
+                          </div>
+                          {o.runs > 1 ? (
+                            <div className="text-[10px] text-purple-600 dark:text-purple-400 font-medium">
+                              {o.runs} batches @ {o.intervalMinutes}m
+                            </div>
+                          ) : (
+                            <div className="text-[10px] text-slate-400">Direct delivery</div>
+                          )}
+                        </td>
+
+                        {/* Charge */}
+                        <td className="py-3.5 px-2 font-black text-slate-900 dark:text-white text-xs">
+                          ₹{Number(o.charge).toFixed(2)}
+                        </td>
+
+                        {/* Status */}
+                        <td className="py-3.5 px-2">
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold inline-flex items-center gap-1 ${
+                            o.status === "COMPLETED"
+                              ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 border border-emerald-200 dark:border-emerald-800"
+                              : o.status === "IN_PROGRESS"
+                              ? "bg-blue-50 dark:bg-blue-950/50 text-blue-600 border border-blue-200 dark:border-blue-800 animate-pulse"
+                              : o.status === "PROCESSING"
+                              ? "bg-amber-50 dark:bg-amber-950/50 text-amber-600 border border-amber-200 dark:border-amber-800"
+                              : o.status === "FAILED" || o.status === "CANCELLED"
+                              ? "bg-rose-50 dark:bg-rose-950/50 text-rose-600 border border-rose-200 dark:border-rose-800"
+                              : "bg-slate-100 text-slate-600"
+                          }`}>
+                            {o.status === "IN_PROGRESS" && <Zap className="w-2.5 h-2.5" />}
+                            <span>{o.status}</span>
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ──────────────── TAB 3: USERS & BALANCES ──────────────── */}
       {activeTab === "USERS" && (
@@ -1276,105 +1797,317 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* ──────────────── TAB 6: UPI & 2-SCREENSHOT VERIFICATION QUEUE ──────────────── */}
+      {/* ──────────────── TAB 6: DEPOSIT VERIFICATION QUEUE (UPI & CRYPTO) ──────────────── */}
       {activeTab === "PAYMENTS" && (
-        <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
-          <div className="flex items-center justify-between pb-4">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">Deposit Verification Queue (2 Screenshots)</h2>
-              <p className="text-xs text-slate-400">Inspect both payment screenshots, check UTR match, and click Approve to credit user balance</p>
+        <div className="space-y-4">
+          {/* Sub-Tabs: All / UPI / Crypto */}
+          <div className="flex items-center gap-2 p-1 bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl w-fit">
+            <button
+              onClick={() => setPaymentSubTab("ALL")}
+              className={"px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer " + (
+                paymentSubTab === "ALL" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100"
+              )}
+            >
+              All Deposits
+            </button>
+            <button
+              onClick={() => setPaymentSubTab("UPI")}
+              className={"px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer " + (
+                paymentSubTab === "UPI" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100"
+              )}
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>UPI Payments</span>
+              {payments.filter(p => p.status === "PENDING").length > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[9px] font-black">
+                  {payments.filter(p => p.status === "PENDING").length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setPaymentSubTab("CRYPTO")}
+              className={"px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer " + (
+                paymentSubTab === "CRYPTO" ? "bg-emerald-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100"
+              )}
+            >
+              <Coins className="w-3.5 h-3.5" />
+              <span>Crypto USDT (TRC-20)</span>
+              {cryptoPayments.filter(p => p.status === "PENDING").length > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[9px] font-black">
+                  {cryptoPayments.filter(p => p.status === "PENDING").length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* UPI Table (Show if ALL or UPI) */}
+          {(paymentSubTab === "ALL" || paymentSubTab === "UPI") && (
+            <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
+              <div className="flex items-center justify-between pb-4">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-blue-600" />
+                    <span>UPI Deposits Queue (2 Screenshots)</span>
+                  </h2>
+                  <p className="text-xs text-slate-400">Inspect payment receipt + success screen, match 12-digit UTR, and approve to credit balance</p>
+                </div>
+                <span className="text-xs font-bold text-blue-600">Min: ₹50</span>
+              </div>
+
+              <div className="overflow-x-auto -mx-6 px-6">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase">
+                      <th className="py-3 px-2">User</th>
+                      <th className="py-3 px-2">12-Digit UTR</th>
+                      <th className="py-3 px-2">Amount</th>
+                      <th className="py-3 px-2">Proof 1 (Receipt)</th>
+                      <th className="py-3 px-2">Proof 2 (Success)</th>
+                      <th className="py-3 px-2">Status</th>
+                      <th className="py-3 px-2 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                    {payments.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-6 text-center text-slate-400">No UPI deposits found</td>
+                      </tr>
+                    ) : (
+                      payments.map((p) => (
+                        <tr key={p.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
+                          <td className="py-3.5 px-2 font-bold">{p.user}</td>
+                          <td className="py-3.5 px-2 font-mono font-bold text-blue-600">{p.utr}</td>
+                          <td className="py-3.5 px-2 font-black text-slate-900 dark:text-white">₹{p.amount}</td>
+                          
+                          {/* Proof 1 */}
+                          <td className="py-3.5 px-2">
+                            {p.screenshot1 ? (
+                              <div 
+                                onClick={() => setPreviewImage(p.screenshot1)}
+                                className="relative w-12 h-12 rounded-lg border border-slate-200 overflow-hidden cursor-pointer hover:scale-105 transition-transform group shadow-2xs"
+                              >
+                                <img src={p.screenshot1} alt="Proof 1" className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold transition-opacity">
+                                  <Eye className="w-3.5 h-3.5" />
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-[11px] italic">None</span>
+                            )}
+                          </td>
+
+                          {/* Proof 2 */}
+                          <td className="py-3.5 px-2">
+                            {p.screenshot2 ? (
+                              <div 
+                                onClick={() => setPreviewImage(p.screenshot2)}
+                                className="relative w-12 h-12 rounded-lg border border-slate-200 overflow-hidden cursor-pointer hover:scale-105 transition-transform group shadow-2xs"
+                              >
+                                <img src={p.screenshot2} alt="Proof 2" className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold transition-opacity">
+                                  <Eye className="w-3.5 h-3.5" />
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-[11px] italic">None</span>
+                            )}
+                          </td>
+
+                          <td className="py-3.5 px-2">
+                            <span className={"px-2 py-0.5 rounded-md text-[10px] font-bold " + (
+                              p.status === "CONFIRMED" ? "bg-emerald-50 text-emerald-600" : p.status === "PENDING" ? "bg-amber-50 text-amber-600" : "bg-rose-50 text-rose-600"
+                            )}>
+                              {p.status}
+                            </span>
+                          </td>
+
+                          <td className="py-3.5 px-2 text-right">
+                            {p.status === "PENDING" ? (
+                              <div className="inline-flex items-center gap-1.5">
+                                <button
+                                  onClick={() => handleApprovePayment(p.id, p.amount, p.user)}
+                                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Approve & Credit</span>
+                                </button>
+                                <button
+                                  onClick={() => handleRejectPayment(p.id)}
+                                  className="px-2 py-1 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg font-bold text-xs cursor-pointer"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-[11px]">Processed</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <span className="text-xs font-bold text-blue-600">Min Deposit: ₹50</span>
-          </div>
+          )}
 
-          <div className="overflow-x-auto -mx-6 px-6">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase">
-                  <th className="py-3 px-2">User</th>
-                  <th className="py-3 px-2">12-Digit UTR</th>
-                  <th className="py-3 px-2">Amount</th>
-                  <th className="py-3 px-2">Proof 1 (Receipt)</th>
-                  <th className="py-3 px-2">Proof 2 (Success)</th>
-                  <th className="py-3 px-2">Status</th>
-                  <th className="py-3 px-2 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                {payments.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
-                    <td className="py-3.5 px-2 font-bold">{p.user}</td>
-                    <td className="py-3.5 px-2 font-mono font-bold text-blue-600">{p.utr}</td>
-                    <td className="py-3.5 px-2 font-black text-slate-900 dark:text-white">₹{p.amount}</td>
-                    
-                    {/* Proof 1 */}
-                    <td className="py-3.5 px-2">
-                      {p.screenshot1 ? (
-                        <div 
-                          onClick={() => setPreviewImage(p.screenshot1)}
-                          className="relative w-12 h-12 rounded-lg border border-slate-200 overflow-hidden cursor-pointer hover:scale-105 transition-transform group shadow-2xs"
-                        >
-                          <img src={p.screenshot1} alt="Proof 1" className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold transition-opacity">
-                            <Eye className="w-3.5 h-3.5" />
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 text-[11px] italic">Not attached</span>
-                      )}
-                    </td>
+          {/* Crypto Table (Show if ALL or CRYPTO) */}
+          {(paymentSubTab === "ALL" || paymentSubTab === "CRYPTO") && (
+            <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
+              <div className="flex items-center justify-between pb-4">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Coins className="w-4 h-4 text-emerald-600" />
+                    <span>Crypto USDT (TRC20) Verification Queue</span>
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Pre-verified on TronScan API & anti-duplicate protected. Inspect 2 screenshots and approve to credit user balance.
+                  </p>
+                </div>
+                <span className="text-xs font-bold text-emerald-600">Rate: 1 USDT = ₹96</span>
+              </div>
 
-                    {/* Proof 2 */}
-                    <td className="py-3.5 px-2">
-                      {p.screenshot2 ? (
-                        <div 
-                          onClick={() => setPreviewImage(p.screenshot2)}
-                          className="relative w-12 h-12 rounded-lg border border-slate-200 overflow-hidden cursor-pointer hover:scale-105 transition-transform group shadow-2xs"
-                        >
-                          <img src={p.screenshot2} alt="Proof 2" className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold transition-opacity">
-                            <Eye className="w-3.5 h-3.5" />
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 text-[11px] italic">Not attached</span>
-                      )}
-                    </td>
+              <div className="overflow-x-auto -mx-6 px-6">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase">
+                      <th className="py-3 px-2">User</th>
+                      <th className="py-3 px-2">Blockchain TxID / Explorer</th>
+                      <th className="py-3 px-2">Deposit Amount</th>
+                      <th className="py-3 px-2">On-Chain Auto-Check</th>
+                      <th className="py-3 px-2">Proof 1 (Receipt)</th>
+                      <th className="py-3 px-2">Proof 2 (Explorer)</th>
+                      <th className="py-3 px-2">Status</th>
+                      <th className="py-3 px-2 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                    {cryptoPayments.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="py-6 text-center text-slate-400">No crypto deposits in queue</td>
+                      </tr>
+                    ) : (
+                      cryptoPayments.map((cp) => (
+                        <tr key={cp.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
+                          <td className="py-3.5 px-2 font-bold">{cp.user}</td>
+                          
+                          {/* TxID with TronScan link */}
+                          <td className="py-3.5 px-2 font-mono text-[11px]">
+                            <a 
+                              href={"https://tronscan.org/#/transaction/" + cp.txHash} 
+                              target="_blank" 
+                              rel="noreferrer"
+                              className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-bold"
+                            >
+                              <span>{cp.txHash?.slice(0, 14)}...</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </td>
 
-                    <td className="py-3.5 px-2">
-                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                        p.status === "CONFIRMED" ? "bg-emerald-50 text-emerald-600" : p.status === "PENDING" ? "bg-amber-50 text-amber-600" : "bg-rose-50 text-rose-600"
-                      }`}>
-                        {p.status}
-                      </span>
-                    </td>
+                          {/* Amount */}
+                          <td className="py-3.5 px-2">
+                            <span className="font-black text-slate-900 dark:text-white block text-xs">
+                              {cp.amountUsdt} USDT
+                            </span>
+                            <span className="text-[10px] font-semibold text-emerald-600">
+                              ≈ ₹{cp.amountInr} INR
+                            </span>
+                          </td>
 
-                    <td className="py-3.5 px-2 text-right">
-                      {p.status === "PENDING" ? (
-                        <div className="inline-flex items-center gap-1.5">
-                          <button
-                            onClick={() => handleApprovePayment(p.id, p.amount, p.user)}
-                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 cursor-pointer"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                            <span>Approve & Credit</span>
-                          </button>
-                          <button
-                            onClick={() => handleRejectPayment(p.id)}
-                            className="px-2 py-1 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg font-bold text-xs cursor-pointer"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 text-[11px]">Processed</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                          {/* On-Chain Auto Check */}
+                          <td className="py-3.5 px-2">
+                            {cp.onChainVerified ? (
+                              <div className="space-y-0.5">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 font-bold text-[10px]">
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  TronScan Confirmed
+                                </span>
+                                {cp.onChainDetails && (
+                                  <div className="text-[9px] text-slate-400 max-w-[150px] truncate" title={cp.onChainDetails}>
+                                    {cp.onChainDetails}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 font-bold text-[10px]">
+                                ⏳ Pending Sync
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Proof 1 */}
+                          <td className="py-3.5 px-2">
+                            {cp.screenshot1 ? (
+                              <div 
+                                onClick={() => setPreviewImage(cp.screenshot1)}
+                                className="relative w-12 h-12 rounded-lg border border-slate-200 overflow-hidden cursor-pointer hover:scale-105 transition-transform group shadow-2xs"
+                              >
+                                <img src={cp.screenshot1} alt="Withdrawal Proof" className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold transition-opacity">
+                                  <Eye className="w-3.5 h-3.5" />
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-[11px] italic">None</span>
+                            )}
+                          </td>
+
+                          {/* Proof 2 */}
+                          <td className="py-3.5 px-2">
+                            {cp.screenshot2 ? (
+                              <div 
+                                onClick={() => setPreviewImage(cp.screenshot2)}
+                                className="relative w-12 h-12 rounded-lg border border-slate-200 overflow-hidden cursor-pointer hover:scale-105 transition-transform group shadow-2xs"
+                              >
+                                <img src={cp.screenshot2} alt="Explorer Proof" className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold transition-opacity">
+                                  <Eye className="w-3.5 h-3.5" />
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-[11px] italic">None</span>
+                            )}
+                          </td>
+
+                          {/* Status */}
+                          <td className="py-3.5 px-2">
+                            <span className={"px-2 py-0.5 rounded-md text-[10px] font-bold " + (
+                              cp.status === "CONFIRMED" ? "bg-emerald-50 text-emerald-600" : cp.status === "PENDING" ? "bg-amber-50 text-amber-600" : "bg-rose-50 text-rose-600"
+                            )}>
+                              {cp.status}
+                            </span>
+                          </td>
+
+                          {/* Action */}
+                          <td className="py-3.5 px-2 text-right">
+                            {cp.status === "PENDING" ? (
+                              <div className="inline-flex items-center gap-1.5">
+                                <button
+                                  onClick={() => handleApproveCrypto(cp.id, cp.amountUsdt, cp.amountInr, cp.user)}
+                                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Approve & Credit ₹{cp.amountInr}</span>
+                                </button>
+                                <button
+                                  onClick={() => handleRejectCrypto(cp.id)}
+                                  className="px-2 py-1 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg font-bold text-xs cursor-pointer"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-[11px]">Processed</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

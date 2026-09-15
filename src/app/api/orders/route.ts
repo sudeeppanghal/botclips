@@ -14,14 +14,41 @@ export async function GET(request: NextRequest) {
     const orders = await prisma.order.findMany({
       where: whereClause,
       orderBy: { createdAt: "desc" },
-      take: 50,
+      take: 100,
       include: {
-        service: { select: { name: true, platform: true } },
+        service: { 
+          select: { 
+            id: true, 
+            serviceId: true, 
+            name: true, 
+            platform: true,
+            category: true,
+            customRate: true,
+            originalRate: true,
+          } 
+        },
+        panel: {
+          select: {
+            id: true,
+            name: true,
+            apiUrl: true,
+            status: true,
+          }
+        },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+          }
+        }
       },
     });
 
     return NextResponse.json({ success: true, orders });
   } catch (error: any) {
+    console.error("GET /api/orders error:", error);
     return NextResponse.json({
       success: true,
       orders: []
@@ -367,6 +394,7 @@ export async function POST(request: NextRequest) {
     }
 
     let providerOrderId: string | null = null;
+    let upstreamError: string | null = null;
 
     if (panel && panel.apiUrl && panel.apiKeyEncrypted && panel.apiKeyEncrypted !== "PLACEHOLDER_KEY") {
       try {
@@ -394,10 +422,35 @@ export async function POST(request: NextRequest) {
 
         if (result && result.order) {
           providerOrderId = String(result.order);
+        } else if (result && result.error) {
+          upstreamError = result.error;
         }
-      } catch (panelErr) {
+      } catch (panelErr: any) {
+        upstreamError = panelErr.message;
         console.error("Upstream SMM panel dispatch warning:", panelErr);
       }
+    } else {
+      upstreamError = "No active upstream SMM provider panel configured";
+    }
+
+    // If upstream rejected the order and no providerOrderId was generated:
+    if (upstreamError && !providerOrderId) {
+      // Auto-refund user wallet balance immediately
+      const refundedUser = await prisma.user.update({
+        where: { id: dbUser.id },
+        data: {
+          balance: { increment: totalCost },
+          totalSpent: { decrement: totalCost },
+        },
+      });
+
+      return NextResponse.json(
+        { 
+          error: `Upstream SMM API returned: "${upstreamError}". Please check your link format and service parameters. Your balance of ₹${totalCost.toFixed(2)} has been fully refunded.`,
+          balance: refundedUser.balance
+        },
+        { status: 400 }
+      );
     }
 
     // Record order in database
@@ -414,8 +467,12 @@ export async function POST(request: NextRequest) {
         intervalMinutes: Number(intervalMinutes),
         curveStyle: deliveryGraphName ? `${deliveryGraphName} (${deliveryGraphId || "custom"})` : (deliveryGraphId || "ORGANIC"),
         providerOrderId,
-        status: "PROCESSING",
+        status: providerOrderId ? "IN_PROGRESS" : "PROCESSING",
       },
+      include: {
+        panel: { select: { id: true, name: true, apiUrl: true } },
+        service: { select: { name: true, serviceId: true, platform: true } },
+      }
     });
 
     return NextResponse.json({
@@ -423,7 +480,7 @@ export async function POST(request: NextRequest) {
       mode: "MANAGED",
       order,
       balance: updatedUser.balance,
-      message: `Order submitted successfully! ₹${totalCost.toFixed(2)} deducted from balance.`,
+      message: `Order submitted successfully! Upstream Order #${providerOrderId || "Processing"}. ₹${totalCost.toFixed(2)} charged.`,
     });
   } catch (error: any) {
     return NextResponse.json(

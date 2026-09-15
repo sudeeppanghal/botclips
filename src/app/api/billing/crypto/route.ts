@@ -199,6 +199,10 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Crypto payment not found" }, { status: 404 });
     }
 
+    if (payment.status === "CONFIRMED") {
+      return NextResponse.json({ error: "This crypto deposit has already been approved and credited." }, { status: 400 });
+    }
+
     if (action === "APPROVE") {
       const creditInr = payment.amountInr || Math.round(payment.amountUsdt * USDT_TO_INR_DEFAULT);
 

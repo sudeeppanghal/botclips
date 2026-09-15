@@ -22,12 +22,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No account found with this email" }, { status: 401 });
     }
 
-    // Check password if set
-    if (user.passwordHash) {
-      const isValid = await verifyPassword(password, user.passwordHash);
-      if (!isValid) {
-        return NextResponse.json({ error: "Invalid password. Please check your credentials." }, { status: 401 });
-      }
+    // Enforce password verification
+    if (!user.passwordHash) {
+      return NextResponse.json({
+        error: "This account was registered via Google Sign-In. Please click 'Continue with Google' to sign in.",
+      }, { status: 401 });
+    }
+
+    const isValid = await verifyPassword(password, user.passwordHash);
+    if (!isValid) {
+      return NextResponse.json({ error: "Invalid password. Please check your credentials." }, { status: 401 });
     }
 
     // Role is strictly derived from user record in database

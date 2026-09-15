@@ -26,9 +26,6 @@ import EngagementTaskLauncher from "@/components/EngagementTaskLauncher";
 
 export default function AutomationPage() {
   const [activeMode, setActiveMode] = useState<"MANAGED" | "CUSTOM_API">("MANAGED");
-  const [profileLink, setProfileLink] = useState("");
-  const [curveStyle, setCurveStyle] = useState("ORGANIC_VIRAL");
-  const [targetViews, setTargetViews] = useState(10000);
   const [selectedPlatform, setSelectedPlatform] = useState("TIKTOK");
   const [savedSuccess, setSavedSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -233,40 +230,6 @@ export default function AutomationPage() {
       setError(err.message);
     } finally {
       setTestingApi(false);
-    }
-  };
-
-  // Launch Automated Campaign
-  const handleLaunchCampaign = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSavedSuccess(null);
-
-    try {
-      const activeServiceId = defaultServices[selectedPlatform] || defaultServices.DEFAULT || "1";
-
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          link: profileLink,
-          quantity: targetViews,
-          category: selectedPlatform,
-          serviceId: activeServiceId,
-          service: `Automated ${selectedPlatform} Campaign (${curveStyle})`,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to launch automated campaign");
-      }
-
-      setSavedSuccess(data.message || "Automated campaign launched successfully!");
-      setProfileLink("");
-      await loadPlanAndApiStatus();
-    } catch (err: any) {
-      setError(err.message || "Campaign launch failed");
     }
   };
 
@@ -647,157 +610,14 @@ export default function AutomationPage() {
       )}
 
       {/* Active Mode Task Flow */}
-      {activeMode === "CUSTOM_API" ? (
+      {activeMode === "MANAGED" ? (
         <EngagementTaskLauncher walletBalance={userBalance} />
       ) : (
-        /* Main Campaign Configuration & Waveform Grid */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Col: Setup & Configuration */}
-        <div className="lg:col-span-7 bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-6">
-          <form onSubmit={handleLaunchCampaign} className="space-y-4">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Zap className="w-4 h-4 text-blue-600" />
-              <span>Launch Campaign with Real Pacing</span>
-            </h3>
-
-            {/* Platform Selection */}
-            <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">
-                Platform
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {["TIKTOK", "INSTAGRAM", "YOUTUBE"].map((plat) => (
-                  <button
-                    key={plat}
-                    type="button"
-                    onClick={() => setSelectedPlatform(plat)}
-                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                      selectedPlatform === plat
-                        ? "border-blue-600 bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400 shadow-xs"
-                        : "border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
-                    }`}
-                  >
-                    {plat}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-                Target Post / Reel / Video URL
-              </label>
-              <input
-                type="text"
-                required
-                value={profileLink}
-                onChange={(e) => setProfileLink(e.target.value)}
-                placeholder="https://tiktok.com/@clip/... or Instagram reel link"
-                className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-                Target Views Volume
-              </label>
-              <input
-                type="number"
-                min="50"
-                step="50"
-                value={targetViews}
-                onChange={(e) => setTargetViews(Number(e.target.value))}
-                className="w-full px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:border-blue-500 font-mono"
-              />
-            </div>
-
-            {/* Delivery Curve Selection */}
-            <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">
-                Algorithm Emulation Curve
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { id: "ORGANIC_VIRAL", name: "Organic Viral", desc: "Warmup → Peak → Decay" },
-                  { id: "STEADY_DRIP", name: "Steady Drip", desc: "Linear equal batch pacing" },
-                  { id: "BURST_PUSH", name: "Explosive Burst", desc: "Instant 1st hour surge" },
-                ].map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setCurveStyle(c.id)}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                      curveStyle === c.id
-                        ? "border-blue-600 bg-blue-50/70 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400"
-                        : "border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
-                    }`}
-                  >
-                    <div className="text-xs font-bold">{c.name}</div>
-                    <div className="text-[10px] text-slate-400 mt-1">{c.desc}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all cursor-pointer flex items-center justify-center gap-2"
-            >
-              <Zap className="w-4 h-4 fill-current" />
-              <span>Launch Managed Viewfarm Campaign</span>
-            </button>
-          </form>
-        </div>
-
-        {/* Right Col: Live Waveform Visualizer & Information */}
-        <div className="lg:col-span-5 space-y-6">
-          <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Algorithmic Waveform</span>
-              <span className="text-xs font-bold text-blue-600 dark:text-blue-400 font-mono">
-                {curveStyle === "ORGANIC_VIRAL" ? "Natural Discovery" : curveStyle === "STEADY_DRIP" ? "Linear Drip" : "Surge Spike"}
-              </span>
-            </div>
-
-            <div className="py-6">
-              <svg viewBox="0 0 320 120" className="w-full h-32 overflow-visible">
-                <line x1="10" y1="30" x2="310" y2="30" stroke="#94a3b8" strokeOpacity="0.2" strokeDasharray="3 3" />
-                <line x1="10" y1="60" x2="310" y2="60" stroke="#94a3b8" strokeOpacity="0.2" strokeDasharray="3 3" />
-                <line x1="10" y1="90" x2="310" y2="90" stroke="#94a3b8" strokeOpacity="0.2" strokeDasharray="3 3" />
-
-                <path
-                  d={
-                    curveStyle === "ORGANIC_VIRAL"
-                      ? "M 10 90 C 50 85, 70 65, 110 20 C 150 10, 190 40, 240 70 C 270 85, 290 92, 300 95"
-                      : curveStyle === "STEADY_DRIP"
-                      ? "M 10 90 L 300 20"
-                      : "M 10 90 C 20 15, 60 15, 120 35 C 180 50, 240 75, 300 85"
-                  }
-                  fill="none"
-                  stroke="#2563eb"
-                  strokeWidth="3.5"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </div>
-
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span>Anti-Drop Algorithm:</span>
-                <span className="font-bold text-emerald-600">Active (0% view loss)</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Device Fingerprints:</span>
-                <span className="font-bold text-slate-700 dark:text-slate-300">20k+ Physical Phones</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Average Retention:</span>
-                <span className="font-bold text-slate-700 dark:text-slate-300">3–7 Seconds / View</span>
-            </div>
+        planActive && (
+          <div className="space-y-6">
+            <EngagementTaskLauncher walletBalance={userBalance} />
           </div>
-        </div>
-      </div>
-      </div>
+        )
       )}
     </div>
   );

@@ -20,6 +20,33 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [isAuthorized, setIsAuthorized] = React.useState(false);
+
+  React.useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.authenticated || data.user?.role !== "ADMIN") {
+          window.location.href = "/dashboard";
+        } else {
+          setIsAuthorized(true);
+        }
+      })
+      .catch(() => {
+        window.location.href = "/dashboard";
+      });
+  }, []);
+
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen bg-[#0b0f19] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs font-mono text-slate-400">Verifying Admin Access...</p>
+        </div>
+      </div>
+    );
+  }
 
   const navItems = [
     { label: "Overview", href: "/admin", icon: ShieldCheck },

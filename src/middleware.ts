@@ -1,50 +1,68 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
+async function verifyAdminSession(token: string | undefined): Promise<boolean> {
+  if (!token) return false;
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return false;
+    const [headerB64, payloadB64, signatureB64] = parts;
+
+    const secret = process.env.JWT_SECRET || "dhillionsmm_fallback_secret_key_849204";
+    const encoder = new TextEncoder();
+    const dataToVerify = encoder.encode(`${headerB64}.${payloadB64}`);
+    const keyData = encoder.encode(secret);
+
+    // Decode URL-safe base64 signature
+    const sigStr = signatureB64.replace(/-/g, "+").replace(/_/g, "/");
+    const sigPad = sigStr + "=".repeat((4 - (sigStr.length % 4)) % 4);
+    const sigBinary = Uint8Array.from(atob(sigPad), (c) => c.charCodeAt(0));
+
+    const cryptoKey = await crypto.subtle.importKey(
+      "raw",
+      keyData,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"]
+    );
+
+    const isValid = await crypto.subtle.verify("HMAC", cryptoKey, sigBinary, dataToVerify);
+    if (!isValid) return false;
+
+    const payloadStr = payloadB64.replace(/-/g, "+").replace(/_/g, "/");
+    const payloadPad = payloadStr + "=".repeat((4 - (payloadStr.length % 4)) % 4);
+    const payload = JSON.parse(atob(payloadPad));
+
+    if (payload.exp && Date.now() >= payload.exp * 1000) {
+      return false;
+    }
+
+    return payload.role === "ADMIN";
+  } catch {
+    return false;
+  }
+}
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. Strict route protection for /admin (requires verified ADMIN role)
+  // 1. Strict route protection for /admin (requires verified cryptographically signed ADMIN role)
   if (pathname.startsWith("/admin")) {
     const token = request.cookies.get("dhillion_token")?.value;
-    if (!token) {
+    const isAdmin = await verifyAdminSession(token);
+    if (!isAdmin) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(loginUrl);
-    }
-    try {
-      const parts = token.split(".");
-      if (parts.length === 3) {
-        const payload = JSON.parse(Buffer.from(parts[1], "base64").toString());
-        if (payload.role !== "ADMIN") {
-          return NextResponse.redirect(new URL("/dashboard", request.url));
-        }
-      } else {
-        return NextResponse.redirect(new URL("/login", request.url));
-      }
-    } catch {
-      return NextResponse.redirect(new URL("/login", request.url));
     }
   }
 
   // 1b. Strict API protection for /api/admin/* (returns 401/403 JSON)
   if (pathname.startsWith("/api/admin")) {
     const token = request.cookies.get("dhillion_token")?.value;
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized. Admin session required." }, { status: 401 });
-    }
-    try {
-      const parts = token.split(".");
-      if (parts.length === 3) {
-        const payload = JSON.parse(Buffer.from(parts[1], "base64").toString());
-        if (payload.role !== "ADMIN") {
-          return NextResponse.json({ error: "Forbidden. Admin privileges required." }, { status: 403 });
-        }
-      } else {
-        return NextResponse.json({ error: "Invalid session token." }, { status: 401 });
-      }
-    } catch {
-      return NextResponse.json({ error: "Malformed session token." }, { status: 401 });
+    const isAdmin = await verifyAdminSession(token);
+    if (!isAdmin) {
+      return NextResponse.json({ error: "Forbidden. Admin privileges required." }, { status: 403 });
     }
   }
 

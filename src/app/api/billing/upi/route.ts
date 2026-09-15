@@ -130,6 +130,10 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Payment not found" }, { status: 404 });
     }
 
+    if (payment.status === "CONFIRMED") {
+      return NextResponse.json({ error: "This payment has already been approved and credited." }, { status: 400 });
+    }
+
     if (action === "APPROVE") {
       // Credit user's wallet balance
       await prisma.$transaction([

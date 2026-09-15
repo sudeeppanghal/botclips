@@ -7,6 +7,9 @@ import { generateOrganicPacedBatches } from "@/lib/delivery-graphs";
 export async function GET(request: NextRequest) {
   try {
     const session = await getSessionUser();
+    const { searchParams } = new URL(request.url);
+    const limit = Math.min(100, Math.max(5, Number(searchParams.get("limit") || 50)));
+
     const whereClause: any = {};
     if (session && session.role !== "ADMIN") {
       whereClause.userId = session.id;
@@ -15,7 +18,7 @@ export async function GET(request: NextRequest) {
     const orders = await prisma.order.findMany({
       where: whereClause,
       orderBy: { createdAt: "desc" },
-      take: 100,
+      take: limit,
       include: {
         service: { 
           select: { 
@@ -111,9 +114,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. Fetch user profile from database
+    // 1. Fetch user profile from database (lean projection)
     const dbUser = await prisma.user.findUnique({
       where: { id: session.id },
+      select: {
+        id: true,
+        balance: true,
+        planActive: true,
+        planExpiresAt: true,
+        automationMode: true,
+        customApiUrl: true,
+        customApiKey: true,
+        defaultServices: true,
+      },
     });
 
     if (!dbUser) {

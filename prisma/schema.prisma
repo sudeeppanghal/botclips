@@ -109,6 +109,8 @@ model AdminService {
   @@index([panelId])
   @@index([platform])
   @@index([category])
+  @@index([isActive])
+  @@index([isActive, platform])
   @@map("admin_services")
 }
 
@@ -157,6 +159,7 @@ model Order {
   @@index([userId])
   @@index([serviceId])
   @@index([status])
+  @@index([status, updatedAt])
   @@map("orders")
 }
 

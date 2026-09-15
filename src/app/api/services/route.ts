@@ -26,28 +26,37 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    const cacheHeaders = {
+      "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+      "CDN-Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+      "Vercel-CDN-Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+    };
+
     if (services.length > 0) {
-      return NextResponse.json({
-        success: true,
-        services: services.map((s) => {
-          const rateInr = Number(s.customRate || 0);
-          const rateUsd = Number((rateInr / 96).toFixed(2));
-          return {
-            id: s.id,
-            platform: s.platform,
-            cat: s.category,
-            name: s.name,
-            serviceId: s.serviceId,
-            rate: rateInr,
-            rateInr,
-            rateUsd,
-            rateInrFormatted: `₹${rateInr.toFixed(2)}`,
-            rateUsdFormatted: `$${rateUsd.toFixed(2)}`,
-            min: s.minQuantity,
-            max: s.maxQuantity,
-          };
-        }),
-      });
+      return NextResponse.json(
+        {
+          success: true,
+          services: services.map((s) => {
+            const rateInr = Number(s.customRate || 0);
+            const rateUsd = Number((rateInr / 96).toFixed(2));
+            return {
+              id: s.id,
+              platform: s.platform,
+              cat: s.category,
+              name: s.name,
+              serviceId: s.serviceId,
+              rate: rateInr,
+              rateInr,
+              rateUsd,
+              rateInrFormatted: `₹${rateInr.toFixed(2)}`,
+              rateUsdFormatted: `$${rateUsd.toFixed(2)}`,
+              min: s.minQuantity,
+              max: s.maxQuantity,
+            };
+          }),
+        },
+        { headers: cacheHeaders }
+      );
     }
 
     // Fallback default services with transparent pricing if database is freshly initialized
@@ -66,7 +75,7 @@ export async function GET(request: NextRequest) {
       { id: "6001", platform: "FACEBOOK", cat: "Facebook Page Likes", name: "Facebook Page Followers & Likes [Real Indian Profiles]", serviceId: "6001", rate: 290, min: 100, max: 50000 },
     ];
 
-    return NextResponse.json({ success: true, services: defaultFallback });
+    return NextResponse.json({ success: true, services: defaultFallback }, { headers: cacheHeaders });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Failed to load services" }, { status: 500 });
   }

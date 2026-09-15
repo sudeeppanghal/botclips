@@ -370,7 +370,7 @@ export default function HomePage() {
     },
     {
       q: "What is the minimum deposit and accepted payment methods?",
-      a: "Minimum deposit is only ₹50 INR. We accept instant UPI (PhonePe, Google Pay, Paytm) and USDT TRC20 (at a competitive fixed rate of 1 USDT = ₹96.00). Submissions are verified swiftly through our dashboard."
+      a: "Minimum deposit is only ₹50 INR. We accept instant UPI (PhonePe, Google Pay, Paytm) and USDT (TRC-20 / BEP-20) with 0% transaction fees. Submissions are verified swiftly through our dashboard."
     },
     {
       q: "Can I connect my own SMM panel via API?",

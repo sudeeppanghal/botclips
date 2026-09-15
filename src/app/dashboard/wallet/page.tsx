@@ -85,7 +85,7 @@ export default function WalletPage() {
         combined = combined.concat(cryptoData.payments.map((p: any) => ({
           ...p,
           paymentType: "CRYPTO",
-          displayAmount: p.amountUsdt + " USDT (~₹" + (p.amountInr || Math.round(p.amountUsdt * 96)) + ")",
+          displayAmount: p.amountUsdt + " USDT",
         })));
       }
 
@@ -660,7 +660,7 @@ export default function WalletPage() {
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
                     Select USDT Amount ({cryptoNetwork})
                   </label>
-                  <span className="text-[11px] text-emerald-600 font-bold">1 USDT = ₹96.00 INR</span>
+                  <span className="text-[11px] text-emerald-600 font-bold">Instant Automated Credit</span>
                 </div>
                 <div className="grid grid-cols-5 gap-2">
                   {[5, 10, 25, 50, 100].map((amt) => (
@@ -711,7 +711,7 @@ export default function WalletPage() {
                 </div>
                 <div className="space-y-2 text-center sm:text-left min-w-0 flex-1">
                   <div className="text-sm font-black text-slate-900 dark:text-white">
-                    Send {activeCryptoAmount} USDT (~₹{activeCryptoInr} INR)
+                    Send {activeCryptoAmount} USDT
                   </div>
                   <p className="text-[11px] text-slate-500 font-medium">
                     Network: <span className="font-bold text-emerald-600">{cryptoNetwork === "TRC20" ? "TRON (TRC-20)" : "BNB Smart Chain (BEP-20)"}</span>. Scan with Binance, TrustWallet, TronLink, or any Web3 wallet.

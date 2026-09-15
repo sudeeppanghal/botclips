@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { SmmPanelClient } from "@/lib/delivery/panel-client";
+import { generateOrganicPacedBatches } from "@/lib/delivery-graphs";
 
 export async function GET(request: NextRequest) {
   try {
@@ -395,33 +396,40 @@ export async function POST(request: NextRequest) {
 
     let providerOrderId: string | null = null;
     let upstreamError: string | null = null;
+    let jitterBatches: any[] = [];
+    let initialPulseQuantity = Number(quantity);
+
+    // If automated engagement task, generate organic non-linear jitter pulses
+    if (isAutomatedTask && minQty && maxQty && (Number(minQty) + Number(maxQty) > 0)) {
+      jitterBatches = generateOrganicPacedBatches({
+        goal: cleanQuantity,
+        minQty: Number(minQty),
+        maxQty: Number(maxQty),
+        avgIntervalMinutes: cleanInterval > 0 ? cleanInterval : 20,
+        startTime: new Date(),
+      });
+      if (jitterBatches.length > 0) {
+        initialPulseQuantity = jitterBatches[0].views;
+      }
+    }
 
     if (panel && panel.apiUrl && panel.apiKeyEncrypted && panel.apiKeyEncrypted !== "PLACEHOLDER_KEY") {
       try {
         const client = new SmmPanelClient(panel.apiUrl, panel.apiKeyEncrypted);
+        // Dispatch Pulse 1 directly to upstream SMM provider as a clean standalone order
         let result = await client.addOrder({
           serviceId: mappedUpstreamServiceId,
           link,
-          quantity: isAutomatedTask ? batchQuantity : Number(quantity),
-          runs: calculatedRuns > 1 ? calculatedRuns : undefined,
-          interval: cleanInterval > 0 ? cleanInterval : undefined,
+          quantity: initialPulseQuantity,
         });
-
-        // Fallback retry without dripfeed if upstream panel returns dripfeed unsupported
-        if (result && result.error && (
-          result.error.toLowerCase().includes("drip") || 
-          result.error.toLowerCase().includes("runs") || 
-          result.error.toLowerCase().includes("interval")
-        )) {
-          result = await client.addOrder({
-            serviceId: mappedUpstreamServiceId,
-            link,
-            quantity: cleanQuantity,
-          });
-        }
 
         if (result && result.order) {
           providerOrderId = String(result.order);
+          if (jitterBatches.length > 0) {
+            jitterBatches[0].status = "DISPATCHED";
+            jitterBatches[0].upstreamOrderId = String(result.order);
+            jitterBatches[0].dispatchedAt = new Date().toISOString();
+          }
         } else if (result && result.error) {
           upstreamError = result.error;
         }
@@ -453,8 +461,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Record order in database
+    // Record order in database with non-linear jitter schedule
     const resolvedAdminService = adminServiceRecord || (await prisma.adminService.findFirst());
+    const finalRuns = jitterBatches.length > 0 ? jitterBatches.length : cleanRuns;
+    const finalCurve = jitterBatches.length > 0 ? "ALGORITHMIC_JITTER" : (deliveryGraphName ? `${deliveryGraphName} (${deliveryGraphId || "custom"})` : "ORGANIC");
+    const finalComboData = jitterBatches.length > 0 
+      ? JSON.stringify({
+          isJitterEngine: true,
+          upstreamServiceId: mappedUpstreamServiceId,
+          panelId: panel?.id,
+          totalGoal: cleanQuantity,
+          totalBatches: jitterBatches.length,
+          batches: jitterBatches,
+        })
+      : null;
+
     const order = await prisma.order.create({
       data: {
         userId: dbUser.id,
@@ -463,9 +484,10 @@ export async function POST(request: NextRequest) {
         link,
         quantity: Number(quantity),
         charge: totalCost,
-        runs: Number(runs),
+        runs: finalRuns,
         intervalMinutes: Number(intervalMinutes),
-        curveStyle: deliveryGraphName ? `${deliveryGraphName} (${deliveryGraphId || "custom"})` : (deliveryGraphId || "ORGANIC"),
+        curveStyle: finalCurve,
+        comboData: finalComboData,
         providerOrderId,
         status: providerOrderId ? "IN_PROGRESS" : "PROCESSING",
       },

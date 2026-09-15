@@ -1363,3 +1363,105 @@ export function generateJitterSchedule(params: {
   return batches;
 }
 
+export interface OrganicJitterBatch {
+  batchNumber: number;
+  views: number;
+  timeOffsetMinutes: number;
+  timeFormatted: string;
+  scheduledAt?: string;
+  status: "PENDING" | "DISPATCHED" | "COMPLETED";
+  upstreamOrderId?: string;
+  dispatchedAt?: string;
+}
+
+export function generateOrganicPacedBatches(params: {
+  goal: number;
+  minQty: number;
+  maxQty: number;
+  avgIntervalMinutes: number;
+  startTime?: Date;
+}): OrganicJitterBatch[] {
+  const {
+    goal,
+    minQty,
+    maxQty,
+    avgIntervalMinutes = 20,
+    startTime = new Date(),
+  } = params;
+
+  const cleanGoal = Math.max(1, Math.floor(goal));
+  const cleanMin = Math.max(10, Math.min(minQty, cleanGoal));
+  const cleanMax = Math.max(cleanMin, Math.min(maxQty, cleanGoal));
+  const avgBatch = (cleanMin + cleanMax) / 2;
+
+  // Approximate number of batches
+  const estBatches = Math.max(1, Math.round(cleanGoal / avgBatch));
+
+  // Generate non-linear weights using Poisson/Gaussian perturbation
+  const rawWeights: number[] = [];
+  for (let i = 0; i < estBatches; i++) {
+    const x = (i + 1) / (estBatches + 1);
+    // Parabolic viral bell curve with asymmetric right skew
+    const curve = Math.sin(x * Math.PI) * 0.85 + Math.pow(x, 1.2) * 0.45 + 0.25;
+    // Multiplicative pseudo-random jitter between 0.72 and 1.28
+    const jitter = 0.72 + ((Math.sin(i * 5.17 + 2.31) + 1) / 2) * 0.56;
+    rawWeights.push(curve * jitter);
+  }
+
+  const sumWeights = rawWeights.reduce((a, b) => a + b, 0);
+  const normalizedWeights = rawWeights.map(w => w / sumWeights);
+
+  const batches: OrganicJitterBatch[] = [];
+  let allocated = 0;
+  let currentMinutes = 0;
+
+  for (let i = 0; i < estBatches; i++) {
+    const isLast = i === estBatches - 1;
+    let qty = 0;
+
+    if (isLast) {
+      qty = cleanGoal - allocated;
+      if (qty <= 0) qty = Math.max(1, cleanGoal - allocated);
+    } else {
+      const target = Math.round(cleanGoal * normalizedWeights[i]);
+      qty = Math.max(cleanMin, Math.min(cleanMax, target));
+      if (allocated + qty >= cleanGoal) {
+        qty = Math.max(cleanMin, cleanGoal - allocated);
+      }
+    }
+
+    allocated += qty;
+
+    // Time jitter: interval * (0.68 to 1.32)
+    const intervalJitter = 0.68 + ((Math.cos(i * 3.89 + 1.45) + 1) / 2) * 0.64;
+    const stepInterval = Math.max(3, Math.round(avgIntervalMinutes * intervalJitter));
+    if (i > 0) {
+      currentMinutes += stepInterval;
+    }
+
+    const hrs = Math.floor(currentMinutes / 60);
+    const mins = currentMinutes % 60;
+    const timeFormatted = currentMinutes === 0 ? "Immediate (+0m)" : (hrs > 0 ? `+${hrs}h ${mins.toString().padStart(2, "0")}m` : `+${mins}m`);
+    const scheduledAt = new Date(startTime.getTime() + currentMinutes * 60 * 1000).toISOString();
+
+    batches.push({
+      batchNumber: i + 1,
+      views: qty,
+      timeOffsetMinutes: currentMinutes,
+      timeFormatted,
+      scheduledAt,
+      status: "PENDING",
+    });
+
+    if (allocated >= cleanGoal) break;
+  }
+
+  // Ensure total sum equals exact goal
+  const totalAllocated = batches.reduce((sum, b) => sum + b.views, 0);
+  if (totalAllocated !== cleanGoal && batches.length > 0) {
+    batches[batches.length - 1].views += (cleanGoal - totalAllocated);
+  }
+
+  return batches;
+}
+

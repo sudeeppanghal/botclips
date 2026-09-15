@@ -135,10 +135,78 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // 3. Process Scheduled Jitter Pulses across all active orders
+    let jitterBatchesFired = 0;
+    try {
+      const jitterOrders = await prisma.order.findMany({
+        where: {
+          status: { in: ["IN_PROGRESS", "PROCESSING"] },
+          comboData: { contains: '"isJitterEngine":true' }
+        },
+        include: { panel: true },
+        take: 50,
+      });
+
+      const nowTime = new Date().getTime();
+
+      for (const jOrder of jitterOrders) {
+        if (!jOrder.comboData) continue;
+        try {
+          const data = JSON.parse(jOrder.comboData);
+          if (!data.batches || !Array.isArray(data.batches)) continue;
+
+          // Find the next pending batch whose scheduledAt <= now
+          const dueBatchIndex = data.batches.findIndex(
+            (b: any) => b.status === "PENDING" && b.scheduledAt && new Date(b.scheduledAt).getTime() <= nowTime
+          );
+
+          if (dueBatchIndex !== -1) {
+            const batch = data.batches[dueBatchIndex];
+            const targetPanel = jOrder.panel || (await prisma.panel.findFirst({ where: { isActive: true } }));
+
+            if (targetPanel && targetPanel.apiUrl && targetPanel.apiKeyEncrypted && targetPanel.apiKeyEncrypted !== "PLACEHOLDER_KEY") {
+              const client = new SmmPanelClient(targetPanel.apiUrl, targetPanel.apiKeyEncrypted);
+              const result = await client.addOrder({
+                serviceId: data.upstreamServiceId || "5245",
+                link: jOrder.link,
+                quantity: batch.views || batch.quantity,
+              });
+
+              if (result && result.order) {
+                batch.status = "DISPATCHED";
+                batch.upstreamOrderId = String(result.order);
+                batch.dispatchedAt = new Date().toISOString();
+                data.lastDispatchedBatch = batch.batchNumber;
+                jitterBatchesFired++;
+
+                const allDone = data.batches.every((b: any) => b.status === "DISPATCHED" || b.status === "COMPLETED");
+                if (allDone) {
+                  data.allBatchesDispatched = true;
+                }
+
+                await prisma.order.update({
+                  where: { id: jOrder.id },
+                  data: {
+                    comboData: JSON.stringify(data),
+                    providerOrderId: String(result.order),
+                  },
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.error(`Error processing jitter pulse for order #${jOrder.id}:`, err);
+        }
+      }
+    } catch (jitterErr) {
+      console.error("Jitter engine execution error:", jitterErr);
+    }
+
     return NextResponse.json({
       success: true,
       timestamp: new Date().toISOString(),
       ordersSynced: updatedOrdersCount,
+      jitterBatchesFired,
       activeOrdersChecked: activeOrders.length,
       expiredPlansReset: expiredUsers.count,
       message: "Cron auto-sync completed successfully.",

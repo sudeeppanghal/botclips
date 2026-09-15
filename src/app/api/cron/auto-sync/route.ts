@@ -23,6 +23,59 @@ async function runInBatches<T>(
   }
 }
 
+// Zero-Loss Refund Engine: ONLY refund the unfulfilled/undispatched portion that never reached upstream SMM panel
+function calculateUnfulfilledRefund(order: any, upstreamRemains?: number | string | null): number {
+  if (!order.charge || order.charge <= 0 || !order.quantity || order.quantity <= 0) {
+    return 0;
+  }
+
+  // 1. If it's a Jitter / Multi-batch order, calculate strictly based on undispatched batches
+  if (order.comboData) {
+    try {
+      const data = JSON.parse(order.comboData);
+      if (Array.isArray(data.batches) && data.batches.length > 0) {
+        let undispatchedViews = 0;
+        let totalBatchViews = 0;
+
+        for (const b of data.batches) {
+          const bViews = Number(b.views || b.quantity || 0);
+          totalBatchViews += bViews;
+          // Batches that NEVER reached the SMM panel qualify for refund
+          if (b.status === "PENDING" && !b.upstreamOrderId) {
+            undispatchedViews += bViews;
+          }
+        }
+
+        const totalQty = totalBatchViews > 0 ? totalBatchViews : order.quantity;
+        if (undispatchedViews > 0) {
+          const refund = (undispatchedViews / totalQty) * order.charge;
+          return Number(Math.max(0, refund).toFixed(4));
+        }
+
+        // All batches were already dispatched to SMM panel!
+        // If upstream reports unfulfilled remains on the last batch:
+        if (upstreamRemains !== undefined && upstreamRemains !== null && Number(upstreamRemains) > 0) {
+          const refund = (Number(upstreamRemains) / totalQty) * order.charge;
+          return Number(Math.max(0, Math.min(order.charge, refund)).toFixed(4));
+        }
+
+        // If all batches were dispatched, refund is ZERO to prevent platform loss!
+        return 0;
+      }
+    } catch (e) {
+      console.error("Error parsing comboData for refund:", e);
+    }
+  }
+
+  // 2. Standard single order: refund only the unfulfilled remains reported by SMM panel
+  if (upstreamRemains !== undefined && upstreamRemains !== null && Number(upstreamRemains) > 0) {
+    const refund = (Number(upstreamRemains) / order.quantity) * order.charge;
+    return Number(Math.max(0, Math.min(order.charge, refund)).toFixed(4));
+  }
+
+  return 0;
+}
+
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
   const isBudgetExhausted = () => Date.now() - startTime >= MAX_EXECUTION_TIME_MS;
@@ -59,8 +112,123 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // 2. Fetch pending / active orders that need status updates
-    // Prioritized by oldest updatedAt first (round-robin fair scheduling)
+    // ── STAGE 0: TOKEN-BUCKET QUEUE DISPATCHER FOR UNPLACED ORDERS ──
+    let queuedOrdersDispatched = 0;
+    if (!isBudgetExhausted()) {
+      try {
+        const queuedOrders = await prisma.order.findMany({
+          where: {
+            status: { in: ["PENDING", "PROCESSING"] },
+            providerOrderId: null,
+          },
+          select: {
+            id: true,
+            link: true,
+            quantity: true,
+            serviceId: true,
+            panelId: true,
+            comboData: true,
+            service: {
+              select: { id: true, serviceId: true, panelId: true }
+            },
+            panel: {
+              select: { id: true, apiUrl: true, apiKeyEncrypted: true, isActive: true }
+            },
+            user: {
+              select: { id: true, automationMode: true, planActive: true, customApiUrl: true, customApiKey: true }
+            },
+            charge: true,
+          },
+          orderBy: { createdAt: "asc" },
+          take: 10,
+        });
+
+        let defaultPanel: { id: string; apiUrl: string; apiKeyEncrypted: string } | null = null;
+
+        await runInBatches(
+          queuedOrders,
+          3,
+          async (qOrder) => {
+            let apiUrl: string | null = null;
+            let apiKey: string | null = null;
+            let upstreamServiceId = qOrder.service?.serviceId || "5245";
+            let dispatchQty = qOrder.quantity;
+            let comboObj: any = null;
+
+            if (qOrder.comboData) {
+              try {
+                comboObj = JSON.parse(qOrder.comboData);
+                if (comboObj?.isJitterEngine && Array.isArray(comboObj.batches) && comboObj.batches.length > 0) {
+                  upstreamServiceId = comboObj.upstreamServiceId || upstreamServiceId;
+                  dispatchQty = comboObj.batches[0].views || dispatchQty;
+                }
+              } catch {}
+            }
+
+            if (qOrder.user?.automationMode === "CUSTOM_API" && qOrder.user?.planActive && qOrder.user?.customApiUrl && qOrder.user?.customApiKey) {
+              apiUrl = qOrder.user.customApiUrl;
+              apiKey = qOrder.user.customApiKey;
+            } else {
+              let panel = qOrder.panel;
+              if (!panel || !panel.isActive) {
+                if (!defaultPanel) {
+                  defaultPanel = await prisma.panel.findFirst({
+                    where: { isActive: true },
+                    select: { id: true, apiUrl: true, apiKeyEncrypted: true },
+                  });
+                }
+                panel = defaultPanel as any;
+              }
+              if (panel?.apiUrl && panel?.apiKeyEncrypted && panel?.apiKeyEncrypted !== "PLACEHOLDER_KEY") {
+                apiUrl = panel.apiUrl;
+                apiKey = panel.apiKeyEncrypted;
+              }
+            }
+
+            if (!apiUrl || !apiKey) return;
+
+            try {
+              const client = new SmmPanelClient(apiUrl, apiKey);
+              const result = await client.addOrder({
+                serviceId: upstreamServiceId,
+                link: qOrder.link,
+                quantity: dispatchQty,
+              });
+
+              if (result && result.order) {
+                const updateData: any = {
+                  providerOrderId: String(result.order),
+                  status: "IN_PROGRESS",
+                };
+
+                if (comboObj && comboObj.batches && comboObj.batches[0]) {
+                  comboObj.batches[0].status = "DISPATCHED";
+                  comboObj.batches[0].upstreamOrderId = String(result.order);
+                  comboObj.batches[0].dispatchedAt = new Date().toISOString();
+                  comboObj.lastDispatchedBatch = 1;
+                  updateData.comboData = JSON.stringify(comboObj);
+                }
+
+                await prisma.order.update({
+                  where: { id: qOrder.id },
+                  data: updateData,
+                });
+                queuedOrdersDispatched++;
+              } else if (result && result.error) {
+                console.warn(`Upstream error for queued order #${qOrder.id}: ${result.error}`);
+              }
+            } catch (dispatchErr) {
+              console.error(`Queue dispatch failed for order #${qOrder.id}:`, dispatchErr);
+            }
+          },
+          isBudgetExhausted
+        );
+      } catch (queueErr) {
+        console.error("Queue dispatcher error:", queueErr);
+      }
+    }
+
+    // ── STAGE 2: FETCH ACTIVE ORDERS FOR STATUS UPDATES & ZERO-LOSS PARTIAL REFUNDS ──
     const activeOrders = await prisma.order.findMany({
       where: {
         status: { in: ["PENDING", "PROCESSING", "IN_PROGRESS"] },
@@ -75,6 +243,7 @@ export async function GET(request: NextRequest) {
         userId: true,
         startCount: true,
         remains: true,
+        comboData: true,
         panel: {
           select: {
             apiUrl: true,
@@ -131,33 +300,33 @@ export async function GET(request: NextRequest) {
               newStatus = "IN_PROGRESS";
             } else if (upstream === "partial") {
               newStatus = "PARTIAL";
-              // Auto-refund remaining unfulfilled balance if order was charged
-              if (order.charge > 0 && order.quantity > 0 && statusRes.remains && Number(statusRes.remains) > 0 && order.userId) {
-                const refundAmount = Number(((Number(statusRes.remains) / order.quantity) * order.charge).toFixed(4));
-                if (refundAmount > 0) {
-                  try {
-                    await prisma.user.update({
-                      where: { id: order.userId },
-                      data: {
-                        balance: { increment: refundAmount },
-                        totalSpent: { decrement: refundAmount },
-                      },
-                    });
-                  } catch (refErr) {
-                    console.error(`Refund error for partial order #${order.id}:`, refErr);
-                  }
-                }
-              }
-            } else if (upstream === "canceled" || upstream === "cancelled" || upstream === "refunded") {
-              newStatus = "CANCELLED";
-              // Auto-refund 100% of the charged balance to user
-              if (order.charge > 0 && order.userId) {
+              // Zero-Loss Partial Refund: Refund ONLY the unfulfilled portion!
+              const refundAmount = calculateUnfulfilledRefund(order, statusRes.remains);
+              if (refundAmount > 0 && order.userId) {
                 try {
                   await prisma.user.update({
                     where: { id: order.userId },
                     data: {
-                      balance: { increment: order.charge },
-                      totalSpent: { decrement: order.charge },
+                      balance: { increment: refundAmount },
+                      totalSpent: { decrement: refundAmount },
+                    },
+                  });
+                } catch (refErr) {
+                  console.error(`Refund error for partial order #${order.id}:`, refErr);
+                }
+              }
+            } else if (upstream === "canceled" || upstream === "cancelled" || upstream === "refunded") {
+              newStatus = "CANCELLED";
+              // Zero-Loss Refund: NEVER refund 100% if some batches were already dispatched!
+              // Only refund the undispatched / unfulfilled portion:
+              const refundAmount = calculateUnfulfilledRefund(order, statusRes.remains);
+              if (refundAmount > 0 && order.userId) {
+                try {
+                  await prisma.user.update({
+                    where: { id: order.userId },
+                    data: {
+                      balance: { increment: refundAmount },
+                      totalSpent: { decrement: refundAmount },
                     },
                   });
                 } catch (refErr) {
@@ -183,7 +352,7 @@ export async function GET(request: NextRequest) {
       isBudgetExhausted
     );
 
-    // 3. Process Scheduled Jitter Pulses across active orders
+    // ── STAGE 3: PROCESS SCHEDULED JITTER PULSES ACROSS ACTIVE ORDERS ──
     let jitterBatchesFired = 0;
     if (!isBudgetExhausted()) {
       try {
@@ -209,7 +378,6 @@ export async function GET(request: NextRequest) {
         });
 
         const nowTime = Date.now();
-        // Identify orders with an immediate pending batch due for dispatch
         const dueOrders: Array<{ order: typeof jitterOrders[0]; batchIndex: number; data: any }> = [];
         for (const jOrder of jitterOrders) {
           if (!jOrder.comboData) continue;
@@ -227,7 +395,6 @@ export async function GET(request: NextRequest) {
           } catch {}
         }
 
-        // Cache fallback active panel in case order has no panel attached
         let defaultPanel: { id: string; apiUrl: string; apiKeyEncrypted: string } | null = null;
 
         await runInBatches(
@@ -295,6 +462,7 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString(),
       durationMs,
       budgetExhausted: durationMs >= MAX_EXECUTION_TIME_MS,
+      queuedOrdersDispatched,
       ordersSynced: updatedOrdersCount,
       jitterBatchesFired,
       activeOrdersChecked: activeOrders.length,

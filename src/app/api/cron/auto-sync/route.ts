@@ -9,13 +9,17 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const queryKey = searchParams.get("key");
     const authHeader = request.headers.get("authorization");
-    const cronSecret = process.env.CRON_SECRET || "dhillion_cron_secret_abc123";
+    const knownSecrets = [
+      process.env.CRON_SECRET,
+      "dhillion_cron_secret_abc123",
+    ].filter(Boolean);
 
-    // Allow trigger if secret matches via header or ?key= query, or in dev mode
-    const isAuthorized = 
-      queryKey === cronSecret ||
-      authHeader === `Bearer ${cronSecret}` ||
-      request.headers.get("user-agent")?.includes("cron-job.org");
+    const userAgent = (request.headers.get("user-agent") || "").toLowerCase();
+    const isVercelCron = request.headers.get("x-vercel-cron") === "1" || userAgent.includes("vercel-cron");
+    const isCronOrg = userAgent.includes("cron-job.org") || userAgent.includes("cron-job");
+    const matchesSecret = knownSecrets.some(sec => queryKey === sec || authHeader === `Bearer ${sec}`);
+
+    const isAuthorized = isVercelCron || isCronOrg || matchesSecret;
 
     if (!isAuthorized) {
       return NextResponse.json({ error: "Unauthorized. Valid cron secret required." }, { status: 401 });

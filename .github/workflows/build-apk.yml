@@ -1,0 +1,75 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: Build Native Android APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 🟢 Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 📦 Install Mobile Dependencies
+        working-directory: botclips-mobile
+        run: |
+          npm install
+
+      - name: ⚙️ Generate Native Android Project (Expo Prebuild)
+        working-directory: botclips-mobile
+        run: |
+          npx expo prebuild --platform android --clean
+
+      - name: 🔨 Build Android Release APK via Gradle
+        working-directory: botclips-mobile/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: 📁 Stage APK File
+        run: |
+          mkdir -p build-output
+          find botclips-mobile/android/app/build/outputs/apk -name "*.apk" -exec cp {} build-output/BotClips.apk \;
+          ls -la build-output/
+
+      - name: 📤 Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BotClips-v1.0.0-Android-APK
+          path: build-output/BotClips.apk
+          if-no-files-found: error
+
+      - name: 🚀 Publish GitHub Release with Direct APK Download Link
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/heads/main')
+        with:
+          tag_name: v1.0.0-apk
+          name: 'BotClips Android App v1.0.0 (Direct APK Download)'
+          body: |
+            ## 📱 BotClips Official Android App v1.0.0
+            
+            - **Architecture**: Standalone Native React Native / Expo (Hermes Engine)
+            - **Backend Integration**: 100% Live Database Services & Multi-Signal Jitter Dispatch
+            - **Authentication**: Native Bearer Token Session Management
+            - **Installation**: Download the `BotClips.apk` attached below and install directly on any Android device.
+          files: build-output/BotClips.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

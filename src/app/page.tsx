@@ -485,92 +485,161 @@ export default function HomePage() {
           </div>
 
           {/* DUAL COMPARISON WITH REAL SCREENSHOTS */}
+          {/* DUAL COMPARISON WITH REAL SCREENSHOTS */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
             {/* Left Card: ❌ Admin POV: How They Catch Botting */}
-            <div className="rounded-3xl bg-neutral-900/90 border border-red-500/30 p-6 sm:p-8 flex flex-col justify-between shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="rounded-3xl bg-[#0d0f14] border border-red-500/30 p-6 sm:p-8 flex flex-col justify-between shadow-2xl relative overflow-hidden group/card hover:border-red-500/50 transition-all duration-300">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-red-600/5 rounded-full blur-2xl pointer-events-none" />
               
               <div>
                 {/* Header */}
-                <div className="flex items-center justify-between gap-2 mb-5 pb-4 border-b border-neutral-800">
+                <div className="flex items-center justify-between gap-2 mb-5 pb-4 border-b border-neutral-800/80">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center font-bold">
-                      <ShieldAlert className="w-5 h-5" />
+                    <div className="relative flex items-center justify-center">
+                      <span className="animate-ping absolute inline-flex h-7 w-7 rounded-xl bg-red-500 opacity-20" />
+                      <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/40 text-red-400 flex items-center justify-center font-bold shadow-[0_0_15px_rgba(239,68,68,0.3)]">
+                        <ShieldAlert className="w-5 h-5" />
+                      </div>
                     </div>
                     <div>
-                      <h3 className="text-lg font-black text-white">Admin POV: How They Catch Botting</h3>
-                      <p className="text-xs text-neutral-400">Score 100 Flag • Botted Sawtooth Graphs • Broken Ratios</p>
+                      <h3 className="text-lg font-black text-white tracking-tight">Admin POV: How Cheap Bots Get Flagged</h3>
+                      <p className="text-xs text-neutral-400 font-medium">Score 100 Flag • Sawtooth Spikes • Disqualified ($0)</p>
                     </div>
                   </div>
-                  <span className="px-3 py-1 rounded-full bg-red-500/20 text-red-400 text-xs font-black uppercase tracking-wider border border-red-500/30">
-                    Flagged &amp; Rejected ($0)
+                  <span className="px-3 py-1 rounded-full bg-red-500/15 text-red-400 text-[11px] font-mono font-black uppercase tracking-wider border border-red-500/30 shadow-[0_0_12px_rgba(239,68,68,0.2)] shrink-0">
+                    Flagged &amp; Rejected
                   </span>
                 </div>
 
                 {/* Real Admin Screenshot: Flagged & Disqualified Bot Submission */}
                 <div 
                   onClick={() => setSelectedImageModal("https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/comparison-botted-breakdown.png")}
-                  className="rounded-2xl overflow-hidden border border-red-500/40 bg-[#0a0c10] relative group cursor-pointer mb-5 shadow-2xl transition-all hover:border-red-400/70"
+                  className="rounded-2xl overflow-hidden border border-red-500/40 bg-[#07090e] relative group cursor-pointer mb-5 shadow-2xl transition-all hover:border-red-400/80 hover:shadow-[0_0_30px_rgba(239,68,68,0.25)]"
                 >
                   <div className="w-full aspect-[16/9] bg-black/90 flex items-center justify-center relative overflow-hidden">
                     <img loading="lazy" decoding="async" src="https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/comparison-botted-breakdown.png" 
                       alt="Whop Moderation Panel: High Bot Score (100) & Botted Graphs" 
-                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
                     />
                     <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                      <span className="px-3.5 py-2 rounded-xl bg-red-950/90 text-red-200 border border-red-800 text-xs font-bold backdrop-blur-sm flex items-center gap-2 shadow-lg">
+                      <span className="px-4 py-2 rounded-xl bg-red-950/90 text-red-200 border border-red-700 text-xs font-extrabold backdrop-blur-md flex items-center gap-2 shadow-2xl group-hover:scale-105 transition-transform">
                         <Maximize2 className="w-3.5 h-3.5" />
                         <span>Inspect High Bot Score &amp; Botted Graphs</span>
                       </span>
                     </div>
                   </div>
-                  <div className="p-3 bg-red-950/50 border-t border-red-900/50 text-xs text-red-300 flex items-center justify-between font-mono">
-                    <span>Whop AI Moderation Alert</span>
-                    <span className="font-bold text-red-400">Score 100/100 • $0.00 Rejected</span>
+
+                  {/* Modern Animated HUD Status Strip */}
+                  <div className="p-3 bg-gradient-to-r from-red-950/60 via-red-900/30 to-neutral-950/80 border-t border-red-900/50 text-xs flex items-center justify-between font-mono backdrop-blur-md">
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                      </span>
+                      <span className="tracking-wide text-red-300/90 font-bold uppercase text-[11px]">Whop AI Fraud Detection Alert</span>
+                    </div>
+                    <span className="font-black text-red-400 px-2.5 py-0.5 rounded-md bg-red-500/20 border border-red-500/40 text-[11px] tracking-wider shadow-[0_0_12px_rgba(239,68,68,0.3)]">
+                      SCORE 100/100 • $0.00 REJECTED
+                    </span>
                   </div>
                 </div>
 
-                {/* 3 Critical Detection Traps */}
+                {/* 3 Critical Detection Traps with Modern High-Tech Cards */}
                 <div className="space-y-3">
-                  <div className="p-3.5 rounded-xl bg-red-950/30 border border-red-900/30 text-xs text-neutral-300">
-                    <strong className="text-red-400 block mb-0.5">1. HIGH BOT SCORE (Red Shield 100)</strong>
-                    Whop AI detection flags artificial views immediately with maximum 100/100 score, triggering the &quot;Reject&quot; button.
+                  <div className="group relative rounded-2xl p-4 bg-gradient-to-r from-red-950/30 via-neutral-900/50 to-neutral-950/70 border border-red-500/20 hover:border-red-500/60 hover:shadow-[0_0_20px_rgba(239,68,68,0.2)] hover:-translate-y-0.5 transition-all duration-300">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-lg bg-red-500/20 text-red-400 font-mono text-xs font-black flex items-center justify-center border border-red-500/40 shadow-[0_0_10px_rgba(239,68,68,0.25)] shrink-0 group-hover:scale-110 group-hover:bg-red-500 group-hover:text-white transition-all">
+                          01
+                        </div>
+                        <h4 className="text-sm font-extrabold text-white tracking-tight group-hover:text-red-300 transition-colors">
+                          HIGH BOT SCORE (RED SHIELD 100)
+                        </h4>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-red-500/15 text-red-400 border border-red-500/30 shrink-0">
+                        MAX 100 INDEX
+                      </span>
+                    </div>
+                    <p className="text-xs text-neutral-400 leading-relaxed pl-8.5 group-hover:text-neutral-300 transition-colors">
+                      Whop AI algorithmic moderation flags inorganic traffic immediately with a maximum <span className="font-bold text-red-400">100/100 bot index</span>, instantly triggering automated payout disqualification.
+                    </p>
                   </div>
-                  <div className="p-3.5 rounded-xl bg-neutral-950/60 border border-neutral-800 text-xs text-neutral-300">
-                    <strong className="text-red-400 block mb-0.5">2. BOTTED GRAPHS (Robotic Sawtooth Spikes)</strong>
-                    Sawtooth staircase curves and flatlines followed by unnatural vertical jumps (+56k views) trip algorithmic fraud filters.
+
+                  <div className="group relative rounded-2xl p-4 bg-gradient-to-r from-neutral-950/60 to-neutral-900/40 border border-neutral-800 hover:border-red-500/40 hover:shadow-[0_0_20px_rgba(239,68,68,0.15)] hover:-translate-y-0.5 transition-all duration-300">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-lg bg-red-500/15 text-red-400 font-mono text-xs font-black flex items-center justify-center border border-red-500/30 shrink-0 group-hover:scale-110 group-hover:bg-red-500 group-hover:text-white transition-all">
+                          02
+                        </div>
+                        <h4 className="text-sm font-extrabold text-white tracking-tight group-hover:text-red-300 transition-colors">
+                          BOTTED SAWTOOTH SPIKES
+                        </h4>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-red-500/10 text-red-400 border border-red-500/20 shrink-0">
+                        FRAUD PATTERN
+                      </span>
+                    </div>
+                    <p className="text-xs text-neutral-400 leading-relaxed pl-8.5 group-hover:text-neutral-300 transition-colors">
+                      Unnatural staircase spikes, abrupt flatlines, and instant <span className="font-bold text-red-400">+56k view vertical cliffs</span> trip anti-bot inspection filters within milliseconds.
+                    </p>
                   </div>
-                  <div className="p-3.5 rounded-xl bg-neutral-950/60 border border-neutral-800 text-xs text-neutral-300">
-                    <strong className="text-red-400 block mb-0.5">3. LOW ENGAGEMENT (Broken Interaction Ratios)</strong>
-                    56,714 Views with only 65 Likes &amp; 2 Comments (0.11% interaction rate). Submission disqualified ($0.00).
+
+                  <div className="group relative rounded-2xl p-4 bg-gradient-to-r from-neutral-950/60 to-neutral-900/40 border border-neutral-800 hover:border-red-500/40 hover:shadow-[0_0_20px_rgba(239,68,68,0.15)] hover:-translate-y-0.5 transition-all duration-300">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-lg bg-red-500/15 text-red-400 font-mono text-xs font-black flex items-center justify-center border border-red-500/30 shrink-0 group-hover:scale-110 group-hover:bg-red-500 group-hover:text-white transition-all">
+                          03
+                        </div>
+                        <h4 className="text-sm font-extrabold text-white tracking-tight group-hover:text-red-300 transition-colors">
+                          BROKEN INTERACTION RATIOS
+                        </h4>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-red-500/10 text-red-400 border border-red-500/20 shrink-0">
+                        0.11% RATIO
+                      </span>
+                    </div>
+                    <p className="text-xs text-neutral-400 leading-relaxed pl-8.5 group-hover:text-neutral-300 transition-colors">
+                      56,714 views delivered with only <span className="font-bold text-red-400">65 Likes &amp; 2 Comments</span> (dead ratio). Submission immediately rejected with <span className="font-bold text-red-400">$0.00 transferred</span>.
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {/* Footer */}
-              <div className="mt-6 pt-4 border-t border-neutral-800 flex items-center justify-between text-xs">
-                <span className="text-neutral-500 font-mono">Moderation Action:</span>
-                <span className="text-red-400 font-bold font-mono">REJECTED • $0.00 PAID</span>
+              {/* Modern Animated Footer */}
+              <div className="mt-6 pt-4 border-t border-neutral-800/80 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  <span className="text-neutral-400 font-mono uppercase tracking-wider text-[11px]">Moderation Action:</span>
+                </div>
+                <div className="px-3.5 py-1.5 rounded-xl bg-red-500/15 border border-red-500/35 text-red-400 font-mono font-black tracking-wider text-xs shadow-[0_0_15px_rgba(239,68,68,0.3)] flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-ping" />
+                  <span>REJECTED • $0.00 PAID</span>
+                </div>
               </div>
             </div>
 
             {/* Right Card: ✅ BotClips Algorithmic Bypass Engine */}
-            <div className="rounded-3xl bg-neutral-900/90 border border-emerald-500/40 p-6 sm:p-8 flex flex-col justify-between shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="rounded-3xl bg-[#0d0f14] border border-emerald-500/40 p-6 sm:p-8 flex flex-col justify-between shadow-2xl relative overflow-hidden group/card hover:border-emerald-500/60 transition-all duration-300">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-emerald-600/5 rounded-full blur-2xl pointer-events-none" />
               
               <div>
                 {/* Header */}
-                <div className="flex items-center justify-between gap-2 mb-5 pb-4 border-b border-neutral-800">
+                <div className="flex items-center justify-between gap-2 mb-5 pb-4 border-b border-neutral-800/80">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
-                      <ShieldCheck className="w-5 h-5" />
+                    <div className="relative flex items-center justify-center">
+                      <span className="animate-ping absolute inline-flex h-7 w-7 rounded-xl bg-emerald-500 opacity-20" />
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center font-bold shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                        <ShieldCheck className="w-5 h-5" />
+                      </div>
                     </div>
                     <div>
-                      <h3 className="text-lg font-black text-white">BotClips Algorithmic Bypass Engine</h3>
-                      <p className="text-xs text-neutral-400">Score 0 Clean • Organic S-Curves • Perfect Ratios</p>
+                      <h3 className="text-lg font-black text-white tracking-tight">BotClips Algorithmic Bypass Engine</h3>
+                      <p className="text-xs text-neutral-400 font-medium">Score 0 Clean • Organic S-Curves • Verified Payout</p>
                     </div>
                   </div>
-                  <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-wider border border-emerald-500/30 flex items-center gap-1">
+                  <span className="px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 text-[11px] font-mono font-black uppercase tracking-wider border border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.25)] flex items-center gap-1.5 shrink-0">
                     <CheckCircle className="w-3.5 h-3.5" />
                     <span>Verified &amp; Transferred</span>
                   </span>
@@ -579,47 +648,107 @@ export default function HomePage() {
                 {/* Real Approved Screenshot: Organic Graphs & Perfect Engagement */}
                 <div 
                   onClick={() => setSelectedImageModal("https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/comparison-organic-breakdown.png")}
-                  className="rounded-2xl overflow-hidden border border-emerald-500/40 bg-[#0a0c10] relative group cursor-pointer mb-5 shadow-2xl transition-all hover:border-emerald-400/70"
+                  className="rounded-2xl overflow-hidden border border-emerald-500/40 bg-[#07090e] relative group cursor-pointer mb-5 shadow-2xl transition-all hover:border-emerald-400/80 hover:shadow-[0_0_30px_rgba(16,185,129,0.25)]"
                 >
                   <div className="w-full aspect-[16/9] bg-black/90 flex items-center justify-center relative overflow-hidden">
                     <img loading="lazy" decoding="async" src="https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/proofs/comparison-organic-breakdown.png" 
                       alt="Whop Moderation Panel: Low Bot Score (0) & Organic Graphs" 
-                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
                     />
                     <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                      <span className="px-3.5 py-2 rounded-xl bg-emerald-950/90 text-emerald-200 border border-emerald-800 text-xs font-bold backdrop-blur-sm flex items-center gap-2 shadow-lg">
+                      <span className="px-4 py-2 rounded-xl bg-emerald-950/90 text-emerald-200 border border-emerald-700 text-xs font-extrabold backdrop-blur-md flex items-center gap-2 shadow-2xl group-hover:scale-105 transition-transform">
                         <Maximize2 className="w-3.5 h-3.5" />
                         <span>Inspect Low Bot Score &amp; Organic Graphs</span>
                       </span>
                     </div>
                   </div>
-                  <div className="p-3 bg-emerald-950/50 border-t border-emerald-900/50 text-xs text-emerald-300 flex items-center justify-between font-mono">
-                    <span>Whop Creator Rewards Verified</span>
-                    <span className="font-bold text-emerald-400">Score 0/100 • $37.05 Approved</span>
+
+                  {/* Modern Animated HUD Status Strip */}
+                  <div className="p-3 bg-gradient-to-r from-emerald-950/60 via-emerald-900/30 to-neutral-950/80 border-t border-emerald-900/50 text-xs flex items-center justify-between font-mono backdrop-blur-md">
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                      </span>
+                      <span className="tracking-wide text-emerald-300/90 font-bold uppercase text-[11px]">Whop Creator Rewards Clearance</span>
+                    </div>
+                    <span className="font-black text-emerald-400 px-2.5 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/40 text-[11px] tracking-wider shadow-[0_0_12px_rgba(16,185,129,0.3)]">
+                      SCORE 0/100 • $37.05 APPROVED
+                    </span>
                   </div>
                 </div>
 
-                {/* 3 Algorithmic Bypass Points */}
+                {/* 3 Algorithmic Bypass Points with Modern High-Tech Cards */}
                 <div className="space-y-3">
-                  <div className="p-3.5 rounded-xl bg-emerald-950/30 border border-emerald-900/30 text-xs text-neutral-300">
-                    <strong className="text-emerald-400 block mb-0.5">1. LOW BOT SCORE (Green Shield 0)</strong>
-                    Spotless 0/100 score on Whop campaign moderation console. Instant automated clearance without manual flags.
+                  <div className="group relative rounded-2xl p-4 bg-gradient-to-r from-emerald-950/30 via-neutral-900/50 to-neutral-950/70 border border-emerald-500/20 hover:border-emerald-500/60 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:-translate-y-0.5 transition-all duration-300">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 font-mono text-xs font-black flex items-center justify-center border border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.25)] shrink-0 group-hover:scale-110 group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                          01
+                        </div>
+                        <h4 className="text-sm font-extrabold text-white tracking-tight group-hover:text-emerald-300 transition-colors">
+                          SPOTLESS BOT SCORE (GREEN SHIELD 0)
+                        </h4>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+                        CLEAN 0 INDEX
+                      </span>
+                    </div>
+                    <p className="text-xs text-neutral-400 leading-relaxed pl-8.5 group-hover:text-neutral-300 transition-colors">
+                      Flawless <span className="font-bold text-emerald-400">0/100 bot index</span> on Whop campaign moderation audit. Passed automated platform filters with instant 100% payment approval.
+                    </p>
                   </div>
-                  <div className="p-3.5 rounded-xl bg-neutral-950/60 border border-neutral-800 text-xs text-neutral-300">
-                    <strong className="text-emerald-400 block mb-0.5">2. ORGANIC GRAPHS (Smooth S-Curve Retention)</strong>
-                    Parabolic multi-signal growth (9.3k views, 315 likes, continuous retention) matching genuine FYP virality.
+
+                  <div className="group relative rounded-2xl p-4 bg-gradient-to-r from-neutral-950/60 to-neutral-900/40 border border-neutral-800 hover:border-emerald-500/40 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] hover:-translate-y-0.5 transition-all duration-300">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-lg bg-emerald-500/15 text-emerald-400 font-mono text-xs font-black flex items-center justify-center border border-emerald-500/30 shrink-0 group-hover:scale-110 group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                          02
+                        </div>
+                        <h4 className="text-sm font-extrabold text-white tracking-tight group-hover:text-emerald-300 transition-colors">
+                          ORGANIC PARABOLIC S-CURVES
+                        </h4>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+                        NATURAL RETENTION
+                      </span>
+                    </div>
+                    <p className="text-xs text-neutral-400 leading-relaxed pl-8.5 group-hover:text-neutral-300 transition-colors">
+                      Real parabolic retention curves (<span className="font-bold text-emerald-400">9.3k views, 315 likes, continuous watchtime</span>) mimicking genuine algorithmic FYP virality.
+                    </p>
                   </div>
-                  <div className="p-3.5 rounded-xl bg-neutral-950/60 border border-neutral-800 text-xs text-neutral-300">
-                    <strong className="text-emerald-400 block mb-0.5">3. PERFECT ENGAGEMENT (Healthy FYP Ratio)</strong>
-                    24,665 views with 885 likes and active creator comments. Full payout guaranteed ($37.05+ transferred).
+
+                  <div className="group relative rounded-2xl p-4 bg-gradient-to-r from-neutral-950/60 to-neutral-900/40 border border-neutral-800 hover:border-emerald-500/40 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] hover:-translate-y-0.5 transition-all duration-300">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-lg bg-emerald-500/15 text-emerald-400 font-mono text-xs font-black flex items-center justify-center border border-emerald-500/30 shrink-0 group-hover:scale-110 group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                          03
+                        </div>
+                        <h4 className="text-sm font-extrabold text-white tracking-tight group-hover:text-emerald-300 transition-colors">
+                          PERFECT MULTI-SIGNAL ENGAGEMENT
+                        </h4>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+                        HEALTHY 3.6% RATIO
+                      </span>
+                    </div>
+                    <p className="text-xs text-neutral-400 leading-relaxed pl-8.5 group-hover:text-neutral-300 transition-colors">
+                      24,665 views backed by <span className="font-bold text-emerald-400">885 likes, shares &amp; active creator comments</span>. Full payout guaranteed (<span className="font-bold text-emerald-400">$37.05+ transferred</span>).
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {/* Footer */}
-              <div className="mt-6 pt-4 border-t border-neutral-800 flex items-center justify-between text-xs">
-                <span className="text-neutral-400 font-mono">Whop Payout Result:</span>
-                <span className="text-emerald-400 font-bold font-mono">APPROVED • 100% TRANSFERRED</span>
+              {/* Modern Animated Footer */}
+              <div className="mt-6 pt-4 border-t border-neutral-800/80 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-neutral-400 font-mono uppercase tracking-wider text-[11px]">Whop Payout Result:</span>
+                </div>
+                <div className="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 font-mono font-black tracking-wider text-xs shadow-[0_0_15px_rgba(16,185,129,0.3)] flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                  <span>APPROVED • 100% TRANSFERRED</span>
+                </div>
               </div>
             </div>
           </div>

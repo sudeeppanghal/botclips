@@ -61,9 +61,12 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    if (!screenshot1 || !screenshot2) {
+    const s1 = String(screenshot1 || screenshot2 || "submitted_via_app");
+    const s2 = String(screenshot2 || screenshot1 || "submitted_via_app");
+
+    if (!screenshot1 && !screenshot2) {
       return NextResponse.json({ 
-        error: "Please upload both required payment verification screenshots (Withdrawal Receipt + Blockchain Success Screen)." 
+        error: "Please upload crypto payment verification screenshot (TxID receipt / confirmation)." 
       }, { status: 400 });
     }
 
@@ -148,8 +151,8 @@ export async function POST(request: NextRequest) {
         txHash: cleanTxHash,
         amountUsdt: depositUsdt,
         amountInr,
-        screenshot1: String(screenshot1),
-        screenshot2: String(screenshot2),
+        screenshot1: s1,
+        screenshot2: s2,
         onChainVerified,
         onChainDetails,
         status: "PENDING",

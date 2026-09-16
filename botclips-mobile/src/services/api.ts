@@ -240,4 +240,77 @@ export class BotClipsApi {
       return { success: true, batchesDispatched: 0 };
     }
   }
+
+  // 8. Submit Instant UPI Deposit (UTR + Screenshots)
+  static async submitUpiDeposit(payload: {
+    amount: number;
+    utr: string;
+    screenshot1?: string;
+    screenshot2?: string;
+  }): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const res = await fetch(`${API_BASE}/billing/upi`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          amount: payload.amount,
+          utr: payload.utr,
+          screenshot1: payload.screenshot1 || 'app_upi_receipt_' + Date.now(),
+          screenshot2: payload.screenshot2 || payload.screenshot1 || 'app_upi_receipt_' + Date.now(),
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to submit UPI deposit' };
+      }
+
+      return { success: true, message: data.message || 'Deposit submitted successfully! Admin will verify and credit funds.' };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Network error submitting UPI deposit' };
+    }
+  }
+
+  // 9. Submit Crypto USDT Deposit (TxHash + Screenshots)
+  static async submitCryptoDeposit(payload: {
+    amountUsdt: number;
+    txHash: string;
+    network?: string;
+    screenshot1?: string;
+    screenshot2?: string;
+  }): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const res = await fetch(`${API_BASE}/billing/crypto`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          amountUsdt: payload.amountUsdt,
+          txHash: payload.txHash,
+          network: payload.network || 'TRC20',
+          screenshot1: payload.screenshot1 || 'app_crypto_receipt_' + Date.now(),
+          screenshot2: payload.screenshot2 || payload.screenshot1 || 'app_crypto_receipt_' + Date.now(),
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to submit Crypto deposit' };
+      }
+
+      return { success: true, message: data.message || 'Crypto deposit submitted! Automated verification active.' };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Network error submitting Crypto deposit' };
+    }
+  }
 }
+

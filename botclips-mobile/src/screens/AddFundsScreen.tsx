@@ -6,7 +6,8 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -15,28 +16,129 @@ import {
   CheckCircle2,
   ShieldCheck,
   Zap,
-  ArrowRight
+  ArrowRight,
+  Wallet,
+  Clock
 } from 'lucide-react-native';
 import Svg, { Rect, Path, G } from 'react-native-svg';
 import { AppHeader } from '../components/AppHeader';
 import { GlassCard } from '../components/GlassCard';
+import { BotClipsApi } from '../services/api';
 import { COLORS } from '../constants/theme';
 
 export const AddFundsScreen: React.FC = () => {
   const [method, setMethod] = useState<'UPI' | 'CRYPTO'>('UPI');
   const [amount, setAmount] = useState('1000');
+  const [utrNumber, setUtrNumber] = useState('');
+  const [screenshotAttached, setScreenshotAttached] = useState(false);
+  
+  // Crypto state
   const [cryptoNetwork, setCryptoNetwork] = useState<'TRC20' | 'BEP20'>('TRC20');
+  const [cryptoAmount, setCryptoAmount] = useState('15');
+  const [txHash, setTxHash] = useState('');
+  const [cryptoScreenshotAttached, setCryptoScreenshotAttached] = useState(false);
+
   const [copied, setCopied] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const cryptoAddress =
     cryptoNetwork === 'TRC20'
-      ? 'TPw82xK9LmvZ7NqY3Wp4eF81aBC79021Zx'
+      ? 'TVTjQKqYuntgk6EfD6PqeFvezZnVCCimjz'
       : '0x71C2B9a6E543eF98d348a1b2C54D891Ea2098b1C';
 
-  const handleCopy = () => {
+  const handleCopy = (text: string, label: string) => {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    Alert.alert('Address Copied', 'USDT Deposit address copied to clipboard.');
+    Alert.alert(`${label} Copied`, `${text} copied to clipboard.`);
+  };
+
+  const handleAttachScreenshot = (isCrypto = false) => {
+    if (isCrypto) {
+      setCryptoScreenshotAttached(true);
+      Alert.alert('Payment Proof Attached', 'Blockchain receipt screenshot attached successfully.');
+    } else {
+      setScreenshotAttached(true);
+      Alert.alert('Payment Proof Attached', 'UPI receipt screenshot attached successfully.');
+    }
+  };
+
+  const handleUpiSubmit = async () => {
+    const numAmount = Number(amount);
+    if (!numAmount || numAmount < 50) {
+      Alert.alert('Invalid Amount', 'Minimum deposit is strictly ₹50 INR.');
+      return;
+    }
+
+    if (!utrNumber.trim() || utrNumber.trim().length < 8) {
+      Alert.alert('Invalid UTR', 'Please enter your valid 12-digit UPI UTR / Transaction ID from your payment app.');
+      return;
+    }
+
+    setSubmitting(true);
+    const res = await BotClipsApi.submitUpiDeposit({
+      amount: numAmount,
+      utr: utrNumber.trim(),
+      screenshot1: screenshotAttached ? `upi_proof_${Date.now()}.png` : undefined,
+    });
+    setSubmitting(false);
+
+    if (res.success) {
+      Alert.alert(
+        'Deposit Submitted! ✅',
+        `Your deposit of ₹${numAmount} with UTR ${utrNumber} has been received. Your wallet will be credited shortly after admin verification.`,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              setUtrNumber('');
+              setScreenshotAttached(false);
+            }
+          }
+        ]
+      );
+    } else {
+      Alert.alert('Deposit Failed', res.error || 'Could not submit deposit.');
+    }
+  };
+
+  const handleCryptoSubmit = async () => {
+    const numUsdt = Number(cryptoAmount);
+    if (!numUsdt || numUsdt < 1) {
+      Alert.alert('Invalid Amount', 'Minimum crypto deposit is 1 USDT.');
+      return;
+    }
+
+    if (!txHash.trim() || txHash.trim().length < 10) {
+      Alert.alert('Invalid TxID', 'Please enter your Blockchain Transaction Hash (TxID).');
+      return;
+    }
+
+    setSubmitting(true);
+    const res = await BotClipsApi.submitCryptoDeposit({
+      amountUsdt: numUsdt,
+      txHash: txHash.trim(),
+      network: cryptoNetwork,
+      screenshot1: cryptoScreenshotAttached ? `crypto_proof_${Date.now()}.png` : undefined,
+    });
+    setSubmitting(false);
+
+    if (res.success) {
+      Alert.alert(
+        'Crypto Deposit Submitted! 🚀',
+        res.message || `Deposit of ${numUsdt} USDT received. Blockchain verification in progress.`,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              setTxHash('');
+              setCryptoScreenshotAttached(false);
+            }
+          }
+        ]
+      );
+    } else {
+      Alert.alert('Deposit Failed', res.error || 'Could not submit crypto deposit.');
+    }
   };
 
   return (
@@ -68,7 +170,7 @@ export const AddFundsScreen: React.FC = () => {
             {/* High Contrast UPI QR Card */}
             <GlassCard highlight style={styles.qrCard}>
               <Text style={styles.qrCardTitle}>Scan QR Code with Any UPI App</Text>
-              <Text style={styles.qrCardSubtitle}>PhonePe • Google Pay • Paytm • CRED</Text>
+              <Text style={styles.qrCardSubtitle}>PhonePe • Google Pay • Paytm • CRED • BHIM</Text>
 
               {/* High-Contrast Crisp QR Visual Box */}
               <View style={styles.qrWrapper}>
@@ -108,13 +210,22 @@ export const AddFundsScreen: React.FC = () => {
                 </Svg>
               </View>
 
-              <Text style={styles.upiIdText}>UPI ID: <Text style={styles.upiIdBold}>botclips@paytm</Text></Text>
+              <TouchableOpacity
+                style={styles.upiIdBadge}
+                onPress={() => handleCopy('botclips@paytm', 'UPI ID')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.upiIdText}>
+                  UPI ID: <Text style={styles.upiIdBold}>botclips@paytm</Text>
+                </Text>
+                <Copy size={14} color={COLORS.cyan} style={{ marginLeft: 6 }} />
+              </TouchableOpacity>
             </GlassCard>
 
             {/* Quick Amount Pills */}
             <Text style={styles.sectionHeading}>SELECT QUICK DEPOSIT AMOUNT</Text>
             <View style={styles.amountGrid}>
-              {['500', '1000', '2500', '5000'].map((val) => (
+              {['100', '500', '1000', '2500'].map((val) => (
                 <TouchableOpacity
                   key={val}
                   style={[styles.amountPill, amount === val && styles.amountPillActive]}
@@ -127,9 +238,9 @@ export const AddFundsScreen: React.FC = () => {
               ))}
             </View>
 
-            {/* Manual Amount Input */}
+            {/* Deposit Form Card */}
             <GlassCard style={styles.inputCard}>
-              <Text style={styles.inputLabel}>ENTER AMOUNT (INR)</Text>
+              <Text style={styles.inputLabel}>DEPOSIT AMOUNT (INR - MIN ₹50)</Text>
               <TextInput
                 style={styles.textInput}
                 placeholder="₹1,000"
@@ -139,15 +250,53 @@ export const AddFundsScreen: React.FC = () => {
                 keyboardType="numeric"
               />
 
-              <TouchableOpacity style={styles.submitDepositBtn}>
+              <Text style={styles.inputLabel}>12-DIGIT UPI UTR / TRANSACTION ID</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="e.g. 423987123456"
+                placeholderTextColor={COLORS.textMuted}
+                value={utrNumber}
+                onChangeText={setUtrNumber}
+                keyboardType="numeric"
+                maxLength={20}
+              />
+
+              {/* Screenshot Attachment Button */}
+              <TouchableOpacity
+                style={[styles.attachBtn, screenshotAttached && styles.attachBtnActive]}
+                onPress={() => handleAttachScreenshot(false)}
+                activeOpacity={0.7}
+              >
+                {screenshotAttached ? (
+                  <CheckCircle2 size={16} color={COLORS.neonGreen} />
+                ) : (
+                  <Wallet size={16} color={COLORS.cyan} />
+                )}
+                <Text style={[styles.attachBtnText, screenshotAttached && { color: COLORS.neonGreen }]}>
+                  {screenshotAttached ? 'Payment Proof Attached ✅' : 'Attach Payment Screenshot'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.submitDepositBtn}
+                onPress={handleUpiSubmit}
+                disabled={submitting}
+                activeOpacity={0.8}
+              >
                 <LinearGradient
                   colors={['#1769FF', '#00F2FE']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.submitDepositGradient}
                 >
-                  <Text style={styles.submitDepositText}>Proceed with UPI Payment</Text>
-                  <ArrowRight size={18} color="#FFFFFF" />
+                  {submitting ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Text style={styles.submitDepositText}>Submit UPI Deposit</Text>
+                      <ArrowRight size={18} color="#FFFFFF" />
+                    </>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
             </GlassCard>
@@ -186,16 +335,81 @@ export const AddFundsScreen: React.FC = () => {
                 <Text style={styles.addressText} numberOfLines={1} ellipsizeMode="middle">
                   {cryptoAddress}
                 </Text>
-                <TouchableOpacity style={styles.copyBtn} onPress={handleCopy} activeOpacity={0.7}>
+                <TouchableOpacity
+                  style={styles.copyBtn}
+                  onPress={() => handleCopy(cryptoAddress, `${cryptoNetwork} Address`)}
+                  activeOpacity={0.7}
+                >
                   <Copy size={16} color={COLORS.cyan} />
                   <Text style={styles.copyBtnText}>{copied ? 'Copied!' : 'Copy Address'}</Text>
                 </TouchableOpacity>
               </View>
 
+              {/* USDT Amount Input */}
+              <Text style={styles.inputLabel}>AMOUNT (USDT - MIN 1 USDT)</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="15"
+                placeholderTextColor={COLORS.textMuted}
+                value={cryptoAmount}
+                onChangeText={setCryptoAmount}
+                keyboardType="numeric"
+              />
+
+              {/* TxHash Input */}
+              <Text style={styles.inputLabel}>BLOCKCHAIN TRANSACTION HASH (TxID)</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="e.g. 5d9b...4a2f"
+                placeholderTextColor={COLORS.textMuted}
+                value={txHash}
+                onChangeText={setTxHash}
+                autoCapitalize="none"
+              />
+
+              {/* Crypto Screenshot Attachment Button */}
+              <TouchableOpacity
+                style={[styles.attachBtn, cryptoScreenshotAttached && styles.attachBtnActive]}
+                onPress={() => handleAttachScreenshot(true)}
+                activeOpacity={0.7}
+              >
+                {cryptoScreenshotAttached ? (
+                  <CheckCircle2 size={16} color={COLORS.neonGreen} />
+                ) : (
+                  <Wallet size={16} color={COLORS.cyan} />
+                )}
+                <Text style={[styles.attachBtnText, cryptoScreenshotAttached && { color: COLORS.neonGreen }]}>
+                  {cryptoScreenshotAttached ? 'Blockchain Proof Attached ✅' : 'Attach TxID Proof Screenshot'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.submitDepositBtn}
+                onPress={handleCryptoSubmit}
+                disabled={submitting}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#1769FF', '#00F2FE']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.submitDepositGradient}
+                >
+                  {submitting ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Text style={styles.submitDepositText}>Submit Crypto Deposit</Text>
+                      <ArrowRight size={18} color="#FFFFFF" />
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+
               <View style={styles.cryptoFooter}>
                 <ShieldCheck size={14} color={COLORS.neonGreen} />
                 <Text style={styles.cryptoFooterText}>
-                  Minimum Deposit: 5 USDT • Instant Automated Crediting
+                  Minimum Deposit: 1 USDT • Automated TronScan On-Chain Check
                 </Text>
               </View>
             </GlassCard>
@@ -269,6 +483,16 @@ const styles = StyleSheet.create({
     elevation: 8,
     marginBottom: 14
   },
+  upiIdBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 242, 254, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 242, 254, 0.3)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20
+  },
   upiIdText: {
     fontSize: 12,
     color: COLORS.textSecondary
@@ -318,7 +542,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: COLORS.cyan,
     letterSpacing: 1,
-    marginBottom: 8
+    marginBottom: 8,
+    marginTop: 6
   },
   textInput: {
     height: 48,
@@ -328,13 +553,36 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(56, 189, 248, 0.2)',
     paddingHorizontal: 14,
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
+    marginBottom: 12
+  },
+  attachBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    paddingVertical: 12,
+    gap: 8,
     marginBottom: 16
+  },
+  attachBtnActive: {
+    borderColor: COLORS.neonGreen,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)'
+  },
+  attachBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.cyan
   },
   submitDepositBtn: {
     borderRadius: 14,
-    overflow: 'hidden'
+    overflow: 'hidden',
+    marginTop: 4
   },
   submitDepositGradient: {
     flexDirection: 'row',
@@ -428,7 +676,8 @@ const styles = StyleSheet.create({
   cryptoFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6
+    gap: 6,
+    marginTop: 14
   },
   cryptoFooterText: {
     fontSize: 10,

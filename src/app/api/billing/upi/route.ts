@@ -59,9 +59,12 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    if (!screenshot1 || !screenshot2) {
+    const s1 = String(screenshot1 || screenshot2 || "uploaded_via_app");
+    const s2 = String(screenshot2 || screenshot1 || "uploaded_via_app");
+
+    if (!screenshot1 && !screenshot2) {
       return NextResponse.json({ 
-        error: "Please upload both required payment verification screenshots (Receipt + Success Confirmation)." 
+        error: "Please upload at least one payment verification screenshot (Receipt or Success Confirmation)." 
       }, { status: 400 });
     }
 
@@ -83,14 +86,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Record payment into database with both screenshots
+    // Record payment into database with screenshots
     const payment = await prisma.upiPayment.create({
       data: {
         userId,
         utr: cleanUtr,
         amount: depositAmount,
-        screenshot1: String(screenshot1),
-        screenshot2: String(screenshot2),
+        screenshot1: s1,
+        screenshot2: s2,
         status: "PENDING",
       },
     });

@@ -35,10 +35,7 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "apiBaseUrl": "https://botclips.online/api",
-      "eas": {
-        "projectId": "botclips-enterprise-mobile"
-      }
+      "apiBaseUrl": "https://botclips.online/api"
     }
   }
 }

@@ -84,7 +84,7 @@ async function handlePulseDispatch() {
                     data.lastDispatchedBatch = batch.batchNumber;
                     batchesDispatched++;
 
-                    // Handle micro-engagement (e.g. 1-3-5-2-8 likes)
+                    // 1. Handle Micro-Likes Accumulator
                     if (batch.likes && batch.likes > 0 && (data.likeServiceId || data.engagementServiceId)) {
                       data.accumulatedLikes = (data.accumulatedLikes || 0) + batch.likes;
                       const likeThreshold = data.likeServiceMin || 10;
@@ -96,11 +96,54 @@ async function handlePulseDispatch() {
                             quantity: data.accumulatedLikes,
                           });
                           if (engRes && engRes.order) {
+                            batch.likeOrderId = String(engRes.order);
                             batch.engagementOrderId = String(engRes.order);
                             data.accumulatedLikes = 0;
                           }
                         } catch (engErr) {
-                          console.error('Engagement pulse error for order #' + jOrder.id + ':', engErr);
+                          console.error('Like pulse error for order #' + jOrder.id + ':', engErr);
+                        }
+                      }
+                    }
+
+                    // 2. Handle Micro-Saves (Bookmarks) Accumulator
+                    if (batch.saves && batch.saves > 0 && data.saveServiceId) {
+                      data.accumulatedSaves = (data.accumulatedSaves || 0) + batch.saves;
+                      const saveThreshold = data.saveServiceMin || 10;
+                      if (data.accumulatedSaves >= saveThreshold) {
+                        try {
+                          const saveRes = await client.addOrder({
+                            serviceId: data.saveServiceId,
+                            link: jOrder.link,
+                            quantity: data.accumulatedSaves,
+                          });
+                          if (saveRes && saveRes.order) {
+                            batch.saveOrderId = String(saveRes.order);
+                            data.accumulatedSaves = 0;
+                          }
+                        } catch (saveErr) {
+                          console.error('Save pulse error for order #' + jOrder.id + ':', saveErr);
+                        }
+                      }
+                    }
+
+                    // 3. Handle Micro-Shares (Reposts) Accumulator
+                    if (batch.shares && batch.shares > 0 && data.shareServiceId) {
+                      data.accumulatedShares = (data.accumulatedShares || 0) + batch.shares;
+                      const shareThreshold = data.shareServiceMin || 10;
+                      if (data.accumulatedShares >= shareThreshold) {
+                        try {
+                          const shareRes = await client.addOrder({
+                            serviceId: data.shareServiceId,
+                            link: jOrder.link,
+                            quantity: data.accumulatedShares,
+                          });
+                          if (shareRes && shareRes.order) {
+                            batch.shareOrderId = String(shareRes.order);
+                            data.accumulatedShares = 0;
+                          }
+                        } catch (shareErr) {
+                          console.error('Share pulse error for order #' + jOrder.id + ':', shareErr);
                         }
                       }
                     }

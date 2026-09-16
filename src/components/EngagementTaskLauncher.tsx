@@ -1140,12 +1140,12 @@ export default function EngagementTaskLauncher({
                       </span>
                     </div>
 
-                    {/* Schedule Grid Table */}
+                    {/* Schedule Grid Table with 4-Signal Multi-Engagement */}
                     <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-neutral-400 uppercase tracking-wider px-3 py-1.5 bg-black/25 rounded-lg font-mono">
                       <div className="col-span-2">Batch #</div>
                       <div className="col-span-3">Views (Jitter)</div>
-                      <div className="col-span-2">Likes</div>
-                      <div className="col-span-3">Dispatch Timing</div>
+                      <div className="col-span-3">4-Signals (L / Sv / Sh)</div>
+                      <div className="col-span-2">Timing</div>
                       <div className="col-span-2 text-right">Status</div>
                     </div>
 
@@ -1162,10 +1162,12 @@ export default function EngagementTaskLauncher({
                             <div className="col-span-3 text-white font-bold">
                               {b.views || b.quantity} <span className="text-[10px] text-neutral-400 font-normal">views</span>
                             </div>
-                            <div className="col-span-2 text-pink-300 font-medium text-[11px]">
-                              +{b.likes || 0} <span className="text-[10px] text-neutral-400 font-normal">likes</span>
+                            <div className="col-span-3 text-[11px] flex items-center gap-1.5 flex-wrap">
+                              <span className="text-pink-300 font-bold">+{b.likes || 0}L</span>
+                              <span className="text-purple-300 font-bold">+{b.saves || 0}Sv</span>
+                              <span className="text-amber-300 font-bold">+{b.shares || 0}Sh</span>
                             </div>
-                            <div className="col-span-3 text-neutral-200 text-[11px]">
+                            <div className="col-span-2 text-neutral-200 text-[11px]">
                               {b.timeFormatted || "+0m"}
                             </div>
                             <div className="col-span-2 text-right">

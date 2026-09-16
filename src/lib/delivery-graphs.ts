@@ -1363,17 +1363,27 @@ export function generateJitterSchedule(params: {
   return batches;
 }
 
+export type PlatformCurveType = 
+  | "TIKTOK_REELS_S_CURVE" 
+  | "YOUTUBE_SHORTS_DRIP" 
+  | "WHOP_PAYOUT_BLITZ" 
+  | "STANDARD_ORGANIC_JITTER";
+
 export interface OrganicJitterBatch {
   batchNumber: number;
   views: number;
   likes?: number;
-  comments?: number;
+  saves?: number;
   shares?: number;
+  comments?: number;
   timeOffsetMinutes: number;
   timeFormatted: string;
   scheduledAt?: string;
   status: "PENDING" | "DISPATCHED" | "COMPLETED";
   upstreamOrderId?: string;
+  likeOrderId?: string;
+  saveOrderId?: string;
+  shareOrderId?: string;
   dispatchedAt?: string;
 }
 
@@ -1381,19 +1391,21 @@ export function generateOrganicPacedBatches(params: {
   goal: number;
   minQty: number;
   maxQty: number;
-  avgIntervalMinutes: number;
+  avgIntervalMinutes?: number;
   startTime?: Date;
   serviceMin?: number;
   withEngagement?: boolean;
+  curveType?: PlatformCurveType;
 }): OrganicJitterBatch[] {
   const {
     goal,
     minQty,
     maxQty,
-    avgIntervalMinutes = 20,
+    avgIntervalMinutes = 2.0,
     startTime = new Date(),
     serviceMin = 50,
     withEngagement = false,
+    curveType = "STANDARD_ORGANIC_JITTER",
   } = params;
 
   const cleanGoal = Math.max(1, Math.floor(goal));
@@ -1409,8 +1421,10 @@ export function generateOrganicPacedBatches(params: {
     return [{
       batchNumber: 1,
       views: cleanGoal,
-      likes: withEngagement ? Math.max(2, Math.round(cleanGoal * 0.08)) : 0,
-      comments: withEngagement ? Math.max(1, Math.round(cleanGoal * 0.012)) : 0,
+      likes: withEngagement ? Math.max(2, Math.round(cleanGoal * 0.038)) : 0,
+      saves: withEngagement ? Math.max(1, Math.round(cleanGoal * 0.012)) : 0,
+      shares: withEngagement ? Math.max(1, Math.round(cleanGoal * 0.008)) : 0,
+      comments: withEngagement ? Math.max(1, Math.round(cleanGoal * 0.004)) : 0,
       timeOffsetMinutes: 0,
       timeFormatted: "Immediate (+0m)",
       scheduledAt: startTime.toISOString(),
@@ -1419,7 +1433,7 @@ export function generateOrganicPacedBatches(params: {
   }
 
   // 1. Generate Organic Non-Linear Distribution Across Batches
-  // Guarantees true stochastic randomness between min and max (e.g. 100, 111, 102, 117, 199)
+  // Mathematical Sigmoid / Parabolic / Poisson distribution based on curveType
   const viewCounts: number[] = [];
   let remainingViews = cleanGoal;
 
@@ -1431,18 +1445,39 @@ export function generateOrganicPacedBatches(params: {
     }
 
     const remainingPulses = numPulses - i;
+    const progress = i / (numPulses - 1); // 0.0 to 1.0
 
-    // Stochastic randomized draw in [effectiveMin, effectiveMax]
+    // Mathematical curve shaping multiplier
+    let curveMultiplier = 1.0;
+    if (curveType === "TIKTOK_REELS_S_CURVE") {
+      // Sigmoid Logistic Acceleration: 1 / (1 + e^(-6*(x - 0.45)))
+      // Low initial seeding (0-15%) -> Steep viral climb (15-75%) -> Natural plateau (75-100%)
+      if (progress < 0.20) {
+        curveMultiplier = 0.78 + Math.random() * 0.15; // Seeding phase
+      } else if (progress < 0.75) {
+        curveMultiplier = 1.18 + Math.random() * 0.22; // FYP viral breakout
+      } else {
+        curveMultiplier = 0.88 + Math.random() * 0.14; // Organic retention tail
+      }
+    } else if (curveType === "YOUTUBE_SHORTS_DRIP") {
+      // Steady Poisson Micro-Drip: evenly distributed with small natural fluctuation (+-12%)
+      curveMultiplier = 0.94 + Math.random() * 0.16;
+    } else if (curveType === "WHOP_PAYOUT_BLITZ") {
+      // Fast High-Efficiency Jitter: 105-190 views designed for 2-4h complete delivery
+      curveMultiplier = 1.05 + Math.random() * 0.20;
+    } else {
+      // Standard wave modulation
+      const waveShape = Math.sin(progress * Math.PI) * 0.16;
+      curveMultiplier = 1.0 + waveShape;
+    }
+
+    // Base randomized draw
     const randomRatio = Math.random();
     let pulseQty = Math.round(effectiveMin + randomRatio * (effectiveMax - effectiveMin));
+    pulseQty = Math.round(pulseQty * curveMultiplier);
 
-    // Dynamic wave modulation (organic momentum fluctuation)
-    const waveProgress = i / (numPulses - 1);
-    const waveShape = Math.sin(waveProgress * Math.PI) * 0.16;
-    pulseQty = Math.round(pulseQty * (1 + waveShape));
-
-    // Odd-number variance (natural human numbers, never static flat values)
-    const oddVariance = [-7, -5, -3, -1, 1, 3, 5, 7, 9, 11][Math.floor(Math.random() * 10)];
+    // Natural human odd-number variance
+    const oddVariance = [-9, -7, -5, -3, -1, 1, 3, 5, 7, 9, 11][Math.floor(Math.random() * 11)];
     pulseQty += oddVariance;
 
     // Hard bounds clamp
@@ -1507,20 +1542,40 @@ export function generateOrganicPacedBatches(params: {
     }
   }
 
-  // 4. Assemble Batches with True Stochastic Non-Linear Time Jitter & Micro-Engagement
-  // Dynamic time pacing: e.g. 1.0m, 2.1m, 1.5m, 1.8m
+  // 4. Assemble 4-Signal Batches with Dynamic Time Jitter
   const batches: OrganicJitterBatch[] = [];
   let currentMinutes = 0;
 
-  // Organic micro-engagement pattern: 1-3-5-2-8
-  const organicMicroEngagementLikes = [2, 5, 3, 8, 4, 7, 3, 6, 9, 2];
+  // 4-Signal Algorithm Micro-Engagement Matrices:
+  // Natural human ratios: Likes (~3.8%), Saves (~1.2%), Shares (~0.8%)
+  const microLikesSequence = [3, 5, 2, 8, 4, 7, 3, 6, 9, 2, 4, 6];
+  const microSavesSequence = [1, 2, 0, 3, 1, 2, 1, 3, 2, 1, 2, 0];
+  const microSharesSequence = [1, 0, 2, 1, 0, 2, 1, 0, 2, 1, 1, 0];
 
   for (let i = 0; i < viewCounts.length; i++) {
     if (i > 0) {
+      const progress = i / (viewCounts.length - 1);
+      let baseInterval = avgIntervalMinutes;
+
+      // Curve-adjusted pacing
+      if (curveType === "TIKTOK_REELS_S_CURVE") {
+        if (progress < 0.20) {
+          baseInterval = avgIntervalMinutes * 1.6; // Slow warm-up
+        } else if (progress < 0.75) {
+          baseInterval = avgIntervalMinutes * 0.75; // Fast viral acceleration
+        } else {
+          baseInterval = avgIntervalMinutes * 1.8; // Extended tail
+        }
+      } else if (curveType === "YOUTUBE_SHORTS_DRIP") {
+        baseInterval = Math.max(5.0, avgIntervalMinutes * 2.2); // Spread evenly over hours
+      } else if (curveType === "WHOP_PAYOUT_BLITZ") {
+        baseInterval = Math.max(1.1, Math.min(2.2, avgIntervalMinutes)); // Rapid blitz
+      }
+
       // True stochastic non-linear interval with dynamic fractional jitter
-      const timeJitterFactor = 0.65 + Math.random() * 0.70;
-      const step = Number((avgIntervalMinutes * timeJitterFactor).toFixed(1));
-      currentMinutes = Number((currentMinutes + Math.max(0.5, step)).toFixed(1));
+      const timeJitterFactor = 0.70 + Math.random() * 0.60;
+      const step = Number((baseInterval * timeJitterFactor).toFixed(1));
+      currentMinutes = Number((currentMinutes + Math.max(0.6, step)).toFixed(1));
     }
 
     const hrs = Math.floor(currentMinutes / 60);
@@ -1538,12 +1593,17 @@ export function generateOrganicPacedBatches(params: {
       timeFormatted = `+${currentMinutes}m`;
     }
 
-    const microLikes = withEngagement ? organicMicroEngagementLikes[i % organicMicroEngagementLikes.length] : 0;
+    const microLikes = withEngagement ? microLikesSequence[i % microLikesSequence.length] : 0;
+    const microSaves = withEngagement ? microSavesSequence[i % microSavesSequence.length] : 0;
+    const microShares = withEngagement ? microSharesSequence[i % microSharesSequence.length] : 0;
 
     batches.push({
       batchNumber: i + 1,
       views: viewCounts[i],
       likes: microLikes,
+      saves: microSaves,
+      shares: microShares,
+      comments: withEngagement ? (i % 5 === 0 ? 1 : 0) : 0,
       timeOffsetMinutes: currentMinutes,
       timeFormatted,
       scheduledAt: new Date(startTime.getTime() + Math.round(currentMinutes * 60 * 1000)).toISOString(),

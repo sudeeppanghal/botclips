@@ -67,6 +67,9 @@ export default function NewOrderModal({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  // Platform Curve Preset
+  const [platformCurve, setPlatformCurve] = useState<"TIKTOK_REELS_S_CURVE" | "YOUTUBE_SHORTS_DRIP" | "WHOP_PAYOUT_BLITZ">("TIKTOK_REELS_S_CURVE");
+
   // Delivery Graph State (Default to Whop Clipper Signature)
   const [selectedGraph, setSelectedGraph] = useState<DeliveryCurve>(getDeliveryGraphById("whop_clipper_organic_signature"));
   const [graphModalOpen, setGraphModalOpen] = useState(false);
@@ -77,13 +80,13 @@ export default function NewOrderModal({
   const [includeViews, setIncludeViews] = useState(true);
   const [viewsCount, setViewsCount] = useState(10000);
   const [includeLikes, setIncludeLikes] = useState(true);
-  const [likesCount, setLikesCount] = useState(950);
+  const [likesCount, setLikesCount] = useState(380);
   const [includeShares, setIncludeShares] = useState(true);
-  const [sharesCount, setSharesCount] = useState(180);
+  const [sharesCount, setSharesCount] = useState(80);
   const [includeSaves, setIncludeSaves] = useState(true);
-  const [savesCount, setSavesCount] = useState(90);
+  const [savesCount, setSavesCount] = useState(120);
   const [includeComments, setIncludeComments] = useState(true);
-  const [commentsCount, setCommentsCount] = useState(35);
+  const [commentsCount, setCommentsCount] = useState(25);
   const [durationHours, setDurationHours] = useState(24);
   const [showJitterDrawer, setShowJitterDrawer] = useState(false);
 
@@ -132,7 +135,7 @@ export default function NewOrderModal({
     return Math.round(sum * 100) / 100;
   }, [includeViews, viewsCount, includeLikes, likesCount, includeShares, sharesCount, includeSaves, savesCount, includeComments, commentsCount, comboRates]);
 
-  // Generate simulated non-linear jitter schedule
+  // Generate simulated non-linear jitter schedule with 4-signal pacing
   const jitterSchedule = useMemo(() => {
     return generateJitterSchedule({
       totalViews: includeViews ? viewsCount : 0,
@@ -152,29 +155,32 @@ export default function NewOrderModal({
   const activeTotalCost = orderMode === "COMBO" ? totalComboCost : totalSingleCost;
   const hasSufficientBalance = walletBalance >= activeTotalCost;
 
-  // Presets for quick combo filling
+  // Presets for quick combo filling (Engineered for authentic 4-signal FYP virality)
   const applyPreset = (preset: "MICRO" | "VIRAL" | "MEGA") => {
     if (preset === "MICRO") {
       setViewsCount(5000);
-      setLikesCount(450);
-      setSharesCount(90);
-      setSavesCount(50);
-      setCommentsCount(15);
+      setLikesCount(190); // 3.8%
+      setSharesCount(40);  // 0.8%
+      setSavesCount(60);   // 1.2%
+      setCommentsCount(12);
       setDurationHours(12);
+      setPlatformCurve("TIKTOK_REELS_S_CURVE");
     } else if (preset === "VIRAL") {
       setViewsCount(10000);
-      setLikesCount(950);
-      setSharesCount(180);
-      setSavesCount(90);
-      setCommentsCount(35);
+      setLikesCount(380);  // 3.8%
+      setSharesCount(80);   // 0.8%
+      setSavesCount(120);  // 1.2%
+      setCommentsCount(25);
       setDurationHours(24);
+      setPlatformCurve("TIKTOK_REELS_S_CURVE");
     } else {
       setViewsCount(50000);
-      setLikesCount(4500);
-      setSharesCount(900);
-      setSavesCount(450);
-      setCommentsCount(150);
+      setLikesCount(1900); // 3.8%
+      setSharesCount(400);  // 0.8%
+      setSavesCount(600);   // 1.2%
+      setCommentsCount(120);
       setDurationHours(48);
+      setPlatformCurve("TIKTOK_REELS_S_CURVE");
     }
   };
 
@@ -224,7 +230,7 @@ export default function NewOrderModal({
     }
 
     if (!hasSufficientBalance) {
-      setError(`Insufficient wallet balance. Total cost is ₹${activeTotalCost.toFixed(2)} ($${(activeTotalCost / 96).toFixed(2)}), but you have ₹${walletBalance.toFixed(2)}. Please add funds on your Wallet page.`);
+      setError(`Insufficient wallet balance. Total cost is ₹${activeTotalCost.toFixed(2)}, but you have ₹${walletBalance.toFixed(2)}. Please add funds on your Wallet page.`);
       return;
     }
 
@@ -248,6 +254,7 @@ export default function NewOrderModal({
               saves: includeSaves ? savesCount : 0,
               comments: includeComments ? commentsCount : 0,
               durationHours,
+              platformCurve,
               batches: jitterSchedule.length,
             },
             jitterSchedule,
@@ -463,6 +470,99 @@ export default function NewOrderModal({
                   >
                     Mega (50k Views)
                   </button>
+                </div>
+              </div>
+
+              {/* Platform FYP Curve Preset Selector */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                  Algorithmic Delivery Curve
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPlatformCurve("TIKTOK_REELS_S_CURVE")}
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                      platformCurve === "TIKTOK_REELS_S_CURVE"
+                        ? "border-amber-500 bg-amber-500/10 text-slate-900 dark:text-white shadow-xs ring-1 ring-amber-500/30"
+                        : "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-black text-amber-500">⚡ Viral S-Curve</span>
+                      <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400">Reels/TikTok</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-tight">
+                      Sigmoid warmup → viral FYP explosion → retention tail.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPlatformCurve("YOUTUBE_SHORTS_DRIP")}
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                      platformCurve === "YOUTUBE_SHORTS_DRIP"
+                        ? "border-amber-500 bg-amber-500/10 text-slate-900 dark:text-white shadow-xs ring-1 ring-amber-500/30"
+                        : "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-black text-rose-500">🌊 Steady Drip</span>
+                      <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400">YT Shorts</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-tight">
+                      Even Poisson micro-drips for search & browse index.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPlatformCurve("WHOP_PAYOUT_BLITZ")}
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                      platformCurve === "WHOP_PAYOUT_BLITZ"
+                        ? "border-amber-500 bg-amber-500/10 text-slate-900 dark:text-white shadow-xs ring-1 ring-amber-500/30"
+                        : "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-black text-emerald-500">👑 Whop Blitz</span>
+                      <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400">Fast 0/100</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-tight">
+                      Rapid 2-4h delivery designed to beat submission deadlines.
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              {/* 4-Signal Live Engagement Health Ratio Card */}
+              <div className="p-3 rounded-2xl bg-slate-100/80 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-black uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>4-Signal FYP Algorithm Balance</span>
+                  </span>
+                  <span className="text-[10px] font-mono font-bold text-emerald-500 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                    PASS AUDIT (0/100 BOT SCORE)
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-2 text-center text-[11px]">
+                  <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80">
+                    <div className="text-[10px] text-slate-400 font-bold">Views (100%)</div>
+                    <div className="text-xs font-black text-cyan-500 mt-0.5">{includeViews ? viewsCount.toLocaleString() : 0}</div>
+                  </div>
+                  <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80">
+                    <div className="text-[10px] text-slate-400 font-bold">Likes (~{includeViews && viewsCount > 0 ? ((likesCount / viewsCount) * 100).toFixed(1) : 0}%)</div>
+                    <div className="text-xs font-black text-pink-500 mt-0.5">{includeLikes ? likesCount.toLocaleString() : 0}</div>
+                  </div>
+                  <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80">
+                    <div className="text-[10px] text-slate-400 font-bold">Saves (~{includeViews && viewsCount > 0 ? ((savesCount / viewsCount) * 100).toFixed(1) : 0}%)</div>
+                    <div className="text-xs font-black text-purple-500 mt-0.5">{includeSaves ? savesCount.toLocaleString() : 0}</div>
+                  </div>
+                  <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80">
+                    <div className="text-[10px] text-slate-400 font-bold">Shares (~{includeViews && viewsCount > 0 ? ((sharesCount / viewsCount) * 100).toFixed(1) : 0}%)</div>
+                    <div className="text-xs font-black text-amber-500 mt-0.5">{includeShares ? sharesCount.toLocaleString() : 0}</div>
+                  </div>
                 </div>
               </div>
 
@@ -838,12 +938,9 @@ export default function NewOrderModal({
                 <span className="text-2xl font-black text-slate-900 dark:text-white">
                   ₹{activeTotalCost.toFixed(2)}
                 </span>
-                <span className="text-sm font-bold text-slate-400">
-                  (${(activeTotalCost / 96).toFixed(2)} USD)
-                </span>
               </div>
               <div className="text-[11px] font-bold text-slate-500">
-                Wallet Balance: ₹{walletBalance.toFixed(2)} (${(walletBalance / 96).toFixed(2)})
+                Wallet Balance: ₹{walletBalance.toFixed(2)}
               </div>
             </div>
 

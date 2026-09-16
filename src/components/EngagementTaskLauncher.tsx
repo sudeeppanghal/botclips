@@ -83,24 +83,12 @@ export default function EngagementTaskLauncher({
   const [platformFilter, setPlatformFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // Default Farm packages fallback
-  const defaultFarmServices: AdminCatalogService[] = [
-    { id: "srv_1789388608016", serviceId: "5245", name: "Special Instagram VIEWS [Real Farm Organic]", rate: 20.50, min: 100, max: 2000000, platform: "INSTAGRAM", badge: "ALGORITHM FAVORITE", isFarm: true },
-    { id: "srv_1026", serviceId: "1026", name: "Instagram Reels Views [Fast Viral Boost]", rate: 6.00, min: 100, max: 10000000, platform: "INSTAGRAM", badge: "PUSH ALGORITHM", isFarm: true },
-    { id: "srv_ig_106", serviceId: "106", name: "Instagram Reels Views [Push Algorithm Farm]", rate: 28.00, min: 100, max: 5000000, platform: "INSTAGRAM", badge: "HIGH RETENTION", isFarm: true },
-    { id: "srv_ig_107", serviceId: "107", name: "Instagram High Retention Reels Views", rate: 35.00, min: 100, max: 5000000, platform: "INSTAGRAM", badge: "SMARTPHONE FARM", isFarm: true },
-    { id: "srv_1025", serviceId: "1025", name: "Instagram High Retention Likes [Real Active]", rate: 11.00, min: 50, max: 500000, platform: "INSTAGRAM", badge: "REAL ACTIVE", isFarm: true },
-    { id: "srv_1789388890825", serviceId: "4806", name: "Instagram Likes [Main Provider]", rate: 14.00, min: 50, max: 500000, platform: "INSTAGRAM", badge: "INSTANT DISPATCH", isFarm: true },
-    { id: "srv_1789388730338", serviceId: "4897", name: "Special Instagram Likes [Smartphone Farm]", rate: 18.00, min: 50, max: 200000, platform: "INSTAGRAM", badge: "SMARTPHONE FARM", isFarm: true },
-    { id: "srv_ig_104", serviceId: "104", name: "Instagram High Quality Likes", rate: 45.00, min: 50, max: 100000, platform: "INSTAGRAM", badge: "VIP NON-DROP", isFarm: true },
-    { id: "srv_ig_110", serviceId: "110", name: "Instagram Saves & Shares Combo", rate: 39.00, min: 100, max: 50000, platform: "INSTAGRAM", badge: "VIRAL SIGNAL", isFarm: true },
-  ];
-
-  const [farmServices, setFarmServices] = useState<AdminCatalogService[]>(defaultFarmServices);
+  const [farmServices, setFarmServices] = useState<AdminCatalogService[]>([]);
   const [premiumServices, setPremiumServices] = useState<AdminCatalogService[]>([]);
+  const [loadingFarm, setLoadingFarm] = useState(true);
   const [loadingPremium, setLoadingPremium] = useState(false);
 
-  const [selectedServiceId, setSelectedServiceId] = useState<string>("5245");
+  const [selectedServiceId, setSelectedServiceId] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // Form State
@@ -197,6 +185,7 @@ export default function EngagementTaskLauncher({
   // 2. Fetch Farm Services on load
   useEffect(() => {
     async function loadFarmServices() {
+      setLoadingFarm(true);
       try {
         const res = await fetch("/api/services?mode=FARM");
         const data = await res.json();
@@ -215,16 +204,14 @@ export default function EngagementTaskLauncher({
           }));
 
           setFarmServices(list);
-          if (activeMode === "FARM") {
-            if (list.some(s => s.serviceId === "5245")) {
-              setSelectedServiceId("5245");
-            } else if (list.length > 0) {
-              setSelectedServiceId(list[0].serviceId);
-            }
+          if (list.length > 0) {
+            setSelectedServiceId(list[0].serviceId);
           }
         }
       } catch (err) {
         console.error("Failed to load farm services:", err);
+      } finally {
+        setLoadingFarm(false);
       }
     }
     loadFarmServices();
@@ -443,7 +430,7 @@ export default function EngagementTaskLauncher({
     filteredCatalog.find(s => s.serviceId === selectedServiceId || s.id === selectedServiceId) || 
     currentCatalog.find(s => s.serviceId === selectedServiceId || s.id === selectedServiceId) ||
     currentCatalog[0] ||
-    defaultFarmServices[0];
+    null;
 
   const serviceRate = Number(selectedService?.rate || 20.50);
   const cleanGoal = Math.max(1, Number(goal) || 1);

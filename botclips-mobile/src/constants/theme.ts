@@ -1,0 +1,22 @@
+export const COLORS = {
+  bgDark: '#030712',
+  bgDarkSecondary: '#0B1220',
+  bgCard: '#0F172A',
+  bgCardGlass: 'rgba(15, 23, 42, 0.85)',
+  bgInput: 'rgba(30, 41, 59, 0.8)',
+  border: 'rgba(56, 189, 248, 0.25)',
+  borderCyan: '#00F2FE',
+  cyan: '#00F2FE',
+  blue: '#1769FF',
+  purple: '#6B3CFF',
+  neonGreen: '#10B981',
+  textPrimary: '#F8FAFC',
+  textSecondary: '#94A3B8',
+  textMuted: '#64748B',
+  gradientPrimary: ['#1769FF', '#00F2FE'] as const,
+  gradientPurple: ['#6B3CFF', '#1769FF'] as const,
+  gradientCard: ['#1E293B', '#0F172A'] as const,
+  success: '#10B981',
+  warning: '#F59E0B',
+  danger: '#EF4444'
+};

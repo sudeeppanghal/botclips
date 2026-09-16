@@ -48,14 +48,14 @@ export async function GET(request: NextRequest) {
     const search = (searchParams.get("search") || "").toLowerCase().trim();
 
     // ──────────────── 1. FETCH FARM SERVICES (ADMIN CONFIGURED PACKAGES) ────────────────
-    const farmWhere: any = { isActive: true, isFarm: true };
+    const farmWhere: any = { isActive: true };
     if (platform !== "ALL") {
       farmWhere.platform = platform;
     }
 
-    let farmDbServices = await prisma.adminService.findMany({
+    const farmDbServices = await prisma.adminService.findMany({
       where: farmWhere,
-      orderBy: [{ platform: "asc" }, { customRate: "asc" }],
+      orderBy: [{ isFarm: "desc" }, { platform: "asc" }, { customRate: "asc" }],
       select: {
         id: true,
         platform: true,
@@ -67,18 +67,9 @@ export async function GET(request: NextRequest) {
         minQuantity: true,
         maxQuantity: true,
         badge: true,
+        isFarm: true,
       },
     });
-
-    // Fallback if no farm services flagged yet
-    if (farmDbServices.length === 0) {
-      const allServices = await prisma.adminService.findMany({
-        where: { isActive: true },
-        take: 15,
-        orderBy: [{ platform: "asc" }, { customRate: "asc" }],
-      });
-      farmDbServices = allServices as any;
-    }
 
     const farmList = farmDbServices.map((s) => {
       const rateInr = Number(s.customRate || 0);

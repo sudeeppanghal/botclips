@@ -260,7 +260,10 @@ export default function NewOrderModal({
             jitterSchedule,
           }
         : {
-            serviceId: availableServices.find(s => s.name === service)?.id || service,
+            serviceId: (() => {
+              const f = availableServices.find(s => s.name === service);
+              return f?.serviceId || f?.id || service;
+            })(),
             service,
             category,
             link,

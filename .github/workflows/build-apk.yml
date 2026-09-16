@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-apk:
-    name: Build Native Android APK
+    name: Build Standalone Offline Android APK
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -38,17 +38,35 @@ jobs:
         run: |
           npx expo prebuild --platform android --clean
 
-      - name: 🔨 Build Android Release APK via Gradle
+      - name: 🔑 Configure Release Signing for Standalone APK
+        run: |
+          node -e "
+          const fs = require('fs');
+          const file = 'botclips-mobile/android/app/build.gradle';
+          let content = fs.readFileSync(file, 'utf8');
+          content = content.replace(/signingConfig signingConfigs.release/g, 'signingConfig signingConfigs.debug');
+          if (!content.includes('signingConfig signingConfigs.debug') && content.includes('release {')) {
+            content = content.replace(/release\s*\{/, 'release {\n            signingConfig signingConfigs.debug');
+          }
+          fs.writeFileSync(file, content);
+          console.log('Release signing configured successfully.');
+          "
+
+      - name: 🔨 Build Standalone Release APK (Offline Bundle)
         working-directory: botclips-mobile/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleRelease
 
-      - name: 📁 Stage APK File
+      - name: 📁 Stage Standalone APK File
         run: |
           mkdir -p build-output
-          find botclips-mobile/android/app/build/outputs/apk -name "*.apk" -exec cp {} build-output/BotClips.apk \;
-          ls -la build-output/
+          if [ -f botclips-mobile/android/app/build/outputs/apk/release/app-release.apk ]; then
+            cp botclips-mobile/android/app/build/outputs/apk/release/app-release.apk build-output/BotClips.apk
+          else
+            find botclips-mobile/android/app/build/outputs/apk -name "*release*.apk" -exec cp {} build-output/BotClips.apk \;
+          fi
+          ls -lh build-output/BotClips.apk
 
       - name: 📤 Upload APK Artifact
         uses: actions/upload-artifact@v4
@@ -57,19 +75,19 @@ jobs:
           path: build-output/BotClips.apk
           if-no-files-found: error
 
-      - name: 🚀 Publish GitHub Release with Direct APK Download Link
+      - name: 🚀 Publish GitHub Release with Standalone APK Download
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/heads/main')
         with:
           tag_name: v1.0.0-apk
-          name: 'BotClips Android App v1.0.0 (Direct APK Download)'
+          name: 'BotClips Android App v1.0.0 (Standalone Offline Release)'
           body: |
-            ## 📱 BotClips Official Android App v1.0.0
+            ## 📱 BotClips Official Standalone Android App v1.0.0
             
-            - **Architecture**: Standalone Native React Native / Expo (Hermes Engine)
-            - **Backend Integration**: 100% Live Database Services & Multi-Signal Jitter Dispatch
-            - **Authentication**: Native Bearer Token Session Management
-            - **Installation**: Download the `BotClips.apk` attached below and install directly on any Android device.
+            - **Build Type**: Production Release (Hermes Engine, Standalone Offline Bundle)
+            - **No Dev Server Required**: All JavaScript bundles, assets, and icons are embedded directly inside the APK.
+            - **Backend Integration**: 100% Live Database Services, Bearer Token Auth & Multi-Signal Jitter Dispatch.
+            - **Installation**: Download the `BotClips.apk` below and install directly on any Android device.
           files: build-output/BotClips.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

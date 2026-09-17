@@ -16,7 +16,11 @@ import {
   Coins,
   QrCode,
   Eye,
-  X
+  X,
+  Zap,
+  Smartphone,
+  Sparkles,
+  ArrowUpRight
 } from "lucide-react";
 
 export default function WalletPage() {
@@ -54,6 +58,7 @@ export default function WalletPage() {
 
   const [transactions, setTransactions] = useState<any[]>([]);
   const [siteSettings, setSiteSettings] = useState({
+    siteName: "BotClips",
     upiId: "Jaatdhillon@fam",
     trc20Address: "TVTjQKqYuntgk6EfD6PqeFvezZnVCCimjz",
     bep20Address: "0x71C3Ba8921e10FdB89C40a12F8e312A7C3241410",
@@ -129,6 +134,25 @@ export default function WalletPage() {
 
   const cryptoQrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=" + encodeURIComponent(activeCryptoAddress);
   const cryptoQrFallback = "https://quickchart.io/qr?size=260&text=" + encodeURIComponent(activeCryptoAddress);
+
+  const upiNote = encodeURIComponent(`BotClips Deposit ₹${activeUpiAmount}`);
+  const payeeName = encodeURIComponent(siteSettings.siteName || "BotClips");
+  const encodedUpiId = encodeURIComponent(upiId);
+  const upiAmountFormatted = activeUpiAmount.toFixed(2);
+
+  const genericUpiIntent = `upi://pay?pa=${encodedUpiId}&pn=${payeeName}&am=${upiAmountFormatted}&cu=INR&tn=${upiNote}`;
+  const gpayIntent = `tez://upi/pay?pa=${encodedUpiId}&pn=${payeeName}&am=${upiAmountFormatted}&cu=INR&tn=${upiNote}`;
+  const phonepeIntent = `phonepe://pay?pa=${encodedUpiId}&pn=${payeeName}&am=${upiAmountFormatted}&cu=INR&tn=${upiNote}`;
+  const paytmIntent = `paytmmp://pay?pa=${encodedUpiId}&pn=${payeeName}&am=${upiAmountFormatted}&cu=INR&tn=${upiNote}`;
+  const credIntent = `cred://upi/pay?pa=${encodedUpiId}&pn=${payeeName}&am=${upiAmountFormatted}&cu=INR&tn=${upiNote}`;
+
+  const handleOpenUpiApp = (url: string) => {
+    try {
+      window.location.href = url;
+    } catch {
+      window.open(url, "_blank");
+    }
+  };
 
   const copyText = (txt: string, type: "upi" | "crypto") => {
     navigator.clipboard.writeText(txt);
@@ -493,6 +517,76 @@ export default function WalletPage() {
                 </div>
               </div>
 
+              {/* 1-Click Payment Intent Launcher */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-600/10 via-indigo-600/5 to-purple-600/10 border border-blue-500/20 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
+                      <Zap className="w-4 h-4 fill-current" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                        1-Click Instant App Redirect
+                      </h4>
+                      <p className="text-[11px] text-slate-500">Auto-fills ₹{activeUpiAmount} in your installed UPI app</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                    Fastest
+                  </span>
+                </div>
+
+                {/* Primary Large Intent Button */}
+                <button
+                  type="button"
+                  onClick={() => handleOpenUpiApp(genericUpiIntent)}
+                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white font-black text-xs shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.99]"
+                >
+                  <Smartphone className="w-4 h-4" />
+                  <span>Pay ₹{activeUpiAmount} via Any UPI App (Auto-Redirect)</span>
+                  <ArrowUpRight className="w-4 h-4" />
+                </button>
+
+                {/* Specific App Buttons Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenUpiApp(gpayIntent)}
+                    className="py-2 px-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-500 text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs hover:bg-slate-50 transition-all"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-blue-500" />
+                    <span>Google Pay</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenUpiApp(phonepeIntent)}
+                    className="py-2 px-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-purple-500 text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs hover:bg-slate-50 transition-all"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-purple-600" />
+                    <span>PhonePe</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenUpiApp(paytmIntent)}
+                    className="py-2 px-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-cyan-500 text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs hover:bg-slate-50 transition-all"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-cyan-500" />
+                    <span>Paytm</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenUpiApp(credIntent)}
+                    className="py-2 px-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs hover:bg-slate-50 transition-all"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span>CRED / BHIM</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Dynamic QR */}
               <div className="flex flex-col sm:flex-row items-center gap-6 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
                 <div className="w-44 h-44 bg-white p-2 rounded-2xl shadow-xs shrink-0 flex items-center justify-center">
@@ -510,9 +604,9 @@ export default function WalletPage() {
                 </div>
                 <div className="space-y-2 text-center sm:text-left">
                   <div className="text-sm font-black text-slate-900 dark:text-white">
-                    Scan & Pay ₹{activeUpiAmount}
+                    Or Scan & Pay ₹{activeUpiAmount}
                   </div>
-                  <p className="text-[11px] text-slate-500">Google Pay, PhonePe, Paytm, CRED, or BHIM</p>
+                  <p className="text-[11px] text-slate-500">Scan QR from any camera or UPI app</p>
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono">
                     <span className="font-bold text-slate-800 dark:text-slate-200">{upiId}</span>
                     <button

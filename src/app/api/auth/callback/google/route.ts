@@ -3,7 +3,10 @@ import { signJwt, COOKIE_NAME } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
-  const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "botclips.online";
+  let host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "botclips.online";
+  if (!host.startsWith("localhost") && !host.includes("vercel.app")) {
+    host = "botclips.online";
+  }
   const protocol = host.includes("localhost") ? "http" : "https";
   const redirectUri = `${protocol}://${host}/api/auth/callback/google`;
   const baseUrl = `${protocol}://${host}`;

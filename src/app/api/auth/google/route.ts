@@ -6,7 +6,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Google Client ID is not configured" }, { status: 500 });
   }
 
-  const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "botclips.online";
+  let host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "botclips.online";
+  if (!host.startsWith("localhost") && !host.includes("vercel.app")) {
+    host = "botclips.online";
+  }
   const protocol = host.includes("localhost") ? "http" : "https";
   const redirectUri = `${protocol}://${host}/api/auth/callback/google`;
 

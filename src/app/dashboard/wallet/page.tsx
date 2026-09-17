@@ -53,6 +53,13 @@ export default function WalletPage() {
   const fileInputRef2 = useRef<HTMLInputElement | null>(null);
 
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [siteSettings, setSiteSettings] = useState({
+    upiId: "Jaatdhillon@fam",
+    trc20Address: "TVTjQKqYuntgk6EfD6PqeFvezZnVCCimjz",
+    bep20Address: "0x71C3Ba8921e10FdB89C40a12F8e312A7C3241410",
+    minDeposit: 100,
+    usdToInrRate: 96
+  });
 
   const loadData = async () => {
     try {
@@ -61,6 +68,15 @@ export default function WalletPage() {
       if (meData.authenticated && meData.user) {
         setBalance(Number(meData.user.balance || 0));
       }
+
+      // Load public site settings (UPI, Crypto, min deposit)
+      try {
+        const settingsRes = await fetch("/api/settings");
+        const settingsData = await settingsRes.json();
+        if (settingsData.success && settingsData.settings) {
+          setSiteSettings(settingsData.settings);
+        }
+      } catch {}
 
       // Load both UPI and Crypto payments
       const [upiRes, cryptoRes] = await Promise.all([
@@ -98,14 +114,15 @@ export default function WalletPage() {
     loadData();
   }, []);
 
-  const upiId = "Jaatdhillon@fam";
-  const trc20 = "TVTjQKqYuntgk6EfD6PqeFvezZnVCCimjz";
-  const bep20 = "0x71C3Ba8921e10FdB89C40a12F8e312A7C3241410";
+  const upiId = siteSettings.upiId || "Jaatdhillon@fam";
+  const trc20 = siteSettings.trc20Address || "TVTjQKqYuntgk6EfD6PqeFvezZnVCCimjz";
+  const bep20 = siteSettings.bep20Address || "0x71C3Ba8921e10FdB89C40a12F8e312A7C3241410";
+  const minDeposit = siteSettings.minDeposit || 100;
   const activeCryptoAddress = cryptoNetwork === "TRC20" ? trc20 : bep20;
 
   const activeUpiAmount = customAmount ? Number(customAmount) : amount;
   const activeCryptoAmount = customCryptoUsdt ? Number(customCryptoUsdt) : cryptoUsdt;
-  const activeCryptoInr = Math.round(activeCryptoAmount * 96);
+  const activeCryptoInr = Math.round(activeCryptoAmount * (siteSettings.usdToInrRate || 96));
 
   const upiQrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=" + encodeURIComponent("upi://pay?pa=" + upiId + "&pn=BotClips&am=" + activeUpiAmount + "&cu=INR");
   const upiQrFallback = "https://quickchart.io/qr?size=260&text=" + encodeURIComponent("upi://pay?pa=" + upiId + "&pn=BotClips&am=" + activeUpiAmount + "&cu=INR");
@@ -218,8 +235,8 @@ export default function WalletPage() {
 
     const depositAmount = customAmount ? Number(customAmount) : amount;
 
-    if (depositAmount < 100) {
-      setError("Minimum deposit amount is strictly ₹100 INR.");
+    if (depositAmount < minDeposit) {
+      setError(`Minimum deposit amount is strictly ₹${minDeposit} INR.`);
       return;
     }
 

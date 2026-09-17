@@ -173,16 +173,18 @@ export default function AdminDashboardPage() {
     currencySymbol: "₹",
     usdToInr: 96.0,
     upiId: "Jaatdhillon@fam",
-    telegram: "@dhillionsmm_support",
+    trc20Address: "TVTjQKqYuntgk6EfD6PqeFvezZnVCCimjz",
+    bep20Address: "0x71C3Ba8921e10FdB89C40a12F8e312A7C3241410",
+    telegram: "@botclipscn_bot",
     whatsapp: "+91 99999 99999",
-    minDeposit: 50,
+    minDeposit: 100,
     cloudinaryCloudName: "",
     cloudinaryUploadPreset: "",
     cloudinaryApiKey: "",
     maintenanceMode: false,
     maintenanceMessage: "Scheduled infrastructure maintenance in progress. All running orders continue running normally.",
   });
-
+  const [savingSettings, setSavingSettings] = useState(false);
   const [savingMaintenance, setSavingMaintenance] = useState(false);
 
   // ── State for Whop & Combo Settings ──
@@ -193,6 +195,7 @@ export default function AdminDashboardPage() {
   const [savingCombos, setSavingCombos] = useState(false);
 
   useEffect(() => {
+    loadAdminSettings();
     loadRealPayments();
     loadMaintenanceStatus();
     loadPanels();
@@ -318,7 +321,54 @@ export default function AdminDashboardPage() {
       });
       loadFinancials();
     } catch {}
-  };
+  async function loadAdminSettings() {
+    try {
+      const res = await fetch("/api/admin/settings");
+      const data = await res.json();
+      if (data.success && data.settings) {
+        setSettings(prev => ({
+          ...prev,
+          siteName: data.settings.siteName || prev.siteName,
+          upiId: data.settings.upiId || prev.upiId,
+          trc20Address: data.settings.trc20Address || prev.trc20Address,
+          bep20Address: data.settings.bep20Address || prev.bep20Address,
+          minDeposit: Number(data.settings.minDeposit) || 100,
+          telegram: data.settings.supportTelegram?.startsWith("tg_config_") ? "@botclipscn_bot" : (data.settings.supportTelegram || prev.telegram),
+          whatsapp: data.settings.supportWhatsapp || prev.whatsapp,
+          maintenanceMode: data.settings.maintenanceMode ?? prev.maintenanceMode,
+          maintenanceMessage: data.settings.maintenanceMessage || prev.maintenanceMessage,
+        }));
+      }
+    } catch {}
+  }
+
+  async function handleSaveDepositSettings() {
+    setSavingSettings(true);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          upiId: settings.upiId,
+          trc20Address: settings.trc20Address,
+          bep20Address: settings.bep20Address,
+          minDeposit: Number(settings.minDeposit) || 100,
+          whatsapp: settings.whatsapp,
+          telegram: settings.telegram
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify("Deposit settings saved! Minimum deposit is now ₹" + (settings.minDeposit || 100) + " across entire site.");
+      } else {
+        notify(data.error || "Failed to save settings");
+      }
+    } catch {
+      notify("Failed to save settings to server");
+    } finally {
+      setSavingSettings(false);
+    }
+  }
 
   async function loadComboSettings() {
     setLoadingCombos(true);
@@ -1851,7 +1901,7 @@ export default function AdminDashboardPage() {
                   </h2>
                   <p className="text-xs text-slate-400">Inspect payment receipt + success screen, match 12-digit UTR, and approve to credit balance</p>
                 </div>
-                <span className="text-xs font-bold text-blue-600">Min: ₹50</span>
+                <span className="text-xs font-bold text-blue-600">Min: ₹{settings.minDeposit || 100}</span>
               </div>
 
               <div className="overflow-x-auto -mx-6 px-6">
@@ -2122,12 +2172,12 @@ export default function AdminDashboardPage() {
               <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Minimum Deposit (INR)</label>
               <input
                 type="number"
-                min="50"
+                min="10"
                 value={settings.minDeposit}
                 onChange={(e) => setSettings({ ...settings, minDeposit: Number(e.target.value) })}
                 className="w-full px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
               />
-              <span className="text-[10px] text-slate-400">Strictly enforced at checkout/wallet page (default: ₹50).</span>
+              <span className="text-[10px] text-slate-400">Strictly enforced across Wallet checkout and backend APIs.</span>
             </div>
 
             <div>
@@ -2140,9 +2190,32 @@ export default function AdminDashboardPage() {
               />
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">USDT (TRC-20) Address</label>
+                <input
+                  type="text"
+                  value={settings.trc20Address}
+                  onChange={(e) => setSettings({ ...settings, trc20Address: e.target.value })}
+                  placeholder="TVTjQK..."
+                  className="w-full px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-[11px]"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">USDT (BEP-20) Address</label>
+                <input
+                  type="text"
+                  value={settings.bep20Address}
+                  onChange={(e) => setSettings({ ...settings, bep20Address: e.target.value })}
+                  placeholder="0x71C3..."
+                  className="w-full px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-[11px]"
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">WhatsApp</label>
+                <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">WhatsApp Support</label>
                 <input
                   type="text"
                   value={settings.whatsapp}
@@ -2151,7 +2224,7 @@ export default function AdminDashboardPage() {
                 />
               </div>
               <div>
-                <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Telegram</label>
+                <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Telegram Support / Bot</label>
                 <input
                   type="text"
                   value={settings.telegram}
@@ -2162,10 +2235,11 @@ export default function AdminDashboardPage() {
             </div>
 
             <button
-              onClick={() => notify("Settings saved successfully!")}
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold cursor-pointer"
+              onClick={handleSaveDepositSettings}
+              disabled={savingSettings}
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold cursor-pointer transition-all shadow-xs flex items-center gap-2"
             >
-              Save Deposit Config
+              <span>{savingSettings ? "Saving..." : "Save Deposit & General Config"}</span>
             </button>
           </div>
 

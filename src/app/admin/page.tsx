@@ -48,6 +48,14 @@ export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>("OVERVIEW");
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" | "info" } | null>(null);
+
+  const notify = (msg: string, type: "success" | "error" | "info" = "success") => {
+    setToastMessage({ text: msg, type });
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3500);
+  };
 
   // ── State for Orders & Upstream Provider Tracking ──
   const [orders, setOrders] = useState<any[]>([]);
@@ -61,6 +69,7 @@ export default function AdminDashboardPage() {
   const [userSearch, setUserSearch] = useState("");
   const [editingUser, setEditingUser] = useState<any | null>(null);
   const [customBalanceInput, setCustomBalanceInput] = useState("");
+  const [savingBalance, setSavingBalance] = useState(false);
   const [userSort, setUserSort] = useState<"NEWEST" | "OLDEST" | "HIGH_BALANCE" | "LOW_BALANCE" | "HIGH_DEPOSIT" | "HIGH_SPENT" | "MOST_ORDERS">("NEWEST");
   const [userRoleFilter, setUserRoleFilter] = useState<"ALL" | "USER" | "ADMIN">("ALL");
   const [userStatusFilter, setUserStatusFilter] = useState<"ALL" | "ACTIVE" | "BANNED">("ALL");
@@ -735,6 +744,12 @@ export default function AdminDashboardPage() {
   };
 
   const handleAdjustBalance = async (userId: string, amount: number) => {
+    // Optimistic UI update
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, balance: Math.max(0, Number(u.balance || 0) + amount) } : u));
+    if (editingUser && editingUser.id === userId) {
+      setEditingUser((prev: any) => prev ? { ...prev, balance: Math.max(0, Number(prev.balance || 0) + amount) } : null);
+    }
+
     try {
       const res = await fetch("/api/admin/users", {
         method: "PUT",
@@ -743,17 +758,26 @@ export default function AdminDashboardPage() {
       });
       const data = await res.json();
       if (data.success) {
-        notify(`Adjusted balance by ${amount > 0 ? "+" : ""}₹${amount} successfully!`);
+        notify(`Adjusted balance by ${amount > 0 ? "+" : ""}₹${amount} successfully!`, "success");
         loadUsers();
       } else {
-        notify(data.error || "Failed to adjust balance");
+        notify(data.error || "Failed to adjust balance", "error");
+        loadUsers();
       }
     } catch (err) {
-      notify("Error adjusting user balance");
+      notify("Error adjusting user balance", "error");
+      loadUsers();
     }
   };
 
   const handleSetExactBalance = async (userId: string, exactAmount: number) => {
+    setSavingBalance(true);
+    // Optimistic UI update
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, balance: exactAmount } : u));
+    if (editingUser && editingUser.id === userId) {
+      setEditingUser((prev: any) => prev ? { ...prev, balance: exactAmount } : null);
+    }
+
     try {
       const res = await fetch("/api/admin/users", {
         method: "PUT",
@@ -762,15 +786,19 @@ export default function AdminDashboardPage() {
       });
       const data = await res.json();
       if (data.success) {
-        notify(`Balance set to ₹${exactAmount} successfully!`);
+        notify(`Balance set to ₹${exactAmount} successfully!`, "success");
         setEditingUser(null);
         setCustomBalanceInput("");
         loadUsers();
       } else {
-        notify(data.error || "Failed to set balance");
+        notify(data.error || "Failed to set balance", "error");
+        loadUsers();
       }
     } catch (err) {
-      notify("Error setting user balance");
+      notify("Error setting user balance", "error");
+      loadUsers();
+    } finally {
+      setSavingBalance(false);
     }
   };
 
@@ -894,6 +922,27 @@ export default function AdminDashboardPage() {
                 className="max-w-full max-h-[74vh] object-contain rounded-2xl shadow-lg"
               />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Dynamic Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-5 right-5 z-50 animate-in fade-in slide-in-from-top-4 duration-200">
+          <div className={`px-4 py-3 rounded-2xl shadow-2xl border backdrop-blur-md flex items-center gap-3 text-sm font-bold ${
+            toastMessage.type === "success"
+              ? "bg-emerald-600/95 text-white border-emerald-400/50 shadow-emerald-500/20"
+              : toastMessage.type === "error"
+              ? "bg-rose-600/95 text-white border-rose-400/50 shadow-rose-500/20"
+              : "bg-blue-600/95 text-white border-blue-400/50 shadow-blue-500/20"
+          }`}>
+            <span>{toastMessage.text}</span>
+            <button 
+              onClick={() => setToastMessage(null)}
+              className="ml-2 text-white/80 hover:text-white font-bold cursor-pointer"
+            >
+              ✕
+            </button>
           </div>
         </div>
       )}
@@ -1529,13 +1578,14 @@ export default function AdminDashboardPage() {
                         className="flex-1 px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono text-slate-900 dark:text-white outline-none focus:border-blue-500"
                       />
                       <button
+                        disabled={savingBalance || customBalanceInput === ""}
                         onClick={() => {
                           if (customBalanceInput === "") return;
                           handleSetExactBalance(editingUser.id, Number(customBalanceInput));
                         }}
-                        className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer"
+                        className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer transition-all"
                       >
-                        Set Exact
+                        {savingBalance ? "Saving..." : "Set Exact"}
                       </button>
                     </div>
                   </div>

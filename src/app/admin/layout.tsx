@@ -53,6 +53,7 @@ export default function AdminLayout({
     { label: "Services & Catalog", href: "/admin/services", icon: Layers },
     { label: "SMM Providers", href: "/admin/panels", icon: Server },
     { label: "Payment Verification", href: "/admin/payments", icon: CreditCard },
+    { label: "Telegram & Settings", href: "/admin/settings", icon: Settings },
   ];
 
   return (

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
+import { sendUpiDepositAlert } from "@/lib/telegram";
 
 // GET /api/billing/upi - Fetch all UPI payments (Admin only or user's own)
 export async function GET(request: NextRequest) {
@@ -96,7 +97,21 @@ export async function POST(request: NextRequest) {
         screenshot2: s2,
         status: "PENDING",
       },
+      include: {
+        user: { select: { email: true, name: true } }
+      }
     });
+
+    // Fire-and-forget Telegram channel alert with 1-click inline approval buttons
+    sendUpiDepositAlert({
+      id: payment.id,
+      amount: depositAmount,
+      utr: cleanUtr,
+      userName: payment.user?.name || session?.name,
+      userEmail: payment.user?.email || session?.email || "customer@botclips.online",
+      screenshot1: s1,
+      screenshot2: s2
+    }).catch((err) => console.error("Telegram alert error:", err));
 
     return NextResponse.json({ 
       success: true, 

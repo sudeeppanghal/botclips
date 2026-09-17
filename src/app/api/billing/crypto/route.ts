@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
+import { sendCryptoDepositAlert } from "@/lib/telegram";
 
 const EXPECTED_TRC20_WALLET = "TVTjQKqYuntgk6EfD6PqeFvezZnVCCimjz";
 const USDT_TO_INR_DEFAULT = 96.0;
@@ -157,7 +158,24 @@ export async function POST(request: NextRequest) {
         onChainDetails,
         status: "PENDING",
       },
+      include: {
+        user: { select: { email: true, name: true } }
+      }
     });
+
+    // Trigger instant Telegram alert with on-chain details and approve/reject buttons
+    sendCryptoDepositAlert({
+      id: payment.id,
+      amountUsdt: depositUsdt,
+      amountInr,
+      txHash: cleanTxHash,
+      network: String(network).toUpperCase(),
+      userName: payment.user?.name || session?.name,
+      userEmail: payment.user?.email || session?.email || "customer@botclips.online",
+      onChainVerified,
+      screenshot1: s1,
+      screenshot2: s2
+    }).catch((err) => console.error("Telegram crypto alert error:", err));
 
     return NextResponse.json({ 
       success: true, 

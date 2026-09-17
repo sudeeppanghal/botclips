@@ -58,18 +58,6 @@ export default function LoginPage() {
     handleLogin(email, password);
   };
 
-  const handleDemoUser = () => {
-    setEmail("roonie@dhillionsmm.com");
-    setPassword("password123");
-    handleLogin("roonie@dhillionsmm.com", "password123");
-  };
-
-  const handleDemoAdmin = () => {
-    setEmail("admin@dhillionsmm.com");
-    setPassword("adminpassword123");
-    handleLogin("admin@dhillionsmm.com", "adminpassword123");
-  };
-
   return (
     <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f19] flex items-center justify-center p-4">
       <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-3xl w-full max-w-md p-8 shadow-xl">
@@ -80,31 +68,6 @@ export default function LoginPage() {
           </div>
           <h1 className="text-2xl font-black text-slate-900 dark:text-white">Welcome Back</h1>
           <p className="text-xs text-slate-400 mt-1">Sign in to your BotClips dashboard</p>
-        </div>
-
-        {/* 1-Click Fast Demo Login Buttons */}
-        <div className="mt-4 p-3 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40">
-          <div className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>1-Click Test Access</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={handleDemoUser}
-              className="py-2 px-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold hover:border-blue-500 hover:text-blue-600 transition-all cursor-pointer shadow-xs text-center"
-            >
-              Demo User (Roonie)
-            </button>
-            <button
-              type="button"
-              onClick={handleDemoAdmin}
-              className="py-2 px-2.5 rounded-xl bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-900 text-amber-600 dark:text-amber-400 text-xs font-bold hover:bg-amber-50 transition-all cursor-pointer shadow-xs text-center flex items-center justify-center gap-1"
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Admin Portal</span>
-            </button>
-          </div>
         </div>
 
         {error && (

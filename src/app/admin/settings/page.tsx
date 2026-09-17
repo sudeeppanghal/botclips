@@ -28,6 +28,11 @@ export default function AdminSettingsPage() {
   const [upiId, setUpiId] = useState("");
   const [minDeposit, setMinDeposit] = useState(100);
 
+  // Master Admin Credentials State
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [savingCreds, setSavingCreds] = useState(false);
+
   useEffect(() => {
     fetch("/api/admin/settings")
       .then((res) => res.json())
@@ -42,6 +47,40 @@ export default function AdminSettingsPage() {
       .catch(() => setError("Failed to load settings"))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleChangeCredentials = async () => {
+    if (!newEmail.trim() && !newPassword.trim()) return;
+    if (newPassword.trim() && newPassword.trim().length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
+    setSavingCreds(true);
+    setError(null);
+    setNotification(null);
+
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          newAdminEmail: newEmail.trim() || undefined,
+          newAdminPassword: newPassword.trim() || undefined
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update admin credentials");
+
+      setNotification("✅ Master Admin credentials updated successfully!");
+      setNewPassword("");
+      if (newEmail.trim()) setNewEmail("");
+    } catch (err: any) {
+      setError(err.message || "Failed to update credentials");
+    } finally {
+      setSavingCreds(false);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -212,6 +251,67 @@ export default function AdminSettingsPage() {
               <span>{testing ? "Sending..." : "Send Test Notification"}</span>
             </button>
           </div>
+        </div>
+
+        {/* ── MASTER ADMIN CREDENTIALS & SECURITY ── */}
+        <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-slate-900 dark:text-white">
+                  Master Admin Credentials & Security
+                </h2>
+                <p className="text-xs text-slate-500">Change your secret admin login email and password</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">
+                New Admin Email
+              </label>
+              <input
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="e.g. your_secret_admin@domain.com"
+                className="w-full px-4 py-3 text-xs bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-900 dark:text-white outline-none focus:border-blue-500 transition-colors"
+              />
+              <span className="text-[11px] text-slate-400 mt-1 block">
+                Leave blank if you only want to change your password.
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">
+                New Admin Password
+              </label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="••••••••••••"
+                className="w-full px-4 py-3 text-xs bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-900 dark:text-white outline-none focus:border-blue-500 transition-colors"
+              />
+              <span className="text-[11px] text-slate-400 mt-1 block">
+                Minimum 6 characters. Leave blank if not changing password.
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleChangeCredentials}
+            disabled={savingCreds || (!newEmail.trim() && !newPassword.trim())}
+            className="px-6 py-3 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md shadow-amber-500/20 transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2"
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>{savingCreds ? "Updating..." : "Update Master Admin Credentials"}</span>
+          </button>
         </div>
 
         {/* Telegram Features Guide */}

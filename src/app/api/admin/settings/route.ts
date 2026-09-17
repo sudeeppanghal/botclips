@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, hashPassword, signJwt, COOKIE_NAME } from "@/lib/auth";
 import { sendTelegramMessage } from "@/lib/telegram";
 
 export async function GET(request: NextRequest) {
@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      currentAdminEmail: session.email,
       settings: {
         ...settings,
         telegramBotToken,
@@ -61,8 +62,47 @@ export async function POST(request: NextRequest) {
       upiId,
       trc20Address,
       bep20Address,
-      minDeposit
+      minDeposit,
+      newAdminEmail,
+      newAdminPassword
     } = body;
+
+    // Handle Admin Master Credentials Change
+    let credentialsChanged = false;
+    let newSessionToken: string | null = null;
+
+    if (newAdminEmail || newAdminPassword) {
+      const updateData: any = {};
+      if (newAdminEmail && newAdminEmail.trim()) {
+        const cleanEmail = newAdminEmail.trim().toLowerCase();
+        // Ensure email isn't taken by another user
+        const existing = await prisma.user.findUnique({ where: { email: cleanEmail } });
+        if (existing && existing.id !== session.id) {
+          return NextResponse.json({ error: "This email is already registered." }, { status: 400 });
+        }
+        updateData.email = cleanEmail;
+      }
+      if (newAdminPassword && newAdminPassword.trim()) {
+        if (newAdminPassword.trim().length < 6) {
+          return NextResponse.json({ error: "Password must be at least 6 characters." }, { status: 400 });
+        }
+        updateData.passwordHash = await hashPassword(newAdminPassword.trim());
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        const updatedUser = await prisma.user.update({
+          where: { id: session.id },
+          data: updateData
+        });
+        credentialsChanged = true;
+        newSessionToken = signJwt({
+          id: updatedUser.id,
+          email: updatedUser.email,
+          name: updatedUser.name || "Master Admin",
+          role: "ADMIN"
+        });
+      }
+    }
 
     // Handle Send Test Message action
     if (sendTestMessage) {
@@ -149,11 +189,27 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
-      message: "Settings saved successfully! Telegram bot is active.",
-      settings: updated
+      message: credentialsChanged 
+        ? "Admin credentials updated successfully! New login details are active."
+        : "Settings saved successfully! Telegram bot is active.",
+      settings: updated,
+      credentialsChanged
     });
+
+    if (newSessionToken) {
+      response.cookies.set({
+        name: COOKIE_NAME,
+        value: newSessionToken,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 60 * 60 * 24 * 30,
+        path: "/"
+      });
+    }
+
+    return response;
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Failed to update settings" }, { status: 500 });
   }

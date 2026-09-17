@@ -14,9 +14,15 @@ export async function getTelegramConfig(): Promise<TelegramConfig | null> {
       const settings = await prisma.adminSettings.findUnique({
         where: { id: "global" }
       });
-      if (settings) {
-        if (!botToken && settings.supportTelegram && settings.supportTelegram.startsWith("bot_token_")) {
-          botToken = settings.supportTelegram.replace("bot_token_", "");
+      if (settings && settings.supportTelegram) {
+        if (settings.supportTelegram.startsWith("tg_config_")) {
+          try {
+            const parsed = JSON.parse(settings.supportTelegram.replace("tg_config_", ""));
+            if (!botToken && parsed.botToken) botToken = parsed.botToken;
+            if (!chatId && parsed.chatId) chatId = parsed.chatId;
+          } catch {}
+        } else if (settings.supportTelegram.startsWith("bot_token_")) {
+          if (!botToken) botToken = settings.supportTelegram.replace("bot_token_", "");
         }
       }
     } catch {}

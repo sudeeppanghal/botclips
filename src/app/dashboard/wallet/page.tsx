@@ -404,6 +404,15 @@ export default function WalletPage() {
         </div>
       )}
 
+      {/* Strict Policy Banner */}
+      <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3 text-amber-800 dark:text-amber-300 text-xs font-semibold">
+        <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+        <div>
+          <span className="font-black tracking-wide uppercase text-amber-700 dark:text-amber-400">Strict Minimum Deposit Notice:</span>{" "}
+          Minimum deposit is strictly <strong className="font-black text-amber-900 dark:text-amber-200">₹{minDeposit} INR (or 1 USDT)</strong>. Any deposit sent below ₹{minDeposit} is <strong className="font-black underline text-rose-600 dark:text-rose-400">strictly non-refundable</strong> and will not be credited to your account.
+        </div>
+      </div>
+
       {/* Main Grid: Payment Box & Transaction History */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Deposit Box (7 Cols) */}

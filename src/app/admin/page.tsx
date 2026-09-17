@@ -55,11 +55,11 @@ export default function AdminDashboardPage() {
   const [selectedProviderFilter, setSelectedProviderFilter] = useState("ALL");
 
   // ── State for Users ──
-  const [users, setUsers] = useState([
-    { id: "usr_admin", name: "Dipesh Dhillon", email: "dipeshdhillon2006@gmail.com", balance: 0.00, totalSpent: 0.00, role: "ADMIN", status: "ACTIVE", plan: "ACTIVE (Monthly)" },
-    { id: "usr_1", name: "Roonie", email: "roonie@dhillionsmm.com", balance: 520.00, totalSpent: 1930.00, role: "USER", status: "ACTIVE", plan: "None" },
-    { id: "usr_2", name: "Agency Pro", email: "agency@socials.com", balance: 1450.00, totalSpent: 8400.00, role: "USER", status: "ACTIVE", plan: "ACTIVE (Weekly)" },
-  ]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userSearch, setUserSearch] = useState("");
+  const [editingUser, setEditingUser] = useState<any | null>(null);
+  const [customBalanceInput, setCustomBalanceInput] = useState("");
 
   // ── State for Panels (including smmsocialmedia.in and yoyomedia) ──
   const [panels, setPanels] = useState<any[]>([
@@ -204,7 +204,23 @@ export default function AdminDashboardPage() {
     loadFinancials();
     loadCryptoPayments();
     loadOrders();
+    loadUsers();
   }, []);
+
+  async function loadUsers() {
+    setLoadingUsers(true);
+    try {
+      const res = await fetch("/api/admin/users");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.users)) {
+        setUsers(data.users);
+      }
+    } catch (err) {
+      console.error("Failed to load users:", err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  }
 
   async function loadOrders() {
     setLoadingOrders(true);
@@ -713,15 +729,96 @@ export default function AdminDashboardPage() {
     } catch {}
   };
 
-  const handleAdjustBalance = (userId: string, amount: number) => {
-    setUsers(users.map(u => {
-      if (u.id === userId) {
-        const newBal = Math.max(0, u.balance + amount);
-        notify(`Adjusted balance for ${u.name}: ₹${newBal.toFixed(2)}`);
-        return { ...u, balance: newBal };
+  const handleAdjustBalance = async (userId: string, amount: number) => {
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, balanceAdjust: amount })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(`Adjusted balance by ${amount > 0 ? "+" : ""}₹${amount} successfully!`);
+        loadUsers();
+      } else {
+        notify(data.error || "Failed to adjust balance");
       }
-      return u;
-    }));
+    } catch (err) {
+      notify("Error adjusting user balance");
+    }
+  };
+
+  const handleSetExactBalance = async (userId: string, exactAmount: number) => {
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, setBalance: exactAmount })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(`Balance set to ₹${exactAmount} successfully!`);
+        setEditingUser(null);
+        setCustomBalanceInput("");
+        loadUsers();
+      } else {
+        notify(data.error || "Failed to set balance");
+      }
+    } catch (err) {
+      notify("Error setting user balance");
+    }
+  };
+
+  const handleToggleUserStatus = async (userId: string, currentStatus: string) => {
+    const newStatus = currentStatus === "BANNED" ? "ACTIVE" : "BANNED";
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, status: newStatus })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(`User status set to ${newStatus}`);
+        loadUsers();
+      }
+    } catch {
+      notify("Error updating user status");
+    }
+  };
+
+  const handleToggleUserRole = async (userId: string, currentRole: string) => {
+    const newRole = currentRole === "ADMIN" ? "USER" : "ADMIN";
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, role: newRole })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(`User role updated to ${newRole}`);
+        loadUsers();
+      }
+    } catch {
+      notify("Error updating user role");
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, email: string) => {
+    if (!confirm(`Are you sure you want to permanently delete user "${email}"? All orders and data will be removed.`)) return;
+    try {
+      const res = await fetch(`/api/admin/users?userId=${userId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        notify(`User ${email} deleted successfully`);
+        loadUsers();
+      } else {
+        notify(data.error || "Failed to delete user");
+      }
+    } catch {
+      notify("Error deleting user");
+    }
   };
 
   return (
@@ -1326,72 +1423,321 @@ export default function AdminDashboardPage() {
         );
       })()}
 
-      {/* ──────────────── TAB 3: USERS & BALANCES ──────────────── */}
-      {activeTab === "USERS" && (
-        <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
-          <div className="flex items-center justify-between pb-4">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">User Accounts & Automation Plans</h2>
-              <p className="text-xs text-slate-400">Manage user balances, roles, and Mode 2 subscription status</p>
+      {/* ──────────────── TAB 3: LIVE USERS & FULL ADMIN BALANCES ──────────────── */}
+      {activeTab === "USERS" && (() => {
+        const filteredUsers = users.filter((u) => {
+          const query = userSearch.trim().toLowerCase();
+          if (!query) return true;
+          return (
+            String(u.id).toLowerCase().includes(query) ||
+            String(u.name || "").toLowerCase().includes(query) ||
+            String(u.email || "").toLowerCase().includes(query) ||
+            String(u.phone || "").toLowerCase().includes(query)
+          );
+        });
+
+        const totalUserBalance = users.reduce((sum, u) => sum + (Number(u.balance) || 0), 0);
+        const totalUserDeposits = users.reduce((sum, u) => sum + (Number(u.totalDeposited) || 0), 0);
+        const totalUserSpent = users.reduce((sum, u) => sum + (Number(u.totalSpent) || 0), 0);
+
+        return (
+          <div className="space-y-5">
+            {/* Modal: Edit User Exact Balance */}
+            {editingUser && (
+              <div 
+                onClick={() => setEditingUser(null)}
+                className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+              >
+                <div 
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-white dark:bg-[#131b2e] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 cursor-default"
+                >
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div>
+                      <h3 className="text-base font-black text-slate-900 dark:text-white">Adjust User Balance</h3>
+                      <p className="text-xs text-slate-400 font-mono mt-0.5">{editingUser.email}</p>
+                    </div>
+                    <button 
+                      onClick={() => setEditingUser(null)}
+                      className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 flex items-center justify-center font-bold"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 flex items-center justify-between text-xs">
+                    <span className="text-slate-600 dark:text-slate-300 font-medium">Current Balance:</span>
+                    <span className="font-black text-base text-blue-600 dark:text-blue-400 font-mono">₹{Number(editingUser.balance).toFixed(2)}</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                      Set Exact Balance (₹ INR)
+                    </label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="number"
+                        placeholder="e.g. 500"
+                        value={customBalanceInput}
+                        onChange={(e) => setCustomBalanceInput(e.target.value)}
+                        className="flex-1 px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono text-slate-900 dark:text-white outline-none focus:border-blue-500"
+                      />
+                      <button
+                        onClick={() => {
+                          if (customBalanceInput === "") return;
+                          handleSetExactBalance(editingUser.id, Number(customBalanceInput));
+                        }}
+                        className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer"
+                      >
+                        Set Exact
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">
+                      Quick Increment / Decrement
+                    </label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {[+100, +500, +1000, -100].map((amt) => (
+                        <button
+                          key={amt}
+                          onClick={() => {
+                            handleAdjustBalance(editingUser.id, amt);
+                            setEditingUser(null);
+                          }}
+                          className={`py-2 text-xs font-bold font-mono rounded-xl border transition-all cursor-pointer ${
+                            amt > 0 
+                              ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100" 
+                              : "bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 hover:bg-rose-100"
+                          }`}
+                        >
+                          {amt > 0 ? `+₹${amt}` : `-₹${Math.abs(amt)}`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Quick Metrics Bar */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-xs">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Users</span>
+                <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">{users.length}</div>
+                <span className="text-[10px] text-emerald-600 font-bold">Registered Accounts</span>
+              </div>
+              <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-xs">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total User Balances</span>
+                <div className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">₹{totalUserBalance.toFixed(2)}</div>
+                <span className="text-[10px] text-slate-400">Available Wallet Capital</span>
+              </div>
+              <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-xs">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Deposited</span>
+                <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">₹{totalUserDeposits.toFixed(2)}</div>
+                <span className="text-[10px] text-emerald-600 font-bold">UPI + Crypto USDT</span>
+              </div>
+              <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-xs">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total User Spending</span>
+                <div className="text-2xl font-black text-purple-600 dark:text-purple-400 mt-1">₹{totalUserSpent.toFixed(2)}</div>
+                <span className="text-[10px] text-purple-600 font-bold">All Orders Delivered</span>
+              </div>
+            </div>
+
+            {/* Main Table Card */}
+            <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-bold text-slate-900 dark:text-white">Registered User Directory</h2>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 text-[10px] font-black uppercase">
+                      Live Database ({users.length})
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    View real registered users, check live balances, adjust credits, ban/unban users, and control permissions.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input 
+                      type="text"
+                      placeholder="Search name, email, ID..."
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      className="pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500 w-52"
+                    />
+                  </div>
+                  <button
+                    onClick={loadUsers}
+                    disabled={loadingUsers}
+                    className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer flex items-center gap-1.5"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingUsers ? "animate-spin" : ""}`} />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto -mx-6 px-6">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase">
+                      <th className="py-3 px-2">User / Email</th>
+                      <th className="py-3 px-2">Role</th>
+                      <th className="py-3 px-2">Status</th>
+                      <th className="py-3 px-2">Wallet Balance</th>
+                      <th className="py-3 px-2">Total Deposited</th>
+                      <th className="py-3 px-2">Total Spent</th>
+                      <th className="py-3 px-2">Activity</th>
+                      <th className="py-3 px-2 text-right">Admin Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                    {loadingUsers ? (
+                      <tr>
+                        <td colSpan={8} className="py-12 text-center text-slate-400">
+                          <RefreshCw className="w-6 h-6 animate-spin mx-auto text-blue-500 mb-2" />
+                          <span>Loading real users from database...</span>
+                        </td>
+                      </tr>
+                    ) : filteredUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="py-12 text-center text-slate-400">
+                          No users found matching your search.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredUsers.map((u) => (
+                        <tr key={u.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
+                          {/* User / Email */}
+                          <td className="py-3.5 px-2">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 font-black text-xs flex items-center justify-center shrink-0">
+                                {u.name ? u.name.charAt(0).toUpperCase() : u.email.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                  <span>{u.name || "User"}</span>
+                                  {u.role === "ADMIN" && (
+                                    <Crown className="w-3 h-3 text-amber-500 inline shrink-0" />
+                                  )}
+                                </div>
+                                <div className="text-slate-400 text-[11px] font-mono">{u.email}</div>
+                                <div className="text-[10px] text-slate-400">
+                                  Joined: {new Date(u.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Role */}
+                          <td className="py-3.5 px-2">
+                            <button
+                              onClick={() => handleToggleUserRole(u.id, u.role)}
+                              title="Click to toggle Role (ADMIN / USER)"
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition-all ${
+                                u.role === "ADMIN"
+                                  ? "bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
+                                  : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                              }`}
+                            >
+                              {u.role}
+                            </button>
+                          </td>
+
+                          {/* Status */}
+                          <td className="py-3.5 px-2">
+                            <button
+                              onClick={() => handleToggleUserStatus(u.id, u.status)}
+                              title="Click to toggle Status (ACTIVE / BANNED)"
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition-all ${
+                                u.status === "ACTIVE"
+                                  ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+                                  : "bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-800"
+                              }`}
+                            >
+                              {u.status}
+                            </button>
+                          </td>
+
+                          {/* Wallet Balance */}
+                          <td className="py-3.5 px-2">
+                            <div className="font-black text-slate-900 dark:text-white font-mono text-sm">
+                              ₹{Number(u.balance || 0).toFixed(2)}
+                            </div>
+                          </td>
+
+                          {/* Total Deposited */}
+                          <td className="py-3.5 px-2 font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                            ₹{Number(u.totalDeposited || 0).toFixed(2)}
+                          </td>
+
+                          {/* Total Spent */}
+                          <td className="py-3.5 px-2 font-mono font-bold text-slate-600 dark:text-slate-300">
+                            ₹{Number(u.totalSpent || 0).toFixed(2)}
+                          </td>
+
+                          {/* Activity */}
+                          <td className="py-3.5 px-2 text-slate-500">
+                            <div className="text-[11px] font-semibold">
+                              <strong className="text-slate-800 dark:text-slate-200">{u.orderCount || 0}</strong> orders
+                            </div>
+                            <div className="text-[10px] text-slate-400">
+                              {u.depositCount || 0} deposits
+                            </div>
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-3.5 px-2 text-right">
+                            <div className="inline-flex items-center gap-1.5">
+                              <button
+                                onClick={() => handleAdjustBalance(u.id, 100)}
+                                className="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 font-bold text-[11px] cursor-pointer"
+                                title="Credit ₹100"
+                              >
+                                +₹100
+                              </button>
+                              <button
+                                onClick={() => handleAdjustBalance(u.id, 500)}
+                                className="px-2 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold text-[11px] cursor-pointer"
+                                title="Credit ₹500"
+                              >
+                                +₹500
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingUser(u);
+                                  setCustomBalanceInput(String(u.balance));
+                                }}
+                                className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[11px] cursor-pointer flex items-center gap-1"
+                                title="Custom Edit Balance"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteUser(u.id, u.email)}
+                                className="p-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                                title="Delete User"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-
-          <div className="overflow-x-auto -mx-6 px-6">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase">
-                  <th className="py-3 px-2">User</th>
-                  <th className="py-3 px-2">Role</th>
-                  <th className="py-3 px-2">Current Balance</th>
-                  <th className="py-3 px-2">BYO-API Plan</th>
-                  <th className="py-3 px-2 text-right">Quick Balance Adjust</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                {users.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
-                    <td className="py-3.5 px-2">
-                      <div className="font-bold text-slate-900 dark:text-white">{u.name}</div>
-                      <div className="text-slate-400 text-[11px]">{u.email}</div>
-                    </td>
-                    <td className="py-3.5 px-2">
-                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                        u.role === "ADMIN" ? "bg-purple-100 text-purple-700" : "bg-slate-100 text-slate-600"
-                      }`}>
-                        {u.role}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-2 font-black text-slate-900 dark:text-white">₹{u.balance.toFixed(2)}</td>
-                    <td className="py-3.5 px-2">
-                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                        u.plan?.includes("ACTIVE") ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500"
-                      }`}>
-                        {u.plan}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-2 text-right">
-                      <div className="inline-flex items-center gap-1.5">
-                        <button
-                          onClick={() => handleAdjustBalance(u.id, 100)}
-                          className="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[11px] cursor-pointer"
-                        >
-                          +₹100
-                        </button>
-                        <button
-                          onClick={() => handleAdjustBalance(u.id, -50)}
-                          className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] cursor-pointer"
-                        >
-                          -₹50
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ──────────────── TAB 4: UPSTREAM PROVIDERS (smmsocialmedia.in & yoyomedia) ──────────────── */}
       {activeTab === "PANELS" && (

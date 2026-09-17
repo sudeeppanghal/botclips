@@ -35,8 +35,7 @@ export default function SignupPage() {
 
       router.push("/dashboard");
     } catch (err: any) {
-      // Direct pass for seamless demo access
-      router.push("/dashboard");
+      setError(err.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }

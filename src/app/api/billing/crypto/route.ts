@@ -164,18 +164,22 @@ export async function POST(request: NextRequest) {
     });
 
     // Trigger instant Telegram alert with on-chain details and approve/reject buttons
-    sendCryptoDepositAlert({
-      id: payment.id,
-      amountUsdt: depositUsdt,
-      amountInr,
-      txHash: cleanTxHash,
-      network: String(network).toUpperCase(),
-      userName: payment.user?.name || session?.name,
-      userEmail: payment.user?.email || session?.email || "customer@botclips.online",
-      onChainVerified,
-      screenshot1: s1,
-      screenshot2: s2
-    }).catch((err) => console.error("Telegram crypto alert error:", err));
+    try {
+      await sendCryptoDepositAlert({
+        id: payment.id,
+        amountUsdt: depositUsdt,
+        amountInr,
+        txHash: cleanTxHash,
+        network: String(network).toUpperCase(),
+        userName: payment.user?.name || session?.name,
+        userEmail: payment.user?.email || session?.email || "customer@botclips.online",
+        onChainVerified,
+        screenshot1: s1,
+        screenshot2: s2
+      });
+    } catch (err) {
+      console.error("Telegram crypto alert error:", err);
+    }
 
     return NextResponse.json({ 
       success: true, 

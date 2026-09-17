@@ -37,15 +37,9 @@ export async function POST(request: NextRequest) {
           role: cleanEmail === "dipeshdhillon2006@gmail.com" ? "ADMIN" : "USER",
         },
       });
-    } catch (dbErr) {
-      // Fallback for offline local demo
-      user = {
-        id: "user_" + Math.random().toString(36).substring(2, 9),
-        email: cleanEmail,
-        name: name || cleanEmail.split("@")[0],
-        role: cleanEmail === "dipeshdhillon2006@gmail.com" ? "ADMIN" : "USER",
-        balance: 0.0,
-      };
+    } catch (dbErr: any) {
+      console.error("Database signup error:", dbErr.message);
+      return NextResponse.json({ error: "Failed to create account. Please try again." }, { status: 500 });
     }
 
     const token = signJwt({

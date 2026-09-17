@@ -321,6 +321,8 @@ export default function AdminDashboardPage() {
       });
       loadFinancials();
     } catch {}
+  };
+
   async function loadAdminSettings() {
     try {
       const res = await fetch("/api/admin/settings");

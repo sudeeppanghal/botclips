@@ -7,7 +7,7 @@ export default function AdminPaymentsPage() {
   const [payments, setPayments] = useState([
     {
       id: "pay-1",
-      user: "Roonie (roonie@dhillionsmm.com)",
+      user: "Rahul Varma (rahul@gmail.com)",
       utr: "423891024819",
       amount: 500,
       method: "UPI QR",

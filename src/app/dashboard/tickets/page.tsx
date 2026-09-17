@@ -20,7 +20,7 @@ export default function TicketsPage() {
       date: "Sep 10, 2026",
       messages: [
         { sender: "User", text: "Hi, 50 members dropped on order #1021. Can you please refill?", time: "Sep 10, 10:00 AM" },
-        { sender: "Support Admin", text: "Hello Roonie! We have triggered the automatic refill server for order #1021. It will complete in 1-2 hours.", time: "Sep 10, 10:24 AM" }
+        { sender: "Support Admin", text: "Hello! We have triggered the automatic refill server for order #1021. It will complete in 1-2 hours.", time: "Sep 10, 10:24 AM" }
       ]
     },
     {

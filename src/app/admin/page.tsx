@@ -52,8 +52,10 @@ export default function AdminDashboardPage() {
 
   const notify = (msg: string, type: "success" | "error" | "info" = "success") => {
     setToastMessage({ text: msg, type });
+    setSuccessMsg(msg);
     setTimeout(() => {
       setToastMessage(null);
+      setSuccessMsg(null);
     }, 3500);
   };
 
@@ -712,11 +714,6 @@ export default function AdminDashboardPage() {
       }
     } catch {}
   }
-
-  const notify = (msg: string) => {
-    setSuccessMsg(msg);
-    setTimeout(() => setSuccessMsg(null), 3500);
-  };
 
   // Actions
   const handleApprovePayment = async (id: string, amount: number, user: string) => {

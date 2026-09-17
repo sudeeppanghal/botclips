@@ -52,10 +52,10 @@ export async function POST(request: NextRequest) {
     const cleanUtr = String(utr).trim();
     const depositAmount = Number(amount);
 
-    // Enforce strict minimum deposit of 50 INR
-    if (depositAmount < 50) {
+    // Enforce strict minimum deposit of 100 INR
+    if (depositAmount < 100) {
       return NextResponse.json({ 
-        error: "Minimum deposit amount is strictly ₹50 INR." 
+        error: "Minimum deposit amount is strictly ₹100 INR." 
       }, { status: 400 });
     }
 

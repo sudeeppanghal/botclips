@@ -64,8 +64,8 @@ export const AddFundsScreen: React.FC = () => {
 
   const handleUpiSubmit = async () => {
     const numAmount = Number(amount);
-    if (!numAmount || numAmount < 50) {
-      Alert.alert('Invalid Amount', 'Minimum deposit is strictly ₹50 INR.');
+    if (!numAmount || numAmount < 100) {
+      Alert.alert('Invalid Amount', 'Minimum deposit is strictly ₹100 INR.');
       return;
     }
 
@@ -240,7 +240,7 @@ export const AddFundsScreen: React.FC = () => {
 
             {/* Deposit Form Card */}
             <GlassCard style={styles.inputCard}>
-              <Text style={styles.inputLabel}>DEPOSIT AMOUNT (INR - MIN ₹50)</Text>
+              <Text style={styles.inputLabel}>DEPOSIT AMOUNT (INR - MIN ₹100)</Text>
               <TextInput
                 style={styles.textInput}
                 placeholder="₹1,000"

@@ -200,7 +200,7 @@ const faqPageJsonLd = {
       "name": "How do deposits work on BotClips?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "BotClips supports instant deposits with 0% transaction fees via UPI QR Code (Google Pay, PhonePe, Paytm, CRED, BHIM) starting at ₹50 INR, and Crypto USDT (TRC-20) starting at 1 USDT. Crypto transactions are pre-verified on-chain via TronScan API with strict anti-duplicate TxID protection."
+        "text": "BotClips supports instant deposits with 0% transaction fees via UPI QR Code (Google Pay, PhonePe, Paytm, CRED, BHIM) starting at ₹100 INR, and Crypto USDT (TRC-20) starting at 1 USDT. Crypto transactions are pre-verified on-chain via TronScan API with strict anti-duplicate TxID protection."
       }
     },
     {

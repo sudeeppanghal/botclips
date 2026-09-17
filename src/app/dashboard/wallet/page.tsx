@@ -218,8 +218,8 @@ export default function WalletPage() {
 
     const depositAmount = customAmount ? Number(customAmount) : amount;
 
-    if (depositAmount < 50) {
-      setError("Minimum deposit amount is strictly ₹50 INR.");
+    if (depositAmount < 100) {
+      setError("Minimum deposit amount is strictly ₹100 INR.");
       return;
     }
 
@@ -406,7 +406,7 @@ export default function WalletPage() {
                   : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100"
               )}
             >
-              UPI QR Code (Min ₹50)
+              UPI QR Code (Min ₹100)
             </button>
             <button
               onClick={() => {
@@ -431,12 +431,12 @@ export default function WalletPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                    Select Amount (Min ₹50)
+                    Select Amount (Min ₹100)
                   </label>
                   <span className="text-[11px] text-blue-600 font-bold">100% Zero Fees</span>
                 </div>
                 <div className="grid grid-cols-5 gap-2">
-                  {[50, 100, 200, 500, 1000].map((amt) => (
+                  {[100, 200, 500, 1000, 2000].map((amt) => (
                     <button
                       key={amt}
                       type="button"
@@ -458,8 +458,8 @@ export default function WalletPage() {
                 <div className="mt-2.5">
                   <input
                     type="number"
-                    min="50"
-                    placeholder="Or enter custom amount (e.g. ₹75, ₹250)"
+                    min="100"
+                    placeholder="Or enter custom amount (e.g. ₹150, ₹250)"
                     value={customAmount}
                     onChange={(e) => setCustomAmount(e.target.value)}
                     className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:border-blue-500"

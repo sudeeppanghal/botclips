@@ -72,6 +72,8 @@ export default function AdminDashboardPage() {
   const [editingUser, setEditingUser] = useState<any | null>(null);
   const [customBalanceInput, setCustomBalanceInput] = useState("");
   const [savingBalance, setSavingBalance] = useState(false);
+  const [syncingPrices, setSyncingPrices] = useState(false);
+  const [lookingUpService, setLookingUpService] = useState(false);
   const [userSort, setUserSort] = useState<"NEWEST" | "OLDEST" | "HIGH_BALANCE" | "LOW_BALANCE" | "HIGH_DEPOSIT" | "HIGH_SPENT" | "MOST_ORDERS">("NEWEST");
   const [userRoleFilter, setUserRoleFilter] = useState<"ALL" | "USER" | "ADMIN">("ALL");
   const [userStatusFilter, setUserStatusFilter] = useState<"ALL" | "ACTIVE" | "BANNED">("ALL");
@@ -223,6 +225,110 @@ export default function AdminDashboardPage() {
     loadUsers();
   }, []);
 
+  async function loadAdminSettings() {
+    try {
+      const res = await fetch("/api/admin/settings");
+      const data = await res.json();
+      if (data.success && data.settings) {
+        setSettings(prev => ({
+          ...prev,
+          siteName: data.settings.siteName || prev.siteName,
+          upiId: data.settings.upiId || prev.upiId,
+          trc20Address: data.settings.trc20Address || prev.trc20Address,
+          bep20Address: data.settings.bep20Address || prev.bep20Address,
+          minDeposit: Number(data.settings.minDeposit) || prev.minDeposit,
+          usdToInr: Number(data.settings.usdToInrRate) || prev.usdToInr,
+          whatsapp: data.settings.supportWhatsapp || prev.whatsapp,
+          telegram: data.settings.telegramBotToken ? "Active Bot & Webhook" : (data.settings.supportTelegram || prev.telegram),
+          telegramBotToken: data.settings.telegramBotToken || "",
+          telegramChatId: data.settings.telegramChatId || "",
+          maintenanceMode: data.settings.maintenanceMode ?? prev.maintenanceMode,
+          maintenanceMessage: data.settings.maintenanceMessage || prev.maintenanceMessage,
+        }));
+      }
+    } catch {}
+  }
+
+  async function handleSaveDepositSettings() {
+    setSavingSettings(true);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          upiId: settings.upiId,
+          trc20Address: settings.trc20Address,
+          bep20Address: settings.bep20Address,
+          minDeposit: Number(settings.minDeposit),
+          whatsapp: settings.whatsapp,
+          telegram: settings.telegram,
+          telegramBotToken: (settings as any).telegramBotToken || undefined,
+          telegramChatId: (settings as any).telegramChatId || undefined,
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify("Deposit settings, UPI ID & Crypto addresses updated successfully!", "success");
+      } else {
+        notify(data.error || "Failed to save settings", "error");
+      }
+    } catch {
+      notify("Failed to save settings", "error");
+    } finally {
+      setSavingSettings(false);
+    }
+  }
+
+  async function handleSyncPrices() {
+    setSyncingPrices(true);
+    notify("Connecting to SMM providers & calculating 3x prices...", "info");
+    try {
+      const res = await fetch("/api/admin/services/sync", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        notify(`✅ Successfully updated ${data.updatedCount} services with real SMM prices and 3x markup!`, "success");
+        loadServices();
+      } else {
+        notify(data.error || "Failed to sync prices", "error");
+      }
+    } catch {
+      notify("Failed to sync prices", "error");
+    } finally {
+      setSyncingPrices(false);
+    }
+  }
+
+  async function handleLookupServiceId(serviceIdToLookup: string) {
+    if (!serviceIdToLookup || !serviceIdToLookup.trim()) return;
+    setLookingUpService(true);
+    notify("Fetching live provider rate & details...", "info");
+    try {
+      const res = await fetch(`/api/admin/services/lookup?serviceId=${encodeURIComponent(serviceIdToLookup.trim())}`);
+      const data = await res.json();
+      if (data.success && data.service) {
+        const s = data.service;
+        setNewServiceForm(prev => ({
+          ...prev,
+          name: s.name,
+          category: s.category,
+          platform: s.platform,
+          originalRate: s.originalRate,
+          customRate: s.customRate,
+          minQuantity: s.minQuantity,
+          maxQuantity: s.maxQuantity,
+          panelId: s.panelId,
+        }));
+        notify(`Found: Real Wholesale ₹${s.originalRate} -> Auto 3x Selling Price ₹${s.customRate}`, "success");
+      } else {
+        notify(data.error || "Service ID not found in connected upstream panels", "error");
+      }
+    } catch {
+      notify("Lookup failed", "error");
+    } finally {
+      setLookingUpService(false);
+    }
+  }
+
   async function loadUsers() {
     setLoadingUsers(true);
     try {
@@ -355,54 +461,6 @@ export default function AdminDashboardPage() {
     } catch {}
   };
 
-  async function loadAdminSettings() {
-    try {
-      const res = await fetch("/api/admin/settings");
-      const data = await res.json();
-      if (data.success && data.settings) {
-        setSettings(prev => ({
-          ...prev,
-          siteName: data.settings.siteName || prev.siteName,
-          upiId: data.settings.upiId || prev.upiId,
-          trc20Address: data.settings.trc20Address || prev.trc20Address,
-          bep20Address: data.settings.bep20Address || prev.bep20Address,
-          minDeposit: Number(data.settings.minDeposit) || 100,
-          telegram: data.settings.supportTelegram?.startsWith("tg_config_") ? "@botclipscn_bot" : (data.settings.supportTelegram || prev.telegram),
-          whatsapp: data.settings.supportWhatsapp || prev.whatsapp,
-          maintenanceMode: data.settings.maintenanceMode ?? prev.maintenanceMode,
-          maintenanceMessage: data.settings.maintenanceMessage || prev.maintenanceMessage,
-        }));
-      }
-    } catch {}
-  }
-
-  async function handleSaveDepositSettings() {
-    setSavingSettings(true);
-    try {
-      const res = await fetch("/api/admin/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          upiId: settings.upiId,
-          trc20Address: settings.trc20Address,
-          bep20Address: settings.bep20Address,
-          minDeposit: Number(settings.minDeposit) || 100,
-          whatsapp: settings.whatsapp,
-          telegram: settings.telegram
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        notify("Deposit settings saved! Minimum deposit is now ₹" + (settings.minDeposit || 100) + " across entire site.");
-      } else {
-        notify(data.error || "Failed to save settings");
-      }
-    } catch {
-      notify("Failed to save settings to server");
-    } finally {
-      setSavingSettings(false);
-    }
-  }
 
   async function loadComboSettings() {
     setLoadingCombos(true);
@@ -1079,6 +1137,165 @@ export default function AdminDashboardPage() {
               </button>
             </div>
           </div>
+
+          
+          {/* ──────────────── ANIMATED PLATFORM GROWTH & DAILY SIGNUPS ENGINE ──────────────── */}
+          {(() => {
+            const now = new Date();
+            const last7Days = Array.from({ length: 7 }, (_, i) => {
+              const d = new Date(now);
+              d.setDate(d.getDate() - (6 - i));
+              const dateStr = d.toISOString().split("T")[0];
+              const dayName = i === 6 ? "Today" : i === 5 ? "Yest." : d.toLocaleDateString("en-US", { weekday: "short" });
+              const dayFormatted = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+              
+              const signupsCount = users.filter(u => {
+                if (!u.createdAt) return false;
+                const uDate = new Date(u.createdAt).toISOString().split("T")[0];
+                return uDate === dateStr;
+              }).length;
+
+              return { dateStr, dayName, dayFormatted, signupsCount, isToday: i === 6 };
+            });
+
+            const maxSignups = Math.max(1, ...last7Days.map(d => d.signupsCount));
+            const todaySignups = last7Days[6].signupsCount;
+            const yesterdaySignups = last7Days[5].signupsCount;
+            const growthRate = yesterdaySignups > 0 
+              ? Math.round(((todaySignups - yesterdaySignups) / yesterdaySignups) * 100) 
+              : (todaySignups > 0 ? 100 : 0);
+
+            const activeToday = users.filter(u => (u.orderCount || 0) > 0 || (u.depositCount || 0) > 0).length;
+
+            return (
+              <div className="bg-gradient-to-br from-slate-900 via-[#0f172a] to-[#131b2e] border border-slate-800 rounded-3xl p-6 text-white shadow-2xl relative overflow-hidden space-y-6">
+                <div className="absolute -top-24 -left-24 w-72 h-72 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-400 shadow-inner">
+                      <TrendingUp className="w-5 h-5 animate-pulse" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-black tracking-tight text-white">
+                          Live User Registration & Growth Analytics
+                        </h3>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-black uppercase tracking-wider">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                          Live Real-time
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Track organic client acquisitions, daily user joins, and growth momentum.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="px-3.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-right">
+                      <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Today vs Yesterday</span>
+                      <span className={"text-sm font-black " + (growthRate >= 0 ? "text-emerald-400" : "text-rose-400")}>
+                        {growthRate >= 0 ? "+" + growthRate + "%" : growthRate + "%"} Momentum
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-blue-500/40 transition-all group">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Joined Today</span>
+                      <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                    </div>
+                    <div className="text-3xl font-black text-white mt-1 group-hover:text-blue-400 transition-colors">
+                      +{todaySignups} <span className="text-xs font-bold text-slate-400">new users</span>
+                    </div>
+                    <div className="text-[11px] text-emerald-400 font-medium mt-1 flex items-center gap-1">
+                      <span>⚡ Instant auto-wallet created (₹0.00 zero balance verified)</span>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-purple-500/40 transition-all group">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Customers</span>
+                      <span className="w-2 h-2 rounded-full bg-purple-400" />
+                    </div>
+                    <div className="text-3xl font-black text-white mt-1 group-hover:text-purple-400 transition-colors">
+                      {activeToday} <span className="text-xs font-bold text-slate-400">active transacting</span>
+                    </div>
+                    <div className="text-[11px] text-purple-300 font-medium mt-1">
+                      👥 Placing SMM orders & funding wallets
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-emerald-500/40 transition-all group">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Userbase</span>
+                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    </div>
+                    <div className="text-3xl font-black text-white mt-1 group-hover:text-emerald-400 transition-colors">
+                      {users.length} <span className="text-xs font-bold text-slate-400">total registered</span>
+                    </div>
+                    <div className="text-[11px] text-emerald-300 font-medium mt-1">
+                      🛡️ All passwords bcrypt encrypted & secured
+                    </div>
+                  </div>
+                </div>
+
+                <div className="relative z-10 p-5 rounded-2xl bg-slate-950/60 border border-white/10 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-white uppercase tracking-wider">
+                        📈 7-Day User Registration Velocity
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-mono">
+                      Last 7 Days Total: <strong className="text-blue-400">{last7Days.reduce((sum, d) => sum + d.signupsCount, 0)} users</strong>
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-2 sm:gap-4 items-end pt-6 pb-2 min-h-[160px]">
+                    {last7Days.map((item) => {
+                      const heightPercent = Math.max(14, Math.round((item.signupsCount / maxSignups) * 100));
+
+                      return (
+                        <div key={item.dateStr} className="flex flex-col items-center gap-2 group cursor-pointer">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:-translate-y-1 duration-150 px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-[10px] font-mono text-white shadow-xl text-center pointer-events-none whitespace-nowrap">
+                            <div>{item.dayFormatted}</div>
+                            <div className="font-bold text-blue-400">+{item.signupsCount} users</div>
+                          </div>
+
+                          <div className="w-full max-w-[48px] bg-slate-800/80 rounded-t-xl overflow-hidden h-28 flex items-end p-1 shadow-inner">
+                            <div 
+                              style={{ height: heightPercent + "%" }}
+                              className={"w-full rounded-t-lg transition-all duration-500 flex items-center justify-center text-[10px] font-black font-mono text-white shadow-lg " + (
+                                item.isToday 
+                                  ? "bg-gradient-to-t from-blue-600 via-indigo-500 to-cyan-400 shadow-blue-500/50" 
+                                  : "bg-gradient-to-t from-slate-700 to-slate-500 group-hover:from-blue-700 group-hover:to-indigo-500"
+                              )}
+                            >
+                              {item.signupsCount > 0 ? "+" + item.signupsCount : "0"}
+                            </div>
+                          </div>
+
+                          <div className="text-center">
+                            <span className={"text-xs font-bold block " + (item.isToday ? "text-cyan-400 font-black" : "text-slate-400")}>
+                              {item.dayName}
+                            </span>
+                            <span className="text-[9px] text-slate-500 font-mono block">
+                              {item.dayFormatted.split(" ")[1]}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ──────────────── PARTNER PROFIT DISTRIBUTION & SETTLEMENT WIDGET ──────────────── */}
           <div className="bg-gradient-to-br from-slate-900 via-[#131b2e] to-slate-900 border border-slate-800 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
@@ -3126,13 +3343,23 @@ export default function AdminDashboardPage() {
                 </div>
                 <div>
                   <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Upstream SMM Service ID</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 1024"
-                    value={newServiceForm.serviceId}
-                    onChange={(e) => setNewServiceForm({ ...newServiceForm, serviceId: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. 7537"
+                      value={newServiceForm.serviceId}
+                      onChange={(e) => setNewServiceForm({ ...newServiceForm, serviceId: e.target.value })}
+                      className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono"
+                    />
+                    <button
+                      type="button"
+                      disabled={lookingUpService || !newServiceForm.serviceId}
+                      onClick={() => handleLookupServiceId(newServiceForm.serviceId)}
+                      className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer disabled:opacity-50 shrink-0"
+                    >
+                      {lookingUpService ? "..." : "Fetch 3x"}
+                    </button>
+                  </div>
                 </div>
               </div>
 

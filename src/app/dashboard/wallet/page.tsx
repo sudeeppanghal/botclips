@@ -269,10 +269,13 @@ export default function WalletPage() {
       return;
     }
 
-    if (!screenshot1 || !screenshot2) {
-      setError("Both Screenshot 1 (Receipt) and Screenshot 2 (Success Screen) are required to verify your payment.");
+    if (!screenshot1 && !screenshot2) {
+      setError("Please upload your payment verification screenshot (Receipt or Success Screen).");
       return;
     }
+
+    const s1 = screenshot1 || screenshot2;
+    const s2 = screenshot2 || screenshot1;
 
     setSubmitting(true);
     try {
@@ -282,8 +285,8 @@ export default function WalletPage() {
         body: JSON.stringify({
           utr: utr.trim(),
           amount: depositAmount,
-          screenshot1,
-          screenshot2,
+          screenshot1: s1,
+          screenshot2: s2,
         }),
       });
 
@@ -324,10 +327,13 @@ export default function WalletPage() {
       return;
     }
 
-    if (!screenshot1 || !screenshot2) {
-      setError("Both Screenshot 1 (Withdrawal Receipt) and Screenshot 2 (Blockchain Success Screen) are required to verify your payment.");
+    if (!screenshot1 && !screenshot2) {
+      setError("Please upload your payment verification screenshot (Withdrawal Receipt or Blockchain Confirmation).");
       return;
     }
+
+    const s1 = screenshot1 || screenshot2;
+    const s2 = screenshot2 || screenshot1;
 
     setSubmitting(true);
     try {
@@ -337,8 +343,8 @@ export default function WalletPage() {
         body: JSON.stringify({
           txHash: txHash.trim(),
           amountUsdt: depositUsdt,
-          screenshot1,
-          screenshot2,
+          screenshot1: s1,
+          screenshot2: s2,
           network: cryptoNetwork,
         }),
       });

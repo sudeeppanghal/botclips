@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { SmmPanelClient } from "@/lib/delivery/panel-client";
 import { generateOrganicPacedBatches } from "@/lib/delivery-graphs";
+import { sendNewOrderAlert } from "@/lib/telegram";
 
 export async function GET(request: NextRequest) {
   try {
@@ -507,6 +508,18 @@ export async function POST(request: NextRequest) {
 
     // Fast-path background dispatch (non-blocking, fire-and-forget)
     dispatchOrderToUpstreamAsync(order.id, initialPulseQuantity, mappedUpstreamServiceId).catch(() => {});
+
+    // Instant Telegram alert for Admin
+    sendNewOrderAlert({
+      id: order.id,
+      userEmail: session.email,
+      userName: session.name,
+      serviceName: order.service?.name || resolvedAdminService?.name || "SMM Service",
+      quantity: Number(quantity),
+      charge: totalCost,
+      link: order.link,
+      platform: order.service?.platform,
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,

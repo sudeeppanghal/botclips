@@ -279,9 +279,49 @@ export async function sendDailyMidnightReport(report: {
       inline_keyboard: [
         [
           { text: "📊 Open Admin Analytics", url: "https://botclips.online/admin" },
-          { text: "👥 Manage Users", url: "https://botclips.online/admin/users" }
+          { text: "👥 Manage Users", url: "https://botclips.online/admin" }
         ]
       ]
     }
   });
+}
+
+// ──────────────── 4. SEND NEW ORDER ALERT ────────────────
+export async function sendNewOrderAlert(order: {
+  id: string;
+  userEmail: string;
+  userName?: string;
+  serviceName: string;
+  quantity: number;
+  charge: number;
+  link: string;
+  platform?: string;
+}) {
+  try {
+    const timeStr = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+    const text = 
+`🛒 <b>NEW ORDER PLACED</b>
+━━━━━━━━━━━━━━━━━━━━━━
+👤 <b>User:</b> ${order.userName || "Customer"} (<code>${order.userEmail}</code>)
+⚙️ <b>Service:</b> ${order.serviceName}
+📊 <b>Quantity:</b> ${order.quantity.toLocaleString("en-IN")}
+💵 <b>Charged:</b> ₹${order.charge.toFixed(2)} INR
+🔗 <b>Target:</b> <a href="${order.link}">${order.link.length > 40 ? order.link.slice(0, 40) + '...' : order.link}</a>
+⏰ <b>Time:</b> ${timeStr} IST
+━━━━━━━━━━━━━━━━━━━━━━
+🚀 <i>Dispatched to SMM delivery engine</i>`;
+
+    return sendTelegramMessage(text, {
+      replyMarkup: {
+        inline_keyboard: [
+          [
+            { text: "📦 View Orders", url: "https://botclips.online/admin/orders" },
+            { text: "👥 Admin Panel", url: "https://botclips.online/admin" }
+          ]
+        ]
+      }
+    });
+  } catch {
+    return { success: false };
+  }
 }

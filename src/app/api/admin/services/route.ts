@@ -161,26 +161,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, service: updated });
     }
 
-    // ──────────────── 2. SAVE OR UPDATE FARM PACKAGE ────────────────
-    if (action === "save-farm-package") {
+    // ──────────────── 2. SAVE OR UPDATE FARM/GENERAL PACKAGE ────────────────
+    if (action === "save-farm-package" || !action) {
       const {
         id,
         panelId,
         platform = "INSTAGRAM",
-        category = "Farm Packages",
+        category = "General",
         name,
         serviceId,
+        fallbackServiceIds,
         originalRate = 0,
         customRate,
         minQuantity = 10,
         maxQuantity = 1000000,
         badge = "ALGORITHM FARM",
+        reason,
         isActive = true,
       } = body;
 
       if (!name || !serviceId || customRate === undefined) {
         return NextResponse.json(
-          { error: "Package name, upstream service ID, and custom price are required" },
+          { error: "Service name, upstream service ID, and custom price are required" },
           { status: 400 }
         );
       }
@@ -196,21 +198,24 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Please connect an active SMM panel first" }, { status: 400 });
       }
 
+      const existing = id ? await prisma.adminService.findUnique({ where: { id } }) : null;
+
       const service = await prisma.adminService.upsert({
-        where: { id: id || `farm_${Date.now()}` },
+        where: { id: id || `srv_${Date.now()}` },
         create: {
-          id: id || `farm_${Date.now()}`,
+          id: id || `srv_${Date.now()}`,
           panelId: targetPanelId,
           platform: platform as any,
           category,
           name,
           serviceId: String(serviceId),
+          fallbackServiceIds: fallbackServiceIds ? String(fallbackServiceIds) : null,
           originalRate: parseFloat(String(originalRate)),
           customRate: parseFloat(String(customRate)),
           minQuantity: parseInt(String(minQuantity), 10),
           maxQuantity: parseInt(String(maxQuantity), 10),
-          isFarm: true,
-          badge,
+          isFarm: Boolean(body.isFarm),
+          badge: badge || "STANDARD",
           isActive: isActive !== false,
         },
         update: {
@@ -219,15 +224,35 @@ export async function POST(request: NextRequest) {
           category,
           name,
           serviceId: String(serviceId),
+          fallbackServiceIds: fallbackServiceIds !== undefined ? (fallbackServiceIds ? String(fallbackServiceIds) : null) : undefined,
           originalRate: originalRate !== undefined ? parseFloat(String(originalRate)) : undefined,
           customRate: customRate !== undefined ? parseFloat(String(customRate)) : undefined,
           minQuantity: minQuantity !== undefined ? parseInt(String(minQuantity), 10) : undefined,
           maxQuantity: maxQuantity !== undefined ? parseInt(String(maxQuantity), 10) : undefined,
-          isFarm: true,
-          badge,
+          isFarm: body.isFarm !== undefined ? Boolean(body.isFarm) : undefined,
+          badge: badge || undefined,
           isActive: isActive !== false,
         },
       });
+
+      // Record Audit Trail Log
+      try {
+        await prisma.serviceChangeLog.create({
+          data: {
+            serviceId: service.id,
+            serviceName: service.name,
+            platform: service.platform,
+            oldProviderId: existing?.serviceId || null,
+            newProviderId: service.serviceId,
+            oldRate: existing ? existing.customRate : null,
+            newRate: service.customRate,
+            reason: reason || (existing ? "Admin catalog price/ID update" : "New service mapping created"),
+            changedBy: session.email || "Admin",
+          },
+        });
+      } catch (logErr) {
+        console.warn("Failed to create service change log:", logErr);
+      }
 
       return NextResponse.json({ success: true, service });
     }

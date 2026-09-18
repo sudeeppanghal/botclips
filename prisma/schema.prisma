@@ -102,11 +102,13 @@ model AdminService {
   description     String?       @db.Text
   isFarm          Boolean       @default(false) @map("is_farm")
   badge           String?       // e.g. "SMARTPHONE FARM", "ALGORITHM FAVORITE", "VIP PUSH"
+  fallbackServiceIds String?    @map("fallback_service_ids") // comma separated e.g. "1045, 1080"
   isActive        Boolean       @default(true) @map("is_active")
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
   orders          Order[]
+  changeLogs      ServiceChangeLog[]
 
   @@index([panelId])
   @@index([platform])
@@ -300,4 +302,46 @@ model AuditLog {
   createdAt       DateTime      @default(now()) @map("created_at")
 
   @@map("audit_logs")
+}
+
+// ──────────────── SERVICE CHANGE AUDIT LOG ────────────────
+model ServiceChangeLog {
+  id              String        @id @default(cuid())
+  serviceId       String        @map("service_id")
+  service         AdminService  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  serviceName     String?       @map("service_name")
+  platform        Platform      @default(INSTAGRAM)
+  oldProviderId   String?       @map("old_provider_id")
+  newProviderId   String?       @map("new_provider_id")
+  oldRate         Float?        @map("old_rate")
+  newRate         Float?        @map("new_rate")
+  reason          String?
+  changedBy       String?       @map("changed_by")
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  @@index([serviceId])
+  @@map("service_change_logs")
+}
+
+// ──────────────── PARTNER PROFIT SPLIT LEDGER ────────────────
+model ProfitSplit {
+  id              String        @id @default(cuid())
+  paymentId       String?       @map("payment_id")
+  source          String        @default("UPI") // "UPI", "CRYPTO", "MANUAL"
+  amountInr       Float         @map("amount_inr")
+  grossProfit     Float         @default(0.0) @map("gross_profit")
+  partner1Name    String        @default("Jack") @map("partner1_name")
+  partner1Percent Float         @default(50.0) @map("partner1_percent")
+  partner1Share   Float         @map("partner1_share")
+  partner2Name    String        @default("Daniel") @map("partner2_name")
+  partner2Percent Float         @default(50.0) @map("partner2_percent")
+  partner2Share   Float         @map("partner2_share")
+  isSettled       Boolean       @default(false) @map("is_settled")
+  notes           String?
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@index([paymentId])
+  @@index([isSettled])
+  @@map("profit_splits")
 }

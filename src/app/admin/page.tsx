@@ -3,6 +3,10 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { 
+  Headphones,
+  Send,
+  Calculator,
+  History,
   ShieldCheck, 
   ShoppingCart, 
   Users, 
@@ -42,7 +46,7 @@ import {
 } from "lucide-react";
 import BotClipsLogo from "@/components/BotClipsLogo";
 
-type AdminTab = "OVERVIEW" | "ORDERS" | "USERS" | "PANELS" | "SERVICES" | "COMBOS" | "PAYMENTS" | "SETTINGS";
+type AdminTab = "OVERVIEW" | "ORDERS" | "USERS" | "PANELS" | "SERVICES" | "COMBOS" | "PAYMENTS" | "SETTINGS" | "TICKETS" | "SPLITS";
 
 export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>("OVERVIEW");
@@ -161,6 +165,7 @@ export default function AdminDashboardPage() {
     customRate: 5.0,
     minQuantity: 10,
     maxQuantity: 100000,
+    fallbackServiceIds: "",
   });
 
   // ── State for Payments (with 2 Proof Screenshots) ──
@@ -196,6 +201,32 @@ export default function AdminDashboardPage() {
   const [paymentSubTab, setPaymentSubTab] = useState<"ALL" | "UPI" | "CRYPTO">("ALL");
 
   // ── State for Settings ──
+  
+  // ── State for Support Tickets (2-Way Live Chat) ──
+  const [adminTickets, setAdminTickets] = useState<any[]>([]);
+  const [loadingTickets, setLoadingTickets] = useState(false);
+  const [activeAdminTicket, setActiveAdminTicket] = useState<any | null>(null);
+  const [ticketReplyText, setTicketReplyText] = useState("");
+  const [sendingTicketReply, setSendingTicketReply] = useState(false);
+  const [adminTicketStatusFilter, setAdminTicketStatusFilter] = useState<"ALL" | "OPEN" | "ANSWERED" | "CUSTOMER_REPLY" | "CLOSED">("ALL");
+  const [adminTicketSearch, setAdminTicketSearch] = useState("");
+
+  // ── State for Partner Profit Split Ledger ──
+  const [profitSplits, setProfitSplits] = useState<any[]>([]);
+  const [loadingSplits, setLoadingSplits] = useState(false);
+  const [partner1Name, setPartner1Name] = useState("Admin (Main)");
+  const [partner1Percent, setPartner1Percent] = useState(50);
+  const [partner2Name, setPartner2Name] = useState("Partner (Co-Founder)");
+  const [partner2Percent, setPartner2Percent] = useState(50);
+  const [splitNotes, setSplitNotes] = useState("");
+  const [recordingSplit, setRecordingSplit] = useState(false);
+
+  // ── State for Service Audit Logs ──
+  const [serviceLogs, setServiceLogs] = useState<any[]>([]);
+  const [loadingServiceLogs, setLoadingServiceLogs] = useState(false);
+  const [showServiceLogsModal, setShowServiceLogsModal] = useState(false);
+  const [serviceLogSearch, setServiceLogSearch] = useState("");
+
   const [settings, setSettings] = useState({
     siteName: "BotClips",
     currencySymbol: "₹",
@@ -532,6 +563,152 @@ export default function AdminDashboardPage() {
     }
   }
 
+  
+  async function loadAdminTickets() {
+    setLoadingTickets(true);
+    try {
+      const res = await fetch("/api/admin/tickets");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.tickets)) {
+        setAdminTickets(data.tickets);
+        if (activeAdminTicket) {
+          const fresh = data.tickets.find((t: any) => t.id === activeAdminTicket.id);
+          if (fresh) setActiveAdminTicket(fresh);
+        } else if (data.tickets.length > 0 && !activeAdminTicket) {
+          setActiveAdminTicket(data.tickets[0]);
+        }
+      }
+    } catch {} finally {
+      setLoadingTickets(false);
+    }
+  }
+
+  async function handleSendAdminTicketReply(e: React.FormEvent) {
+    e.preventDefault();
+    if (!ticketReplyText.trim() || !activeAdminTicket) return;
+    setSendingTicketReply(true);
+    try {
+      const res = await fetch("/api/admin/tickets", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticketId: activeAdminTicket.id,
+          message: ticketReplyText.trim(),
+          status: "ANSWERED"
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify("Reply sent to customer successfully!");
+        setTicketReplyText("");
+        loadAdminTickets();
+      } else {
+        notify(data.error || "Failed to send ticket reply", "error");
+      }
+    } catch {
+      notify("Network error sending ticket reply", "error");
+    } finally {
+      setSendingTicketReply(false);
+    }
+  }
+
+  async function handleUpdateTicketStatus(ticketId: string, status: string) {
+    try {
+      const res = await fetch("/api/admin/tickets", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticketId, status })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(`Ticket status updated to ${status}!`);
+        loadAdminTickets();
+      } else {
+        notify(data.error || "Failed to update status", "error");
+      }
+    } catch {
+      notify("Network error updating status", "error");
+    }
+  }
+
+  async function loadProfitSplits() {
+    setLoadingSplits(true);
+    try {
+      const res = await fetch("/api/admin/financials/splits");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.splits)) {
+        setProfitSplits(data.splits);
+      }
+    } catch {} finally {
+      setLoadingSplits(false);
+    }
+  }
+
+  async function handleRecordProfitSplit() {
+    setRecordingSplit(true);
+    try {
+      const totalDep = financials?.deposits?.totalCombinedInr || 0;
+      const realCost = financials?.costs?.realCostInr || 0;
+      const gross = Math.max(0, totalDep - realCost);
+
+      const res = await fetch("/api/admin/financials/splits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amountInr: totalDep,
+          grossProfit: gross,
+          partner1Name,
+          partner1Percent: Number(partner1Percent),
+          partner2Name,
+          partner2Percent: Number(partner2Percent),
+          notes: splitNotes || "Standard Partner Split settlement"
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify("Recorded partner profit split distribution in ledger!");
+        setSplitNotes("");
+        loadProfitSplits();
+      } else {
+        notify(data.error || "Failed to record split", "error");
+      }
+    } catch {
+      notify("Network error recording split", "error");
+    } finally {
+      setRecordingSplit(false);
+    }
+  }
+
+  async function handleSettleSplit(splitId: string, isSettled: boolean) {
+    try {
+      const res = await fetch("/api/admin/financials/splits", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ splitId, isSettled })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(isSettled ? "Marked split as SETTLED & PAID!" : "Marked split as UNSETTLED.");
+        loadProfitSplits();
+      }
+    } catch {
+      notify("Error updating settlement status", "error");
+    }
+  }
+
+  async function loadServiceLogs() {
+    setLoadingServiceLogs(true);
+    try {
+      const res = await fetch("/api/admin/services/logs");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.logs)) {
+        setServiceLogs(data.logs);
+      }
+    } catch {} finally {
+      setLoadingServiceLogs(false);
+    }
+  }
+
   async function loadFinancials() {
     setLoadingFinancials(true);
     try {
@@ -749,6 +926,7 @@ export default function AdminDashboardPage() {
           panelName: s.panel?.name || "Default Panel",
           minQuantity: s.minQuantity,
           maxQuantity: s.maxQuantity,
+          fallbackServiceIds: s.fallbackServiceIds || "",
           active: s.isActive,
         })));
       }
@@ -841,6 +1019,7 @@ export default function AdminDashboardPage() {
       customRate: suggestedSell,
       minQuantity: parseInt(rawSrv.min || 10),
       maxQuantity: parseInt(rawSrv.max || 100000),
+      fallbackServiceIds: "",
     });
     setShowUpstreamModal(false);
     setShowAddServiceModal(true);
@@ -1205,6 +1384,8 @@ export default function AdminDashboardPage() {
           { id: "SERVICES", label: "Services & Markups", icon: Layers },
           { id: "COMBOS", label: "Whop & Combos Config", icon: Sparkles },
           { id: "PAYMENTS", label: "Deposit Queue (UPI & Crypto)", icon: CreditCard, badge: payments.filter(p => p.status === "PENDING").length + cryptoPayments.filter(p => p.status === "PENDING").length },
+          { id: "TICKETS", label: "Live Support Desk", icon: Headphones, badge: adminTickets.filter(t => t.status === "OPEN" || t.status === "CUSTOMER_REPLY").length },
+          { id: "SPLITS", label: "Partner Profit Split Ledger", icon: Calculator },
           { id: "SETTINGS", label: "Site & Cloudinary", icon: Settings },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -2849,6 +3030,16 @@ export default function AdminDashboardPage() {
             </div>
             <div className="flex items-center gap-2">
               <button
+                onClick={() => {
+                  loadServiceLogs();
+                  setShowServiceLogsModal(true);
+                }}
+                className="px-3.5 py-2 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs hover:bg-purple-100"
+              >
+                <History className="w-4 h-4" />
+                <span>Price Audit Logs</span>
+              </button>
+              <button
                 onClick={() => handleFetchUpstreamServices()}
                 disabled={fetchingUpstream}
                 className="px-3.5 py-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs hover:bg-emerald-100"
@@ -2868,6 +3059,7 @@ export default function AdminDashboardPage() {
                     customRate: 5.0,
                     minQuantity: 10,
                     maxQuantity: 100000,
+                    fallbackServiceIds: "",
                   });
                   setShowAddServiceModal(true);
                 }}
@@ -3691,6 +3883,536 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
+      
+      {/* ──────────────── TAB: SUPPORT TICKETS 2-WAY CHAT ──────────────── */}
+      {activeTab === "TICKETS" && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                <Headphones className="w-5 h-5 text-blue-600" />
+                <span>Support Desk & Live Ticket Center</span>
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Two-way threaded customer support, refill dispatches, and priority issue resolution.
+              </p>
+            </div>
+            <button
+              onClick={loadAdminTickets}
+              disabled={loadingTickets}
+              className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loadingTickets ? "animate-spin" : ""}`} />
+              <span>Refresh Tickets</span>
+            </button>
+          </div>
+
+          {/* Filters Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-3.5">
+            <div className="flex items-center gap-1.5">
+              {(['ALL', 'OPEN', 'ANSWERED', 'CUSTOMER_REPLY', 'CLOSED'] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setAdminTicketStatusFilter(s)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    adminTicketStatusFilter === s
+                      ? "bg-blue-600 text-white shadow-xs"
+                      : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  {s === 'ALL' ? 'All Tickets' : s.replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              placeholder="Search user, email, subject, order #..."
+              value={adminTicketSearch}
+              onChange={(e) => setAdminTicketSearch(e.target.value)}
+              className="px-3.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500 w-full sm:w-64"
+            />
+          </div>
+
+          {/* Main 2-Column Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Ticket List */}
+            <div className="lg:col-span-5 bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-5 shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Tickets List ({adminTickets.filter(t => {
+                    if (adminTicketStatusFilter !== 'ALL' && t.status !== adminTicketStatusFilter) return false;
+                    if (adminTicketSearch.trim()) {
+                      const q = adminTicketSearch.toLowerCase();
+                      return (t.subject || '').toLowerCase().includes(q) ||
+                             (t.user?.email || '').toLowerCase().includes(q) ||
+                             (t.user?.name || '').toLowerCase().includes(q) ||
+                             (t.orderId || '').toLowerCase().includes(q);
+                    }
+                    return true;
+                  }).length})
+                </h3>
+              </div>
+
+              <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+                {adminTickets
+                  .filter(t => {
+                    if (adminTicketStatusFilter !== 'ALL' && t.status !== adminTicketStatusFilter) return false;
+                    if (adminTicketSearch.trim()) {
+                      const q = adminTicketSearch.toLowerCase();
+                      return (t.subject || '').toLowerCase().includes(q) ||
+                             (t.user?.email || '').toLowerCase().includes(q) ||
+                             (t.user?.name || '').toLowerCase().includes(q) ||
+                             (t.orderId || '').toLowerCase().includes(q);
+                    }
+                    return true;
+                  })
+                  .map((t) => (
+                    <div
+                      key={t.id}
+                      onClick={() => setActiveAdminTicket(t)}
+                      className={`p-3.5 rounded-xl border transition-all cursor-pointer text-left ${
+                        activeAdminTicket?.id === t.id
+                          ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/30"
+                          : "border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[11px] font-bold text-slate-500">#{t.id.slice(-6).toUpperCase()}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase ${
+                          t.status === "ANSWERED"
+                            ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 border border-emerald-200"
+                            : t.status === "CUSTOMER_REPLY"
+                            ? "bg-amber-50 text-amber-600 dark:bg-amber-950/40 border border-amber-200 animate-pulse"
+                            : t.status === "OPEN"
+                            ? "bg-blue-50 text-blue-600 dark:bg-blue-950/40 border border-blue-200"
+                            : "bg-slate-100 text-slate-500"
+                        }`}>
+                          {t.status}
+                        </span>
+                      </div>
+                      <div className="font-bold text-xs text-slate-900 dark:text-white mt-1.5 line-clamp-1">
+                        {t.subject}
+                      </div>
+                      <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
+                        <span className="font-medium text-slate-700 dark:text-slate-300">{t.user?.email || t.userId}</span>
+                        <span className="font-mono text-[10px] text-slate-400">Wallet: ₹{Number(t.user?.balance || 0).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            {/* Conversation Thread */}
+            <div className="lg:col-span-7 bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs flex flex-col justify-between min-h-[550px]">
+              {activeAdminTicket ? (
+                <div className="flex flex-col h-full justify-between space-y-4">
+                  <div>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono text-slate-400 font-bold">#{activeAdminTicket.id.slice(-6).toUpperCase()}</span>
+                          <span className="text-xs font-bold text-blue-600">{activeAdminTicket.user?.email}</span>
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-1">{activeAdminTicket.subject}</h3>
+                        {activeAdminTicket.orderId && (
+                          <span className="text-xs font-mono text-slate-500">Linked Order ID: #{activeAdminTicket.orderId}</span>
+                        )}
+                      </div>
+
+                      {/* Status Action Buttons */}
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleUpdateTicketStatus(activeAdminTicket.id, "ANSWERED")}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 text-[11px] font-bold border border-emerald-200 cursor-pointer"
+                        >
+                          Mark Answered
+                        </button>
+                        <button
+                          onClick={() => handleUpdateTicketStatus(activeAdminTicket.id, "CLOSED")}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-bold cursor-pointer"
+                        >
+                          Close Ticket
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Messages Scroll Area */}
+                    <div className="space-y-3 py-4 max-h-[380px] overflow-y-auto pr-2">
+                      {activeAdminTicket.messages && activeAdminTicket.messages.length > 0 ? (
+                        activeAdminTicket.messages.map((m: any, idx: number) => {
+                          const isStaff = m.senderRole === "ADMIN" || m.senderRole === "STAFF";
+                          return (
+                            <div key={idx} className={`flex flex-col ${isStaff ? "items-end" : "items-start"}`}>
+                              <div className={`p-3.5 rounded-2xl max-w-[85%] text-xs ${
+                                isStaff
+                                  ? "bg-blue-600 text-white rounded-tr-xs"
+                                  : "bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-tl-xs"
+                              }`}>
+                                <div className="text-[10px] opacity-75 font-bold mb-1">
+                                  {isStaff ? "Admin (Support)" : (activeAdminTicket.user?.name || "Client")}
+                                </div>
+                                <p className="whitespace-pre-wrap leading-relaxed">{m.message}</p>
+                              </div>
+                              <span className="text-[10px] text-slate-400 mt-1 px-1">
+                                {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="p-8 text-center text-slate-400 text-xs">No messages in this thread yet.</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Admin Reply Form */}
+                  <form onSubmit={handleSendAdminTicketReply} className="pt-4 border-t border-slate-100 dark:border-slate-800 flex gap-2">
+                    <input
+                      type="text"
+                      value={ticketReplyText}
+                      onChange={(e) => setTicketReplyText(e.target.value)}
+                      placeholder="Type admin response or resolution notes..."
+                      className="flex-1 px-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:border-blue-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={sendingTicketReply || !ticketReplyText.trim()}
+                      className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center gap-1.5 shadow-xs"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>{sendingTicketReply ? "Sending..." : "Reply as Admin"}</span>
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-center p-8 text-slate-400">
+                  <Headphones className="w-10 h-10 mb-2 opacity-40 stroke-[1.5]" />
+                  <p className="text-xs font-semibold">Select a ticket from the list on the left to start replying.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────── TAB: PARTNER PROFIT SPLIT CALCULATOR & LEDGER ──────────────── */}
+      {activeTab === "SPLITS" && (
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
+                  <Calculator className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                    Partner Profit Split Calculator & Settlement Ledger
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Automated wholesale cost deduction, gross profit distribution, and co-founder payout ledger.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={loadProfitSplits}
+                disabled={loadingSplits}
+                className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingSplits ? "animate-spin" : ""}`} />
+                <span>Refresh Ledger</span>
+              </button>
+            </div>
+
+            {/* Live Financial Split Calculation Cards */}
+            {(() => {
+              const totalDep = financials?.deposits?.totalCombinedInr || 0;
+              const realCost = financials?.costs?.realCostInr || 0;
+              const grossProfit = Math.max(0, totalDep - realCost);
+              const p1Payout = (grossProfit * (partner1Percent / 100));
+              const p2Payout = (grossProfit * (partner2Percent / 100));
+
+              return (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                      <span className="text-xs font-bold text-slate-400 uppercase">Gross Deposit Revenue</span>
+                      <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">₹{totalDep.toLocaleString()}</div>
+                      <span className="text-[10px] text-blue-600 font-bold">UPI + USDT TRC20</span>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                      <span className="text-xs font-bold text-slate-400 uppercase">Wholesale Provider Cost</span>
+                      <div className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">₹{realCost.toLocaleString()}</div>
+                      <span className="text-[10px] text-slate-400 font-medium">Upstream Panel API charges</span>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
+                      <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase">Net Distributable Profit</span>
+                      <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">₹{grossProfit.toLocaleString()}</div>
+                      <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold">Available for Partner Split</span>
+                    </div>
+                  </div>
+
+                  {/* Partner Share Configuration Form */}
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 text-xs">
+                    <h3 className="font-bold text-slate-900 dark:text-white text-sm">Partner Distribution Percentages</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="font-bold text-slate-700 dark:text-slate-200">Partner 1</label>
+                          <span className="text-emerald-600 font-black font-mono">₹{p1Payout.toFixed(2)}</span>
+                        </div>
+                        <input
+                          type="text"
+                          value={partner1Name}
+                          onChange={(e) => setPartner1Name(e.target.value)}
+                          placeholder="Partner 1 Name"
+                          className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-bold"
+                        />
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-slate-400">Share %:</span>
+                          <input
+                            type="number"
+                            value={partner1Percent}
+                            onChange={(e) => {
+                              const val = Math.min(100, Math.max(0, Number(e.target.value)));
+                              setPartner1Percent(val);
+                              setPartner2Percent(100 - val);
+                            }}
+                            className="w-20 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono font-bold"
+                          />
+                          <span className="font-bold text-slate-500">%</span>
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="font-bold text-slate-700 dark:text-slate-200">Partner 2</label>
+                          <span className="text-blue-600 font-black font-mono">₹{p2Payout.toFixed(2)}</span>
+                        </div>
+                        <input
+                          type="text"
+                          value={partner2Name}
+                          onChange={(e) => setPartner2Name(e.target.value)}
+                          placeholder="Partner 2 Name"
+                          className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-bold"
+                        />
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-slate-400">Share %:</span>
+                          <input
+                            type="number"
+                            value={partner2Percent}
+                            onChange={(e) => {
+                              const val = Math.min(100, Math.max(0, Number(e.target.value)));
+                              setPartner2Percent(val);
+                              setPartner1Percent(100 - val);
+                            }}
+                            className="w-20 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono font-bold"
+                          />
+                          <span className="font-bold text-slate-500">%</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                      <input
+                        type="text"
+                        placeholder="Settlement notes (e.g. Weekly settlement - Sep 18, 2026)..."
+                        value={splitNotes}
+                        onChange={(e) => setSplitNotes(e.target.value)}
+                        className="flex-1 px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white"
+                      />
+                      <button
+                        onClick={handleRecordProfitSplit}
+                        disabled={recordingSplit || grossProfit <= 0}
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-xl shadow-xs cursor-pointer flex items-center gap-2"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>{recordingSplit ? "Recording..." : "Record Split Entry"}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Historical Profit Splits Ledger Table */}
+            <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <h3 className="font-bold text-slate-900 dark:text-white text-sm">Settlement History & Ledger</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase">
+                      <th className="py-2.5 px-2">Date</th>
+                      <th className="py-2.5 px-2">Gross Revenue</th>
+                      <th className="py-2.5 px-2">Net Profit</th>
+                      <th className="py-2.5 px-2">Partner 1 Distribution</th>
+                      <th className="py-2.5 px-2">Partner 2 Distribution</th>
+                      <th className="py-2.5 px-2">Status</th>
+                      <th className="py-2.5 px-2 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {profitSplits.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-6 text-center text-slate-400">
+                          No settlement records found. Click &quot;Record Split Entry&quot; above to log a payout.
+                        </td>
+                      </tr>
+                    ) : (
+                      profitSplits.map((split) => (
+                        <tr key={split.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                          <td className="py-3 px-2 font-mono text-slate-500">
+                            {new Date(split.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </td>
+                          <td className="py-3 px-2 font-bold font-mono">₹{split.amountInr?.toFixed(2)}</td>
+                          <td className="py-3 px-2 font-black text-emerald-600 font-mono">₹{split.grossProfit?.toFixed(2)}</td>
+                          <td className="py-3 px-2 font-mono">
+                            <span className="font-bold">{split.partner1Name} ({split.partner1Percent}%):</span> ₹{split.partner1Share?.toFixed(2)}
+                          </td>
+                          <td className="py-3 px-2 font-mono">
+                            <span className="font-bold">{split.partner2Name} ({split.partner2Percent}%):</span> ₹{split.partner2Share?.toFixed(2)}
+                          </td>
+                          <td className="py-3 px-2">
+                            <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] uppercase ${
+                              split.isSettled
+                                ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                                : "bg-amber-50 text-amber-600 border border-amber-200"
+                            }`}>
+                              {split.isSettled ? "SETTLED" : "PENDING"}
+                            </span>
+                          </td>
+                          <td className="py-3 px-2 text-right">
+                            <button
+                              onClick={() => handleSettleSplit(split.id, !split.isSettled)}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer ${
+                                split.isSettled
+                                  ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                  : "bg-emerald-600 text-white hover:bg-emerald-700"
+                              }`}
+                            >
+                              {split.isSettled ? "Unmark" : "Mark Paid"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────── MODAL: SERVICE PRICE & MAPPING AUDIT LOGS ──────────────── */}
+      {showServiceLogsModal && (
+        <div 
+          onClick={() => setShowServiceLogsModal(false)}
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-[#131b2e] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-4xl w-full shadow-2xl space-y-4 cursor-default text-xs"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <History className="w-5 h-5 text-purple-600" />
+                <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                  Service Price & Mapping Audit Trail
+                </h3>
+              </div>
+              <button 
+                onClick={() => setShowServiceLogsModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <input
+                type="text"
+                placeholder="Search service name, ID, platform or admin..."
+                value={serviceLogSearch}
+                onChange={(e) => setServiceLogSearch(e.target.value)}
+                className="px-3.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500 w-72"
+              />
+              <span className="text-slate-400 font-mono text-[11px]">
+                Tracking {serviceLogs.length} historical modifications
+              </span>
+            </div>
+
+            <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase sticky top-0 bg-white dark:bg-[#131b2e]">
+                    <th className="py-2.5 px-2">Timestamp</th>
+                    <th className="py-2.5 px-2">Service</th>
+                    <th className="py-2.5 px-2">Platform</th>
+                    <th className="py-2.5 px-2">Provider ID Change</th>
+                    <th className="py-2.5 px-2">Rate Change</th>
+                    <th className="py-2.5 px-2">Modified By</th>
+                    <th className="py-2.5 px-2">Reason</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {serviceLogs
+                    .filter(l => {
+                      if (!serviceLogSearch.trim()) return true;
+                      const q = serviceLogSearch.toLowerCase();
+                      return (l.serviceName || '').toLowerCase().includes(q) ||
+                             (l.serviceId || '').toLowerCase().includes(q) ||
+                             (l.platform || '').toLowerCase().includes(q) ||
+                             (l.changedBy || '').toLowerCase().includes(q);
+                    })
+                    .map((l) => (
+                      <tr key={l.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                        <td className="py-3 px-2 font-mono text-slate-500 whitespace-nowrap">
+                          {new Date(l.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="py-3 px-2 font-semibold text-slate-900 dark:text-white">
+                          {l.serviceName}
+                        </td>
+                        <td className="py-3 px-2">
+                          <span className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                            {l.platform}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2 font-mono text-xs">
+                          {l.oldProviderId !== l.newProviderId ? (
+                            <span><s className="text-slate-400">#{l.oldProviderId}</s> → <strong className="text-blue-600">#{l.newProviderId}</strong></span>
+                          ) : (
+                            <span className="text-slate-500">#{l.newProviderId}</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-2 font-mono text-xs">
+                          {l.oldRate !== l.newRate ? (
+                            <span><s className="text-slate-400">₹{l.oldRate}</s> → <strong className="text-emerald-600">₹{l.newRate}</strong></span>
+                          ) : (
+                            <span className="text-slate-500">₹{l.newRate}</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-2 text-slate-500">{l.changedBy || "ADMIN"}</td>
+                        <td className="py-3 px-2 text-slate-400 max-w-xs truncate">{l.reason || "Catalog optimization"}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setShowServiceLogsModal(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl cursor-pointer"
+              >
+                Close Audit Logs
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ──────────────── MODAL 1: EDIT SERVICE & CUSTOM PRICING ──────────────── */}
       {editingService && (
         <div 
@@ -3740,14 +4462,28 @@ export default function AdminDashboardPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Upstream SMM Service ID</label>
+                  <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Primary Upstream ID</label>
                   <input
                     type="text"
                     value={editingService.serviceId}
                     onChange={(e) => setEditingService({ ...editingService, serviceId: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono font-bold"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  Cascading Failover Fallback Service IDs (Comma-Separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 5246, 5247, 5248"
+                  value={editingService.fallbackServiceIds || ""}
+                  onChange={(e) => setEditingService({ ...editingService, fallbackServiceIds: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-xs"
+                />
+                <span className="text-[10px] text-slate-400">If primary upstream service ID fails or goes offline, BotClips will automatically failover to these fallback IDs in sequence.</span>
               </div>
 
               <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
@@ -3870,6 +4606,20 @@ export default function AdminDashboardPage() {
                     </button>
                   </div>
                 </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  Cascading Failover Fallback Service IDs (Comma-Separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 5246, 5247, 5248"
+                  value={newServiceForm.fallbackServiceIds || ""}
+                  onChange={(e) => setNewServiceForm({ ...newServiceForm, fallbackServiceIds: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-xs"
+                />
+                <span className="text-[10px] text-slate-400">If primary upstream service ID fails or goes offline, BotClips will automatically failover to these fallback IDs in sequence.</span>
               </div>
 
               <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">

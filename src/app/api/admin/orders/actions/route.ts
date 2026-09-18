@@ -228,24 +228,46 @@ export async function POST(request: NextRequest) {
       }
 
       const client = new SmmPanelClient(panel.apiUrl, panel.apiKeyEncrypted);
-      const upstreamServiceId = order.service?.serviceId;
+      const primaryServiceId = order.service?.serviceId;
 
-      if (!upstreamServiceId) {
+      if (!primaryServiceId) {
         return NextResponse.json({ error: "Missing upstream service ID on catalog service" }, { status: 400 });
       }
 
-      const addRes = await client.addOrder({
-        serviceId: upstreamServiceId,
-        link: order.link,
-        quantity: order.quantity,
-        runs: order.runs > 1 ? order.runs : undefined,
-        interval: order.intervalMinutes > 0 ? order.intervalMinutes : undefined
-      });
+      let fallbackList: string[] = [];
+      if (order.service?.fallbackServiceIds) {
+        fallbackList = order.service.fallbackServiceIds
+          .split(",")
+          .map((s: string) => s.trim())
+          .filter((s: string) => s.length > 0 && s !== primaryServiceId);
+      }
+      const candidateServiceIds = [primaryServiceId, ...fallbackList];
 
-      if (addRes.error || !addRes.order) {
+      let addRes: any = null;
+      let usedServiceId = primaryServiceId;
+
+      for (const sid of candidateServiceIds) {
+        try {
+          addRes = await client.addOrder({
+            serviceId: sid,
+            link: order.link,
+            quantity: order.quantity,
+            runs: order.runs > 1 ? order.runs : undefined,
+            interval: order.intervalMinutes > 0 ? order.intervalMinutes : undefined
+          });
+          if (addRes && addRes.order) {
+            usedServiceId = sid;
+            break;
+          }
+        } catch (err: any) {
+          console.warn(`Redispatch fallback ${sid} error:`, err.message);
+        }
+      }
+
+      if (!addRes || addRes.error || !addRes.order) {
         return NextResponse.json({
           success: false,
-          error: `Upstream dispatch failed: ${addRes.error || "No order ID returned by provider"}`
+          error: `Upstream dispatch failed on all candidate IDs [${candidateServiceIds.join(", ")}]: ${addRes?.error || "No order ID returned"}`
         }, { status: 400 });
       }
 

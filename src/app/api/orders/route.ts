@@ -576,7 +576,16 @@ async function dispatchOrderToUpstreamAsync(orderId: string, initialQuantity: nu
       return; // Handled smoothly by background cron queue
     }
 
-    let upstreamServiceId = order.service?.serviceId || fallbackServiceId || "5245";
+    let primaryServiceId = order.service?.serviceId || fallbackServiceId || "5245";
+    let fallbackList: string[] = [];
+    if (order.service?.fallbackServiceIds) {
+      fallbackList = order.service.fallbackServiceIds
+        .split(",")
+        .map((s: string) => s.trim())
+        .filter((s: string) => s.length > 0 && s !== primaryServiceId);
+    }
+    const candidateServiceIds = [primaryServiceId, ...fallbackList];
+
     let dispatchQty = initialQuantity || order.quantity;
     let comboObj: any = null;
 
@@ -584,18 +593,31 @@ async function dispatchOrderToUpstreamAsync(orderId: string, initialQuantity: nu
       try {
         comboObj = JSON.parse(order.comboData);
         if (comboObj?.isJitterEngine && Array.isArray(comboObj.batches) && comboObj.batches.length > 0) {
-          upstreamServiceId = comboObj.upstreamServiceId || upstreamServiceId;
+          candidateServiceIds[0] = comboObj.upstreamServiceId || candidateServiceIds[0];
           dispatchQty = comboObj.batches[0].views || dispatchQty;
         }
       } catch {}
     }
 
     const client = new SmmPanelClient(targetPanel.apiUrl, targetPanel.apiKeyEncrypted);
-    const result = await client.addOrder({
-      serviceId: upstreamServiceId,
-      link: order.link,
-      quantity: dispatchQty,
-    });
+    let result: any = null;
+    let usedServiceId = candidateServiceIds[0];
+
+    for (const sid of candidateServiceIds) {
+      try {
+        result = await client.addOrder({
+          serviceId: sid,
+          link: order.link,
+          quantity: dispatchQty,
+        });
+        if (result && result.order) {
+          usedServiceId = sid;
+          break;
+        }
+      } catch (err) {
+        console.warn(`Fallback dispatch failed for service ID ${sid}:`, err);
+      }
+    }
 
     if (result && result.order) {
       const updateData: any = {
@@ -607,6 +629,7 @@ async function dispatchOrderToUpstreamAsync(orderId: string, initialQuantity: nu
         comboObj.batches[0].status = "DISPATCHED";
         comboObj.batches[0].upstreamOrderId = String(result.order);
         comboObj.batches[0].dispatchedAt = new Date().toISOString();
+        comboObj.batches[0].usedServiceId = usedServiceId;
         comboObj.lastDispatchedBatch = 1;
         updateData.comboData = JSON.stringify(comboObj);
       }

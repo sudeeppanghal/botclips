@@ -306,8 +306,8 @@ export default function NewOrderModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-[#111827] border border-slate-200/90 dark:border-slate-800 rounded-3xl w-full max-w-2xl max-h-[92vh] overflow-y-auto shadow-2xl p-5 sm:p-6 relative text-slate-900 dark:text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 animate-in fade-in duration-150" style={{ transform: "translate3d(0, 0, 0)", WebkitTransform: "translate3d(0, 0, 0)" }}>
+      <div className="bg-white dark:bg-[#111827] border border-slate-200/90 dark:border-slate-800 rounded-3xl w-full max-w-2xl max-h-[92vh] overflow-y-auto shadow-2xl p-5 sm:p-6 relative text-slate-900 dark:text-white" style={{ WebkitOverflowScrolling: "touch", transform: "translate3d(0, 0, 0)", isolation: "isolate" }}>
         
         {/* Close Button */}
         <button

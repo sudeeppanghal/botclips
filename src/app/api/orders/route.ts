@@ -9,11 +9,24 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getSessionUser();
     const { searchParams } = new URL(request.url);
-    const limit = Math.min(100, Math.max(5, Number(searchParams.get("limit") || 50)));
+    const limit = Math.min(300, Math.max(5, Number(searchParams.get("limit") || 100)));
+    const statusParam = searchParams.get("status");
+    const runningOnly = searchParams.get("running") === "true";
+    const panelIdParam = searchParams.get("panelId");
 
     const whereClause: any = {};
     if (session && session.role !== "ADMIN") {
       whereClause.userId = session.id;
+    }
+
+    if (runningOnly) {
+      whereClause.status = { in: ["PENDING", "PROCESSING", "IN_PROGRESS"] };
+    } else if (statusParam && statusParam !== "ALL") {
+      whereClause.status = statusParam;
+    }
+
+    if (panelIdParam && panelIdParam !== "ALL") {
+      whereClause.panelId = panelIdParam;
     }
 
     const orders = await prisma.order.findMany({
@@ -30,6 +43,8 @@ export async function GET(request: NextRequest) {
             category: true,
             customRate: true,
             originalRate: true,
+            isFarm: true,
+            badge: true,
           } 
         },
         panel: {
@@ -38,6 +53,7 @@ export async function GET(request: NextRequest) {
             name: true,
             apiUrl: true,
             status: true,
+            currency: true,
           }
         },
         user: {
@@ -45,6 +61,8 @@ export async function GET(request: NextRequest) {
             id: true,
             email: true,
             name: true,
+            phone: true,
+            balance: true,
             role: true,
           }
         }

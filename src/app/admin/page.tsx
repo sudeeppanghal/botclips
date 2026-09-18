@@ -64,6 +64,16 @@ export default function AdminDashboardPage() {
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [orderSearch, setOrderSearch] = useState("");
   const [selectedProviderFilter, setSelectedProviderFilter] = useState("ALL");
+  const [orderStatusFilter, setOrderStatusFilter] = useState("ALL");
+  const [inspectingAdminOrder, setInspectingAdminOrder] = useState<any | null>(null);
+  const [syncingOrderId, setSyncingOrderId] = useState<string | null>(null);
+  const [batchSyncingOrders, setBatchSyncingOrders] = useState(false);
+  const [orderActionModal, setOrderActionModal] = useState<any | null>(null);
+  const [orderActionStatus, setOrderActionStatus] = useState<string>("COMPLETED");
+  const [orderActionRefund, setOrderActionRefund] = useState(false);
+  const [orderActionReason, setOrderActionReason] = useState("");
+  const [processingOrderAction, setProcessingOrderAction] = useState(false);
+  const [redispatchingOrderId, setRedispatchingOrderId] = useState<string | null>(null);
 
   // ── State for Users ──
   const [users, setUsers] = useState<any[]>([]);
@@ -347,7 +357,7 @@ export default function AdminDashboardPage() {
   async function loadOrders() {
     setLoadingOrders(true);
     try {
-      const res = await fetch("/api/orders");
+      const res = await fetch("/api/orders?limit=300");
       const data = await res.json();
       if (data.success && Array.isArray(data.orders)) {
         setOrders(data.orders.map((o: any) => {
@@ -369,26 +379,51 @@ export default function AdminDashboardPage() {
             providerBadgeClass = "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-cyan-500/30";
           }
 
+          const originalRate = Number(o.service?.originalRate || 0);
+          const customRate = Number(o.service?.customRate || 0);
+          const quantity = Number(o.quantity || 0);
+          const charge = Number(o.charge || 0);
+          const estimatedCost = Math.round(((quantity * originalRate) / 1000) * 100) / 100;
+          const grossProfit = Math.round(Math.max(0, charge - estimatedCost) * 100) / 100;
+          const profitMargin = charge > 0 ? Math.round((grossProfit / charge) * 100) : 0;
+
           return {
             id: o.id,
+            userId: o.userId || o.user?.id,
             user: o.user?.email || o.userId || "Client",
             userName: o.user?.name || "",
+            userBalance: Number(o.user?.balance || 0),
+            userPhone: o.user?.phone || "",
+            userRole: o.user?.role || "USER",
             service: o.service?.name || "Service #" + (o.service?.serviceId || o.serviceId),
             serviceId: o.service?.serviceId || o.serviceId,
+            serviceCatalogId: o.service?.id,
             platform: o.service?.platform || "INSTAGRAM",
+            category: o.service?.category || "General",
+            serviceBadge: o.service?.badge,
+            originalRate,
+            customRate,
+            estimatedCost,
+            grossProfit,
+            profitMargin,
             link: o.link,
-            quantity: o.quantity,
-            charge: o.charge,
+            quantity,
+            charge,
+            startCount: o.startCount ?? 0,
+            remains: o.remains !== undefined && o.remains !== null ? o.remains : (o.status === "COMPLETED" ? 0 : quantity),
             status: o.status,
+            createdAt: o.createdAt,
             date: new Date(o.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
             providerCode,
             providerName,
             providerBadgeClass,
+            providerApiUrl: o.panel?.apiUrl || (providerCode === "S1" ? "https://smmsocialmedia.in/api/v2" : "https://yoyomedia.in/api/v2"),
             providerOrderId: o.providerOrderId,
             panelId: o.panelId || o.panel?.id,
             runs: o.runs,
             intervalMinutes: o.intervalMinutes,
             failReason: o.failReason,
+            isCombo: o.isCombo,
           };
         }));
       }
@@ -396,6 +431,104 @@ export default function AdminDashboardPage() {
       console.error("Failed to load orders in admin:", e);
     } finally {
       setLoadingOrders(false);
+    }
+  }
+
+  async function handleSyncSingleOrderStatus(orderId: string) {
+    setSyncingOrderId(orderId);
+    try {
+      const res = await fetch("/api/admin/orders/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "SYNC_STATUS", orderId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(data.message || "Order status synced from provider!", "success");
+        loadOrders();
+      } else {
+        notify(data.error || data.message || "Failed to sync status with provider", "error");
+      }
+    } catch {
+      notify("Failed to connect to provider API", "error");
+    } finally {
+      setSyncingOrderId(null);
+    }
+  }
+
+  async function handleBatchSyncRunningOrders() {
+    setBatchSyncingOrders(true);
+    notify("Pinging upstream SMM providers for all active running orders...", "info");
+    try {
+      const res = await fetch("/api/admin/orders/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "SYNC_ALL_RUNNING" })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(`✅ ${data.message}`, "success");
+        loadOrders();
+      } else {
+        notify(data.error || "Failed to batch sync orders", "error");
+      }
+    } catch {
+      notify("Failed to batch sync orders", "error");
+    } finally {
+      setBatchSyncingOrders(false);
+    }
+  }
+
+  async function handleRedispatchOrder(orderId: string) {
+    setRedispatchingOrderId(orderId);
+    try {
+      const res = await fetch("/api/admin/orders/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "REDISPATCH", orderId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(data.message || "Order re-dispatched to provider successfully!", "success");
+        loadOrders();
+      } else {
+        notify(data.error || "Failed to re-dispatch order", "error");
+      }
+    } catch {
+      notify("Failed to dispatch to provider API", "error");
+    } finally {
+      setRedispatchingOrderId(null);
+    }
+  }
+
+  async function handleExecuteOrderAction() {
+    if (!orderActionModal) return;
+    setProcessingOrderAction(true);
+    try {
+      const res = await fetch("/api/admin/orders/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "UPDATE_STATUS",
+          orderId: orderActionModal.id,
+          newStatus: orderActionStatus,
+          refund: orderActionRefund,
+          reason: orderActionReason
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(data.message || "Order updated successfully!", "success");
+        setOrderActionModal(null);
+        loadOrders();
+        loadUsers();
+      } else {
+        notify(data.error || "Failed to update order", "error");
+      }
+    } catch {
+      notify("Failed to execute order action", "error");
+    } finally {
+      setProcessingOrderAction(false);
     }
   }
 
@@ -1452,127 +1585,214 @@ export default function AdminDashboardPage() {
             selectedProviderFilter === "ALL" || 
             o.providerCode === selectedProviderFilter;
 
+          let matchStatus = true;
+          const st = (o.status || "").toUpperCase();
+          if (orderStatusFilter === "ALL") matchStatus = true;
+          else if (orderStatusFilter === "RUNNING") matchStatus = st === "IN_PROGRESS" || st === "PROCESSING" || st === "PENDING";
+          else matchStatus = st === orderStatusFilter;
+
           const query = orderSearch.trim().toLowerCase();
           const matchSearch = 
             !query ||
             String(o.id).toLowerCase().includes(query) ||
             String(o.providerOrderId || "").toLowerCase().includes(query) ||
             String(o.user).toLowerCase().includes(query) ||
+            String(o.userName || "").toLowerCase().includes(query) ||
             String(o.service).toLowerCase().includes(query) ||
             String(o.link).toLowerCase().includes(query);
 
-          return matchProvider && matchSearch;
+          return matchProvider && matchStatus && matchSearch;
         });
 
         const countS1 = orders.filter(o => o.providerCode === "S1").length;
         const countY1 = orders.filter(o => o.providerCode === "Y1").length;
         const countBYO = orders.filter(o => o.providerCode === "BYO").length;
+        const countRunning = orders.filter(o => {
+          const st = (o.status || "").toUpperCase();
+          return st === "IN_PROGRESS" || st === "PROCESSING" || st === "PENDING";
+        }).length;
+
+        const totalOrdersRevenue = orders.reduce((sum, o) => sum + (Number(o.charge) || 0), 0);
+        const totalOrdersWholesale = orders.reduce((sum, o) => sum + (Number(o.estimatedCost) || 0), 0);
+        const totalOrdersProfit = Math.max(0, totalOrdersRevenue - totalOrdersWholesale);
 
         return (
           <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-5">
-            {/* Header with Title & Stats */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+            {/* Header with Title & Live Stats */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-base font-bold text-slate-900 dark:text-white">
                     Client Orders & Upstream SMM Provider Tracker
                   </h2>
-                  <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 text-[10px] font-black uppercase">
-                    Live Database
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase border border-emerald-500/20">
+                    Live Upstream Sync
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Track every client order in real-time and monitor which upstream API (<strong className="text-emerald-500 font-bold">S1: SMMSocialMedia</strong>, <strong className="text-purple-500 font-bold">Y1: YoyoMedia</strong>, or <strong className="text-cyan-500 font-bold">BYO API</strong>) executed the dispatch.
+                  Monitor every client order across upstream providers (<strong className="text-emerald-500 font-bold">S1: SMMSocialMedia</strong>, <strong className="text-purple-500 font-bold">Y1: YoyoMedia</strong>, <strong className="text-cyan-500 font-bold">BYO API</strong>), check delivery progress, sync provider statuses, and manage refunds.
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handleBatchSyncRunningOrders}
+                  disabled={batchSyncingOrders}
+                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${batchSyncingOrders ? "animate-spin" : ""}`} />
+                  <span>{batchSyncingOrders ? "Syncing Upstream..." : `⚡ Sync Running Orders (${countRunning})`}</span>
+                </button>
+
                 <button
                   onClick={loadOrders}
                   disabled={loadingOrders}
                   className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer flex items-center gap-1.5 transition-all shadow-xs"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${loadingOrders ? "animate-spin text-blue-600" : ""}`} />
-                  <span>{loadingOrders ? "Refreshing..." : "Refresh Orders"}</span>
+                  <span>{loadingOrders ? "Refreshing..." : "Refresh"}</span>
                 </button>
               </div>
             </div>
 
-            {/* Provider Filter Badges & Search Bar */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
+            {/* Financial Summary Strip */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 text-xs">
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase">Active Running Orders</div>
+                <div className="text-sm font-black text-blue-600 dark:text-blue-400 mt-0.5 flex items-center gap-1">
+                  <span>{countRunning}</span>
+                  {countRunning > 0 && <span className="text-[10px] text-emerald-500 animate-pulse">• In Delivery</span>}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase">Total Client Revenue</div>
+                <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5">
+                  ₹{totalOrdersRevenue.toFixed(2)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase">Wholesale Upstream Cost</div>
+                <div className="text-sm font-black text-slate-600 dark:text-slate-300 mt-0.5">
+                  ₹{totalOrdersWholesale.toFixed(2)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase">Net Gross Profit</div>
+                <div className="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  +₹{totalOrdersProfit.toFixed(2)}
+                </div>
+              </div>
+            </div>
+
+            {/* Filter Toolbars: Status Tabs & Provider Tabs & Search */}
+            <div className="space-y-2.5">
+              {/* Status Tabs */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-bold scrollbar-none">
                 <button
-                  onClick={() => setSelectedProviderFilter("ALL")}
-                  className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
-                    selectedProviderFilter === "ALL"
-                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-transparent shadow-xs"
-                      : "bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100"
+                  onClick={() => setOrderStatusFilter("ALL")}
+                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                    orderStatusFilter === "ALL"
+                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
                   }`}
                 >
-                  <span>All Providers</span>
-                  <span className="px-1.5 py-0.2 rounded-md bg-white/20 dark:bg-black/20 text-[10px]">
-                    {orders.length}
-                  </span>
+                  All ({orders.length})
                 </button>
 
                 <button
-                  onClick={() => setSelectedProviderFilter("S1")}
-                  className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
-                    selectedProviderFilter === "S1"
-                      ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                      : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
+                  onClick={() => setOrderStatusFilter("RUNNING")}
+                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                    orderStatusFilter === "RUNNING"
+                      ? "bg-blue-600 text-white shadow-xs font-black"
+                      : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 hover:bg-blue-500/20"
                   }`}
                 >
-                  <Server className="w-3 h-3" />
-                  <span>S1 • SMMSocialMedia</span>
-                  <span className="px-1.5 py-0.2 rounded-md bg-emerald-700/20 text-[10px]">
-                    {countS1}
-                  </span>
+                  <Zap className="w-3 h-3" />
+                  <span>⚡ Running ({countRunning})</span>
                 </button>
 
-                <button
-                  onClick={() => setSelectedProviderFilter("Y1")}
-                  className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
-                    selectedProviderFilter === "Y1"
-                      ? "bg-purple-600 text-white border-purple-600 shadow-xs"
-                      : "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30 hover:bg-purple-500/20"
-                  }`}
-                >
-                  <Server className="w-3 h-3" />
-                  <span>Y1 • YoyoMedia</span>
-                  <span className="px-1.5 py-0.2 rounded-md bg-purple-700/20 text-[10px]">
-                    {countY1}
-                  </span>
-                </button>
-
-                {countBYO > 0 && (
-                  <button
-                    onClick={() => setSelectedProviderFilter("BYO")}
-                    className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
-                      selectedProviderFilter === "BYO"
-                        ? "bg-cyan-600 text-white border-cyan-600 shadow-xs"
-                        : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/20"
-                    }`}
-                  >
-                    <Zap className="w-3 h-3" />
-                    <span>BYO • User API</span>
-                    <span className="px-1.5 py-0.2 rounded-md bg-cyan-700/20 text-[10px]">
-                      {countBYO}
-                    </span>
-                  </button>
-                )}
+                {["IN_PROGRESS", "PROCESSING", "PENDING", "COMPLETED", "PARTIAL", "CANCELLED"].map((st) => {
+                  const count = orders.filter(o => (o.status || "").toUpperCase() === st).length;
+                  return (
+                    <button
+                      key={st}
+                      onClick={() => setOrderStatusFilter(st)}
+                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                        orderStatusFilter === st
+                          ? "bg-blue-600 text-white shadow-xs"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
+                      }`}
+                    >
+                      {st.replace("_", " ")} {count > 0 && `(${count})`}
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Search Box */}
-              <div className="relative min-w-[260px]">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
-                <input
-                  type="text"
-                  value={orderSearch}
-                  onChange={(e) => setOrderSearch(e.target.value)}
-                  placeholder="Search order ID, upstream #, link, user..."
-                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
-                />
+              {/* Provider Tabs & Search */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold">
+                  <button
+                    onClick={() => setSelectedProviderFilter("ALL")}
+                    className={`px-3 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
+                      selectedProviderFilter === "ALL"
+                        ? "bg-slate-800 text-white dark:bg-white dark:text-slate-900 border-transparent shadow-xs"
+                        : "bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span>All Panels</span>
+                  </button>
+
+                  <button
+                    onClick={() => setSelectedProviderFilter("S1")}
+                    className={`px-3 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
+                      selectedProviderFilter === "S1"
+                        ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                        : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
+                    }`}
+                  >
+                    <Server className="w-3 h-3" />
+                    <span>S1 • SMMSocialMedia ({countS1})</span>
+                  </button>
+
+                  <button
+                    onClick={() => setSelectedProviderFilter("Y1")}
+                    className={`px-3 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
+                      selectedProviderFilter === "Y1"
+                        ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                        : "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30 hover:bg-purple-500/20"
+                    }`}
+                  >
+                    <Server className="w-3 h-3" />
+                    <span>Y1 • YoyoMedia ({countY1})</span>
+                  </button>
+
+                  {countBYO > 0 && (
+                    <button
+                      onClick={() => setSelectedProviderFilter("BYO")}
+                      className={`px-3 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
+                        selectedProviderFilter === "BYO"
+                          ? "bg-cyan-600 text-white border-cyan-600 shadow-xs"
+                          : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/20"
+                      }`}
+                    >
+                      <Zap className="w-3 h-3" />
+                      <span>BYO API ({countBYO})</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Search Box */}
+                <div className="relative min-w-[280px]">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={orderSearch}
+                    onChange={(e) => setOrderSearch(e.target.value)}
+                    placeholder="Search Order ID, Upstream #, user, link..."
+                    className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
+                  />
+                </div>
               </div>
             </div>
 
@@ -1581,15 +1801,15 @@ export default function AdminDashboardPage() {
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                    <th className="py-3 px-2">Order ID</th>
-                    <th className="py-3 px-2">Client</th>
-                    <th className="py-3 px-2">Provider / API</th>
-                    <th className="py-3 px-2">Upstream Order #</th>
-                    <th className="py-3 px-2">Service</th>
+                    <th className="py-3 px-2">Order #</th>
+                    <th className="py-3 px-2">Client / User</th>
+                    <th className="py-3 px-2">Upstream Panel & Order #</th>
+                    <th className="py-3 px-2">Service Catalog</th>
                     <th className="py-3 px-2">Target Link</th>
-                    <th className="py-3 px-2">Qty & Pacing</th>
-                    <th className="py-3 px-2">Charge</th>
+                    <th className="py-3 px-2 min-w-[130px]">Progress & Counts</th>
+                    <th className="py-3 px-2">Wholesale vs Retail</th>
                     <th className="py-3 px-2">Status</th>
+                    <th className="py-3 px-2 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
@@ -1600,111 +1820,199 @@ export default function AdminDashboardPage() {
                       </td>
                     </tr>
                   ) : (
-                    filteredOrders.map((o) => (
-                      <tr key={o.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
-                        {/* Order ID */}
-                        <td className="py-3.5 px-2">
-                          <div className="font-mono font-bold text-blue-600 dark:text-blue-400">
-                            #{String(o.id).slice(-8)}
-                          </div>
-                          <div className="text-[10px] text-slate-400">{o.date}</div>
-                        </td>
+                    filteredOrders.map((o) => {
+                      const statusUpper = (o.status || "PENDING").toUpperCase();
+                      const isRunning = statusUpper === "IN_PROGRESS" || statusUpper === "PROCESSING" || statusUpper === "PENDING";
+                      const qty = Number(o.quantity || 1);
+                      const remains = o.remains !== undefined && o.remains !== null ? Number(o.remains) : (statusUpper === "COMPLETED" ? 0 : qty);
+                      const delivered = Math.max(0, qty - remains);
+                      const progressPct = statusUpper === "COMPLETED" ? 100 : Math.max(0, Math.min(100, Math.round((delivered / qty) * 100)));
+                      const isSyncingThis = syncingOrderId === o.id;
+                      const isRedispatchingThis = redispatchingOrderId === o.id;
 
-                        {/* Client */}
-                        <td className="py-3.5 px-2">
-                          <div className="font-semibold text-slate-900 dark:text-white max-w-[150px] truncate" title={o.user}>
-                            {o.user}
-                          </div>
-                          {o.userName && (
-                            <div className="text-[10px] text-slate-400">{o.userName}</div>
-                          )}
-                        </td>
-
-                        {/* Provider / API Badge (S1, Y1, BYO) */}
-                        <td className="py-3.5 px-2">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-black border shadow-xs ${o.providerBadgeClass}`}>
-                            <Server className="w-3 h-3 shrink-0" />
-                            <span>{o.providerCode}</span>
-                            <span className="opacity-80 font-semibold">• {o.providerName}</span>
-                          </span>
-                        </td>
-
-                        {/* Upstream Order ID */}
-                        <td className="py-3.5 px-2">
-                          {o.providerOrderId ? (
-                            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-mono font-bold text-[11px]">
-                              <CheckCircle2 className="w-3 h-3 shrink-0" />
-                              <span>#{o.providerOrderId}</span>
+                      return (
+                        <tr key={o.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
+                          {/* Order ID & Date */}
+                          <td className="py-3.5 px-2">
+                            <div className="font-mono font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                              <span>#{String(o.id).slice(-8)}</span>
                             </div>
-                          ) : (
-                            <span className="text-[11px] text-amber-500 font-medium italic">
-                              Pending dispatch
+                            <div className="text-[10px] text-slate-400 whitespace-nowrap">{o.date}</div>
+                          </td>
+
+                          {/* Client */}
+                          <td className="py-3.5 px-2">
+                            <div className="font-semibold text-slate-900 dark:text-white max-w-[150px] truncate" title={o.user}>
+                              {o.user}
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
+                                Bal: ₹{Number(o.userBalance || 0).toFixed(2)}
+                              </span>
+                              {o.userId && (
+                                <button
+                                  onClick={() => handleImpersonate(o.userId, o.user)}
+                                  title="Login as this user"
+                                  className="text-[9px] font-bold text-blue-500 hover:underline cursor-pointer"
+                                >
+                                  Login ↗
+                                </button>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Upstream Provider & Upstream Order ID */}
+                          <td className="py-3.5 px-2">
+                            <div className="space-y-1">
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black border ${o.providerBadgeClass}`}>
+                                <Server className="w-2.5 h-2.5 shrink-0" />
+                                <span>{o.providerCode} • {o.providerName}</span>
+                              </span>
+                              <div>
+                                {o.providerOrderId ? (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono font-bold text-[10px]">
+                                    ID: #{o.providerOrderId}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-amber-500 font-medium italic">
+                                    No upstream ID
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Service */}
+                          <td className="py-3.5 px-2 max-w-[170px]">
+                            <div className="font-semibold text-slate-900 dark:text-white truncate" title={o.service}>
+                              {o.service}
+                            </div>
+                            <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+                              <span>ID: <strong>{o.serviceId}</strong></span>
+                              <span>• {o.platform}</span>
+                            </div>
+                          </td>
+
+                          {/* Link */}
+                          <td className="py-3.5 px-2 font-mono text-[11px] max-w-[140px]">
+                            <a
+                              href={o.link}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-blue-500 hover:text-blue-600 underline flex items-center gap-1 truncate cursor-pointer"
+                              title={o.link}
+                            >
+                              <span className="truncate">{o.link}</span>
+                              <ExternalLink className="w-3 h-3 shrink-0" />
+                            </a>
+                          </td>
+
+                          {/* Progress & Counts */}
+                          <td className="py-3.5 px-2">
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-[10px] font-bold">
+                                <span>{delivered.toLocaleString()} / {qty.toLocaleString()}</span>
+                                <span className={statusUpper === "COMPLETED" ? "text-emerald-600" : "text-blue-600"}>
+                                  {progressPct}%
+                                </span>
+                              </div>
+                              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full transition-all duration-300 ${
+                                    statusUpper === "COMPLETED"
+                                      ? "bg-emerald-500"
+                                      : statusUpper === "CANCELLED"
+                                      ? "bg-rose-500"
+                                      : "bg-blue-500"
+                                  }`}
+                                  style={{ width: `${progressPct}%` }}
+                                />
+                              </div>
+                              <div className="text-[9px] text-slate-400">
+                                Start: {o.startCount ?? 0} • Remains: {remains}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Wholesale vs Retail Pricing */}
+                          <td className="py-3.5 px-2">
+                            <div className="font-black text-slate-900 dark:text-white">
+                              ₹{Number(o.charge).toFixed(2)} <span className="text-[10px] font-normal text-slate-400">paid</span>
+                            </div>
+                            <div className="text-[10px] text-slate-400">
+                              Cost: ₹{o.estimatedCost.toFixed(2)}
+                            </div>
+                            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                              +₹{o.grossProfit.toFixed(2)} ({o.profitMargin}%)
+                            </div>
+                          </td>
+
+                          {/* Status */}
+                          <td className="py-3.5 px-2">
+                            <span className={`px-2 py-1 rounded-md text-[10px] font-bold inline-flex items-center gap-1 ${
+                              statusUpper === "COMPLETED"
+                                ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 border border-emerald-200 dark:border-emerald-800"
+                                : isRunning
+                                ? "bg-blue-50 dark:bg-blue-950/50 text-blue-600 border border-blue-200 dark:border-blue-800 animate-pulse"
+                                : statusUpper === "FAILED" || statusUpper === "CANCELLED"
+                                ? "bg-rose-50 dark:bg-rose-950/50 text-rose-600 border border-rose-200 dark:border-rose-800"
+                                : "bg-amber-50 dark:bg-amber-950/50 text-amber-600 border border-amber-200 dark:border-amber-800"
+                            }`}>
+                              {isRunning && <Zap className="w-2.5 h-2.5" />}
+                              <span>{statusUpper.replace("_", " ")}</span>
                             </span>
-                          )}
-                        </td>
+                          </td>
 
-                        {/* Service & ID */}
-                        <td className="py-3.5 px-2">
-                          <div className="font-semibold text-slate-900 dark:text-white max-w-[180px] truncate" title={o.service}>
-                            {o.service}
-                          </div>
-                          <div className="text-[10px] font-mono text-slate-400">
-                            ID: <strong className="text-slate-600 dark:text-slate-300 font-bold">{o.serviceId}</strong> • {o.platform}
-                          </div>
-                        </td>
+                          {/* Quick Actions */}
+                          <td className="py-3.5 px-2 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {/* Sync Upstream Status */}
+                              <button
+                                onClick={() => handleSyncSingleOrderStatus(o.id)}
+                                disabled={isSyncingThis || !o.providerOrderId}
+                                title="Query upstream provider for live status"
+                                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-40 cursor-pointer transition-colors"
+                              >
+                                <RefreshCw className={`w-3.5 h-3.5 ${isSyncingThis ? "animate-spin text-blue-600" : ""}`} />
+                              </button>
 
-                        {/* Link */}
-                        <td className="py-3.5 px-2 font-mono text-[11px]">
-                          <a
-                            href={o.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-blue-500 hover:text-blue-600 underline flex items-center gap-1 max-w-[160px] truncate cursor-pointer"
-                            title={o.link}
-                          >
-                            <span className="truncate">{o.link}</span>
-                            <ExternalLink className="w-3 h-3 shrink-0" />
-                          </a>
-                        </td>
+                              {/* Force Re-dispatch */}
+                              <button
+                                onClick={() => handleRedispatchOrder(o.id)}
+                                disabled={isRedispatchingThis}
+                                title="Force re-dispatch order to upstream panel"
+                                className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 text-amber-600 border border-amber-500/20 disabled:opacity-40 cursor-pointer transition-colors"
+                              >
+                                <Zap className={`w-3.5 h-3.5 ${isRedispatchingThis ? "animate-spin" : ""}`} />
+                              </button>
 
-                        {/* Qty & Pacing */}
-                        <td className="py-3.5 px-2">
-                          <div className="font-bold text-slate-900 dark:text-white">
-                            {Number(o.quantity).toLocaleString()}
-                          </div>
-                          {o.runs > 1 ? (
-                            <div className="text-[10px] text-purple-600 dark:text-purple-400 font-medium">
-                              {o.runs} batches @ {o.intervalMinutes}m
+                              {/* Manage / Refund */}
+                              <button
+                                onClick={() => {
+                                  setOrderActionModal(o);
+                                  setOrderActionStatus(o.status || "COMPLETED");
+                                  setOrderActionRefund(false);
+                                  setOrderActionReason("");
+                                }}
+                                title="Update Status or Cancel & Refund"
+                                className="px-2 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-bold text-[11px] cursor-pointer transition-colors"
+                              >
+                                Edit
+                              </button>
+
+                              {/* Inspect */}
+                              <button
+                                onClick={() => setInspectingAdminOrder(o)}
+                                title="Inspect technical details"
+                                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer transition-colors"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
                             </div>
-                          ) : (
-                            <div className="text-[10px] text-slate-400">Direct delivery</div>
-                          )}
-                        </td>
-
-                        {/* Charge */}
-                        <td className="py-3.5 px-2 font-black text-slate-900 dark:text-white text-xs">
-                          ₹{Number(o.charge).toFixed(2)}
-                        </td>
-
-                        {/* Status */}
-                        <td className="py-3.5 px-2">
-                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold inline-flex items-center gap-1 ${
-                            o.status === "COMPLETED"
-                              ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 border border-emerald-200 dark:border-emerald-800"
-                              : o.status === "IN_PROGRESS"
-                              ? "bg-blue-50 dark:bg-blue-950/50 text-blue-600 border border-blue-200 dark:border-blue-800 animate-pulse"
-                              : o.status === "PROCESSING"
-                              ? "bg-amber-50 dark:bg-amber-950/50 text-amber-600 border border-amber-200 dark:border-amber-800"
-                              : o.status === "FAILED" || o.status === "CANCELLED"
-                              ? "bg-rose-50 dark:bg-rose-950/50 text-rose-600 border border-rose-200 dark:border-rose-800"
-                              : "bg-slate-100 text-slate-600"
-                          }`}>
-                            {o.status === "IN_PROGRESS" && <Zap className="w-2.5 h-2.5" />}
-                            <span>{o.status}</span>
-                          </span>
-                        </td>
-                      </tr>
-                    ))
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -1712,6 +2020,207 @@ export default function AdminDashboardPage() {
           </div>
         );
       })()}
+
+      {/* ──────────────── ADMIN ORDER INSPECTOR DRAWER / MODAL ──────────────── */}
+      {inspectingAdminOrder && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white dark:bg-[#131b2e] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-xl w-full shadow-2xl space-y-4 animate-scale-up max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Order Inspector #{inspectingAdminOrder.id.slice(-8)}
+                  </h3>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-black border ${inspectingAdminOrder.providerBadgeClass}`}>
+                    {inspectingAdminOrder.providerCode} • {inspectingAdminOrder.providerName}
+                  </span>
+                </div>
+                <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+                  Full CUID: {inspectingAdminOrder.id}
+                </p>
+              </div>
+              <button
+                onClick={() => setInspectingAdminOrder(null)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              {/* Client Card */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase">Customer Profile</div>
+                  <div className="font-bold text-slate-900 dark:text-white mt-0.5">
+                    {inspectingAdminOrder.user} {inspectingAdminOrder.userName ? `(${inspectingAdminOrder.userName})` : ""}
+                  </div>
+                  <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                    Current Wallet Balance: ₹{Number(inspectingAdminOrder.userBalance || 0).toFixed(2)}
+                  </div>
+                </div>
+                {inspectingAdminOrder.userId && (
+                  <button
+                    onClick={() => handleImpersonate(inspectingAdminOrder.userId, inspectingAdminOrder.user)}
+                    className="px-3 py-1.5 bg-blue-600 text-white rounded-xl font-bold text-xs hover:bg-blue-700 cursor-pointer shadow-xs"
+                  >
+                    Login As User ↗
+                  </button>
+                )}
+              </div>
+
+              {/* Upstream Panel Execution */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-1.5">
+                <div className="text-[10px] font-bold text-slate-400 uppercase">Upstream SMM Provider Details</div>
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div>Provider API: <strong className="text-slate-800 dark:text-slate-200 font-mono">{inspectingAdminOrder.providerApiUrl}</strong></div>
+                  <div>Upstream Order ID: <strong className="text-emerald-600 font-mono">{inspectingAdminOrder.providerOrderId ? `#${inspectingAdminOrder.providerOrderId}` : "Not Dispatched"}</strong></div>
+                  <div>Upstream Service ID: <strong className="text-slate-800 dark:text-slate-200 font-mono">{inspectingAdminOrder.serviceId}</strong></div>
+                  <div>Pacing / Batches: <strong className="text-slate-800 dark:text-slate-200 font-mono">{inspectingAdminOrder.runs > 1 ? `${inspectingAdminOrder.runs} runs @ ${inspectingAdminOrder.intervalMinutes}m` : "Direct"}</strong></div>
+                </div>
+              </div>
+
+              {/* Pricing & Margin Breakdown */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-1.5">
+                <div className="text-[10px] font-bold text-slate-400 uppercase">Financial Margin & Rate Split</div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
+                    <div className="text-[10px] text-slate-400">Client Charged</div>
+                    <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5">₹{Number(inspectingAdminOrder.charge).toFixed(2)}</div>
+                  </div>
+                  <div className="bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
+                    <div className="text-[10px] text-slate-400">Wholesale Cost</div>
+                    <div className="text-sm font-black text-slate-600 dark:text-slate-300 mt-0.5">₹{inspectingAdminOrder.estimatedCost.toFixed(2)}</div>
+                  </div>
+                  <div className="bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
+                    <div className="text-[10px] text-slate-400">Net Profit</div>
+                    <div className="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-0.5">+₹{inspectingAdminOrder.grossProfit.toFixed(2)}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Target Link */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-1">
+                <div className="text-[10px] font-bold text-slate-400 uppercase">Target Link</div>
+                <a href={inspectingAdminOrder.link} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline font-mono break-all flex items-center gap-1">
+                  <span>{inspectingAdminOrder.link}</span>
+                  <ExternalLink className="w-3 h-3 shrink-0" />
+                </a>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => handleSyncSingleOrderStatus(inspectingAdminOrder.id)}
+                disabled={syncingOrderId === inspectingAdminOrder.id}
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${syncingOrderId === inspectingAdminOrder.id ? "animate-spin text-blue-600" : ""}`} />
+                <span>Query Upstream Status</span>
+              </button>
+
+              <button
+                onClick={() => setInspectingAdminOrder(null)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────── ADMIN STATUS OVERRIDE & REFUND MODAL ──────────────── */}
+      {orderActionModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white dark:bg-[#131b2e] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-scale-up">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Manage Order #{orderActionModal.id.slice(-8)}
+                </h3>
+                <p className="text-xs text-slate-400">
+                  User: {orderActionModal.user} • Charge: ₹{Number(orderActionModal.charge).toFixed(2)}
+                </p>
+              </div>
+              <button
+                onClick={() => setOrderActionModal(null)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  Update Status
+                </label>
+                <select
+                  value={orderActionStatus}
+                  onChange={(e) => setOrderActionStatus(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
+                >
+                  <option value="COMPLETED">COMPLETED (100% Delivered)</option>
+                  <option value="IN_PROGRESS">IN_PROGRESS (Currently Running)</option>
+                  <option value="PROCESSING">PROCESSING (Queued at Provider)</option>
+                  <option value="PENDING">PENDING (Awaiting Dispatch)</option>
+                  <option value="PARTIAL">PARTIAL (Partially Delivered)</option>
+                  <option value="CANCELLED">CANCELLED</option>
+                </select>
+              </div>
+
+              {orderActionStatus === "CANCELLED" && (
+                <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-2xl space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer font-bold text-rose-700 dark:text-rose-300">
+                    <input
+                      type="checkbox"
+                      checked={orderActionRefund}
+                      onChange={(e) => setOrderActionRefund(e.target.checked)}
+                      className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500"
+                    />
+                    <span>Refund ₹{Number(orderActionModal.charge).toFixed(2)} back to user's wallet</span>
+                  </label>
+                  <p className="text-[11px] text-rose-600 dark:text-rose-400">
+                    If checked, the charged amount of ₹{Number(orderActionModal.charge).toFixed(2)} will be immediately credited back to the customer's balance.
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  Admin Note / Reason (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={orderActionReason}
+                  onChange={(e) => setOrderActionReason(e.target.value)}
+                  placeholder="e.g. Target profile was private, refunded"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
+                >
+                </input>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setOrderActionModal(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleExecuteOrderAction}
+                disabled={processingOrderAction}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs cursor-pointer shadow-xs disabled:opacity-50"
+              >
+                {processingOrderAction ? "Saving..." : "Apply Status Update"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ──────────────── TAB 3: LIVE USERS & FULL ADMIN BALANCES ──────────────── */}
       {activeTab === "USERS" && (() => {

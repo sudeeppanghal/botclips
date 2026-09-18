@@ -555,6 +555,91 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* ──────────────── 3.5. Running Campaigns Live Tracker (If Active) ──────────────── */}
+      {recentOrders.filter(o => {
+        const st = (o.status || "").toUpperCase();
+        return st === "IN_PROGRESS" || st === "PROCESSING" || st === "PENDING";
+      }).length > 0 && (
+        <div className="bg-linear-to-r from-blue-900/40 via-indigo-950/40 to-slate-900/60 dark:bg-slate-900 border border-blue-500/30 rounded-2xl p-5 shadow-md">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-blue-500/20">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+              </span>
+              <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                <span>⚡ Active Running Campaigns ({
+                  recentOrders.filter(o => {
+                    const st = (o.status || "").toUpperCase();
+                    return st === "IN_PROGRESS" || st === "PROCESSING" || st === "PENDING";
+                  }).length
+                })</span>
+              </h2>
+            </div>
+            <Link
+              href="/dashboard/orders"
+              className="text-xs font-bold text-blue-300 hover:text-white flex items-center gap-1 transition-colors"
+            >
+              <span>View Full Tracker</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-3">
+            {recentOrders
+              .filter(o => {
+                const st = (o.status || "").toUpperCase();
+                return st === "IN_PROGRESS" || st === "PROCESSING" || st === "PENDING";
+              })
+              .slice(0, 3)
+              .map((o) => {
+                const qty = Number(o.quantity || 1);
+                const remains = o.remains !== undefined && o.remains !== null ? Number(o.remains) : qty;
+                const delivered = Math.max(0, qty - remains);
+                const progressPct = Math.max(0, Math.min(100, Math.round((delivered / qty) * 100)));
+                const sName = o.service?.name || o.serviceId || "Social Campaign";
+                const platform = (o.service?.platform || "INSTAGRAM") as PlatformType;
+
+                return (
+                  <div key={o.id} className="bg-black/30 border border-blue-500/20 rounded-xl p-3.5 space-y-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {getPlatformIcon(platform)}
+                        <span className="font-bold text-xs text-white truncate" title={sName}>
+                          {sName}
+                        </span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-black bg-blue-500/20 text-blue-300 border border-blue-500/30 shrink-0">
+                        {o.status?.replace("_", " ")}
+                      </span>
+                    </div>
+
+                    <div className="text-[11px] font-mono text-slate-300 truncate">
+                      <a href={o.link} target="_blank" rel="noreferrer" className="hover:text-blue-400 hover:underline">
+                        {o.link}
+                      </a>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px] font-bold text-slate-300">
+                        <span>{delivered.toLocaleString()} / {qty.toLocaleString()} Delivered</span>
+                        <span className="text-blue-400 font-mono">{progressPct}%</span>
+                      </div>
+                      <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                        <div 
+                          className="bg-linear-to-r from-blue-400 to-indigo-400 h-full rounded-full transition-all duration-500" 
+                          style={{ width: `${progressPct}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
       {/* ──────────────── 4. Recent Orders & Side Promo Cards ──────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         

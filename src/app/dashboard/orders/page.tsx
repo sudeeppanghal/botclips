@@ -272,9 +272,155 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      {/* Orders Table */}
-      <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
-        <div className="overflow-x-auto -mx-6 px-6">
+      {/* Orders Container */}
+      <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xs">
+        
+        {/* Mobile View: Dedicated Adaptive Cards */}
+        <div className="md:hidden space-y-3">
+          {loading ? (
+            <div className="py-12 text-center text-slate-400">
+              <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+              <span className="text-xs font-semibold">Loading orders...</span>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-12 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                <ShoppingCart className="w-6 h-6" />
+              </div>
+              <div className="text-sm font-bold text-slate-800 dark:text-slate-200">No orders found</div>
+              <p className="text-xs text-slate-400 mt-1 mb-4">
+                {search || filter !== "ALL"
+                  ? "No orders match your filter criteria."
+                  : "You haven't placed any campaigns yet."}
+              </p>
+              <Link
+                href="/dashboard/services"
+                className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold inline-block shadow-xs"
+              >
+                Explore Services Catalog
+              </Link>
+            </div>
+          ) : (
+            filtered.map((o) => {
+              const sName = o.service?.name || o.serviceId || "Social Campaign";
+              const platform = o.service?.platform || "INSTAGRAM";
+              const statusUpper = (o.status || "PENDING").toUpperCase();
+              const isRunning = statusUpper === "IN_PROGRESS" || statusUpper === "PROCESSING" || statusUpper === "PENDING";
+              const dateStr = o.createdAt ? new Date(o.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Recent";
+              
+              const qty = Number(o.quantity || 1);
+              const remains = o.remains !== undefined && o.remains !== null ? Number(o.remains) : (statusUpper === "COMPLETED" ? 0 : qty);
+              const delivered = Math.max(0, qty - remains);
+              const progressPct = statusUpper === "COMPLETED" ? 100 : Math.max(0, Math.min(100, Math.round((delivered / qty) * 100)));
+
+              return (
+                <div key={o.id} className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-800/30 space-y-3">
+                  {/* Top Bar: Order ID + Status */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-blue-600 dark:text-blue-400">
+                      <span>#{String(o.id).slice(-8)}</span>
+                      <button
+                        onClick={() => handleCopy(o.id, `id-${o.id}`)}
+                        className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400"
+                      >
+                        {copiedId === `id-${o.id}` ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                      </button>
+                    </div>
+
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black ${
+                      statusUpper === "COMPLETED"
+                        ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                        : isRunning
+                        ? "bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-500/20 animate-pulse"
+                        : statusUpper === "CANCELLED"
+                        ? "bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                        : "bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                    }`}>
+                      {isRunning && <Zap className="w-2.5 h-2.5" />}
+                      {statusUpper === "COMPLETED" && <CheckCircle2 className="w-2.5 h-2.5" />}
+                      <span>{statusUpper.replace("_", " ")}</span>
+                    </span>
+                  </div>
+
+                  {/* Service Title */}
+                  <div>
+                    <div className="font-bold text-xs text-slate-900 dark:text-white line-clamp-2">
+                      {sName}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        {platform}
+                      </span>
+                      {o.service?.badge && (
+                        <span className="px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 text-[9px] font-black">
+                          {o.service.badge}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Target Link */}
+                  {o.link && (
+                    <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 font-mono text-[11px]">
+                      <a href={o.link} target="_blank" rel="noreferrer" className="truncate text-slate-600 dark:text-slate-300 hover:text-blue-500 max-w-[240px]">
+                        {o.link}
+                      </a>
+                      <a href={o.link} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-blue-500 shrink-0 ml-1">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Delivery Progress Bar */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[11px] font-bold">
+                      <span className="text-slate-500 dark:text-slate-400">
+                        {delivered.toLocaleString()} / {qty.toLocaleString()} delivered
+                      </span>
+                      <span className={statusUpper === "COMPLETED" ? "text-emerald-600 font-bold" : "text-blue-600 font-black"}>
+                        {progressPct}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          statusUpper === "COMPLETED"
+                            ? "bg-emerald-500"
+                            : statusUpper === "CANCELLED"
+                            ? "bg-rose-500"
+                            : "bg-linear-to-r from-blue-500 to-indigo-500 animate-pulse"
+                        }`}
+                        style={{ width: `${progressPct}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Bottom Stats & Action */}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Charge</span>
+                      <span className="font-extrabold text-slate-900 dark:text-white">₹{Number(o.charge || 0).toFixed(2)}</span>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 block">{dateStr}</span>
+                      <button
+                        onClick={() => setInspectOrder(o)}
+                        className="mt-0.5 px-3 py-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-bold transition-colors inline-flex items-center gap-1"
+                      >
+                        <Eye className="w-3 h-3" />
+                        <span>Inspect</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Desktop View: Full Table */}
+        <div className="hidden md:block overflow-x-auto -mx-6 px-6">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">

@@ -656,7 +656,70 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          <div className="overflow-x-auto -mx-6 px-6">
+          {/* Mobile View: Recent Order Cards */}
+          <div className="md:hidden space-y-3">
+            {loadingOrders ? (
+              <div className="py-8 text-center text-slate-400">
+                <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                <span className="text-xs font-semibold">Loading orders...</span>
+              </div>
+            ) : recentOrders.length === 0 ? (
+              <div className="py-8 text-center">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-2">
+                  <ShoppingCart className="w-5 h-5" />
+                </div>
+                <div className="text-xs font-bold text-slate-800 dark:text-slate-200">No campaigns placed yet</div>
+                <button
+                  onClick={() => setNewOrderModalOpen(true)}
+                  className="mt-3 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold shadow-xs"
+                >
+                  ⚡ Place First Order
+                </button>
+              </div>
+            ) : (
+              recentOrders.slice(0, 5).map((order, i) => {
+                const sName = order.service?.name || order.serviceId || "Social Campaign";
+                const platform = (order.service?.platform || "INSTAGRAM") as PlatformType;
+                const dateStr = order.createdAt 
+                  ? new Date(order.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) 
+                  : "Today";
+
+                return (
+                  <div key={order.id || i} className="p-3.5 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-800/30 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {getPlatformIcon(platform)}
+                        <span className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">
+                          #{String(order.id).slice(-6).toUpperCase()}
+                        </span>
+                      </div>
+                      {getStatusBadge(order.status)}
+                    </div>
+
+                    <div className="font-bold text-xs text-slate-900 dark:text-white line-clamp-1">
+                      {sName}
+                    </div>
+
+                    {order.link && (
+                      <div className="text-[11px] font-mono text-slate-500 truncate">
+                        <a href={order.link} target="_blank" rel="noreferrer" className="hover:text-blue-600">
+                          {order.link}
+                        </a>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800 text-[11px]">
+                      <span className="text-slate-400">Qty: <strong className="text-slate-700 dark:text-slate-300 font-bold">{Number(order.quantity || 0).toLocaleString()}</strong></span>
+                      <span className="text-slate-400">{dateStr}</span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto -mx-6 px-6">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800/80 text-[11px] font-bold text-slate-400 uppercase tracking-wider">

@@ -45,9 +45,30 @@ export async function GET(request: NextRequest) {
 // POST /api/billing/crypto - User submits USDT deposit with TxID + 2 Proof Screenshots
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     const body = await request.json();
     const { txHash, amountUsdt, screenshot1, screenshot2, network = "TRC20" } = body;
+
+    // Find verified user in database by ID or Email
+    let dbUser = null;
+    if (session?.id || session?.email) {
+      dbUser = await prisma.user.findFirst({
+        where: {
+          OR: [
+            ...(session.id ? [{ id: session.id }] : []),
+            ...(session.email ? [{ email: session.email }] : [])
+          ]
+        }
+      });
+    }
+
+    if (!dbUser) {
+      return NextResponse.json({ 
+        error: "User session expired or not authenticated. Please log in again to add funds." 
+      }, { status: 401 });
+    }
+
+    const userId = dbUser.id;
 
     if (!txHash || !amountUsdt) {
       return NextResponse.json({ error: "Transaction Hash (TxID) and USDT amount are required" }, { status: 400 });
@@ -69,12 +90,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ 
         error: "Please upload crypto payment verification screenshot (TxID receipt / confirmation)." 
       }, { status: 400 });
-    }
-
-    let userId = session?.id;
-    if (!userId) {
-      const u = await prisma.user.findFirst({ select: { id: true } });
-      userId = u?.id || "guest_user";
     }
 
     // 1. Anti-Duplicate TxID Check: Never allow the same transaction hash twice

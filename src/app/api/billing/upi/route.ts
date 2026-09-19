@@ -42,9 +42,30 @@ export async function GET(request: NextRequest) {
 // POST /api/billing/upi - User submits deposit with UTR + 2 Screenshots
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     const body = await request.json();
     const { utr, amount, screenshot1, screenshot2 } = body;
+
+    // Find verified user in database by ID or Email
+    let dbUser = null;
+    if (session?.id || session?.email) {
+      dbUser = await prisma.user.findFirst({
+        where: {
+          OR: [
+            ...(session.id ? [{ id: session.id }] : []),
+            ...(session.email ? [{ email: session.email }] : [])
+          ]
+        }
+      });
+    }
+
+    if (!dbUser) {
+      return NextResponse.json({ 
+        error: "User session expired or not authenticated. Please log in again to add funds." 
+      }, { status: 401 });
+    }
+
+    const userId = dbUser.id;
 
     if (!utr || !amount) {
       return NextResponse.json({ error: "12-digit UTR and deposit amount are required" }, { status: 400 });
@@ -68,13 +89,6 @@ export async function POST(request: NextRequest) {
 
     const s1 = String(screenshot1 || screenshot2 || `Submitted via UPI QR Modal • UTR: ${cleanUtr}`);
     const s2 = String(screenshot2 || screenshot1 || s1);
-
-    let userId = session?.id;
-    if (!userId) {
-      // Find default user or guest
-      const u = await prisma.user.findFirst({ select: { id: true } });
-      userId = u?.id || "guest_user";
-    }
 
     // Check for duplicate UTR submission
     const existing = await prisma.upiPayment.findUnique({
@@ -107,8 +121,8 @@ export async function POST(request: NextRequest) {
       id: payment.id,
       amount: depositAmount,
       utr: cleanUtr,
-      userName: payment.user?.name || session?.name,
-      userEmail: payment.user?.email || session?.email || "customer@botclips.online",
+      userName: payment.user?.name || dbUser.name || session?.name,
+      userEmail: payment.user?.email || dbUser.email || session?.email || "customer@botclips.online",
       screenshot1: s1,
       screenshot2: s2
     }).catch((err) => console.error("Telegram alert error:", err));

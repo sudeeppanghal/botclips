@@ -97,6 +97,7 @@ export default function AddFundsModal({
         setScreenshot(null);
         onClose();
         if (onFundsAdded) onFundsAdded(Math.max(100, Number(amount)));
+        window.dispatchEvent(new Event("balance_updated"));
       }, 2000);
     } catch (err: any) {
       setErrorMsg("Error submitting deposit. Please check your internet connection.");

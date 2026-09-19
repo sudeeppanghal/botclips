@@ -35,6 +35,9 @@ export default function DashboardLayout({
 
   useEffect(() => {
     loadUser();
+    const handleBalanceUpdate = () => loadUser();
+    window.addEventListener("balance_updated", handleBalanceUpdate);
+    return () => window.removeEventListener("balance_updated", handleBalanceUpdate);
   }, []);
 
   return (

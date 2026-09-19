@@ -292,6 +292,7 @@ export default function NewOrderModal({
       if (onOrderSuccess) {
         onOrderSuccess(data.order);
       }
+      window.dispatchEvent(new Event("balance_updated"));
 
       setTimeout(() => {
         setSuccess(false);

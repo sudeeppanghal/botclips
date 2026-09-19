@@ -57,7 +57,8 @@ export async function POST(request: NextRequest) {
     const targetUserId = dbUser?.id || session.id;
 
     const body = await request.json();
-    const { subject, relatedOrderId, message } = body;
+    const { subject, relatedOrderId, orderId, message } = body;
+    const finalOrderId = (relatedOrderId || orderId || "").toString().trim() || null;
 
     if (!subject || !message) {
       return NextResponse.json({ error: "Subject and message are required" }, { status: 400 });
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId: targetUserId,
         subject: subject.trim(),
-        relatedOrderId: relatedOrderId ? String(relatedOrderId).trim() : null,
+        relatedOrderId: finalOrderId,
         status: "OPEN",
         messages: {
           create: {

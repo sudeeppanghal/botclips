@@ -56,6 +56,9 @@ export default function MAutomationPage() {
 
   useEffect(() => {
     loadPlanAndApiStatus();
+    const handleBalanceUpdate = () => loadPlanAndApiStatus();
+    window.addEventListener("balance_updated", handleBalanceUpdate);
+    return () => window.removeEventListener("balance_updated", handleBalanceUpdate);
   }, []);
 
   async function loadPlanAndApiStatus() {
@@ -105,6 +108,7 @@ export default function MAutomationPage() {
 
       setSavedSuccess(data.message);
       await loadPlanAndApiStatus();
+      window.dispatchEvent(new Event("balance_updated"));
     } catch (err: any) {
       setError(err.message || "Subscription failed");
     } finally {

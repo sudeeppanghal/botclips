@@ -10,17 +10,21 @@ export default function AutomationPage() {
   const [userBalance, setUserBalance] = useState(0);
   const [whopModalOpen, setWhopModalOpen] = useState(false);
 
+  const loadBalance = async () => {
+    try {
+      const res = await fetch("/api/auth/me");
+      const data = await res.json();
+      if (data.authenticated && data.user) {
+        setUserBalance(Number(data.user.balance || 0));
+      }
+    } catch {}
+  };
+
   useEffect(() => {
-    async function loadBalance() {
-      try {
-        const res = await fetch("/api/auth/me");
-        const data = await res.json();
-        if (data.authenticated && data.user) {
-          setUserBalance(Number(data.user.balance || 0));
-        }
-      } catch {}
-    }
     loadBalance();
+    const handleBalanceUpdate = () => loadBalance();
+    window.addEventListener("balance_updated", handleBalanceUpdate);
+    return () => window.removeEventListener("balance_updated", handleBalanceUpdate);
   }, []);
 
   return (
@@ -98,6 +102,11 @@ export default function AutomationPage() {
         <NewOrderModal
           isOpen={whopModalOpen}
           onClose={() => setWhopModalOpen(false)}
+          walletBalance={userBalance}
+          onOrderSuccess={() => {
+            loadBalance();
+            window.dispatchEvent(new Event("balance_updated"));
+          }}
         />
       )}
     </div>

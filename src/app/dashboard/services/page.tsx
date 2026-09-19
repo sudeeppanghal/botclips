@@ -17,6 +17,9 @@ export default function ServicesPage() {
   useEffect(() => {
     loadServices();
     loadUserBalance();
+    const handleBalanceUpdate = () => loadUserBalance();
+    window.addEventListener("balance_updated", handleBalanceUpdate);
+    return () => window.removeEventListener("balance_updated", handleBalanceUpdate);
   }, []);
 
   async function loadServices() {
@@ -35,7 +38,7 @@ export default function ServicesPage() {
     try {
       const res = await fetch("/api/auth/me");
       const data = await res.json();
-      if (data.success && data.user) {
+      if (data.user) {
         setUserBalance(Number(data.user.balance || 0));
       }
     } catch {}

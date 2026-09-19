@@ -30,13 +30,14 @@ export async function GET(request: NextRequest) {
       });
 
       if (dbUser) {
-        return NextResponse.json({ authenticated: true, user: dbUser });
+        return NextResponse.json({ success: true, authenticated: true, user: dbUser });
       }
     } catch {
       // Fallback
     }
 
     return NextResponse.json({
+      success: true,
       authenticated: true,
       user: {
         id: session.id,

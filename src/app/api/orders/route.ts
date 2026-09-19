@@ -7,16 +7,28 @@ import { sendNewOrderAlert } from "@/lib/telegram";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     const { searchParams } = new URL(request.url);
     const limit = Math.min(300, Math.max(5, Number(searchParams.get("limit") || 100)));
     const statusParam = searchParams.get("status");
     const runningOnly = searchParams.get("running") === "true";
     const panelIdParam = searchParams.get("panelId");
 
+    let dbUser = null;
+    if (session) {
+      dbUser = await prisma.user.findFirst({
+        where: {
+          OR: [
+            ...(session.id ? [{ id: session.id }] : []),
+            ...(session.email ? [{ email: session.email }] : [])
+          ]
+        }
+      });
+    }
+
     const whereClause: any = {};
     if (session && session.role !== "ADMIN") {
-      whereClause.userId = session.id;
+      whereClause.userId = dbUser?.id || session.id;
     }
 
     if (runningOnly) {
@@ -81,7 +93,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (!session) {
       return NextResponse.json(
         { error: "You must be signed in to place orders. Please sign in or create an account." },
@@ -96,7 +108,7 @@ export async function POST(request: NextRequest) {
       quantity,
       runs = 1,
       intervalMinutes = 0,
-      charge = 0,
+      charge,
       category,
       service: serviceName,
       deliveryGraphId,
@@ -133,9 +145,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. Fetch user profile from database (lean projection)
-    const dbUser = await prisma.user.findUnique({
-      where: { id: session.id },
+    // 1. Fetch user profile from database (lean projection with email fallback)
+    const dbUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          ...(session.id ? [{ id: session.id }] : []),
+          ...(session.email ? [{ email: session.email }] : [])
+        ]
+      },
       select: {
         id: true,
         balance: true,

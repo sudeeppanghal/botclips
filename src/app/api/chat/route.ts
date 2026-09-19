@@ -4,13 +4,18 @@ import { getSessionUser } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     let isEligible = false;
     let currentUserData: any = null;
 
     if (session) {
-      const user = await prisma.user.findUnique({
-        where: { id: session.id },
+      const user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            ...(session.id ? [{ id: session.id }] : []),
+            ...(session.email ? [{ email: session.email }] : [])
+          ]
+        },
         select: {
           id: true,
           email: true,
@@ -123,7 +128,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (!session) {
       return NextResponse.json(
         { error: "Please log in to participate in the Wins Chat." },
@@ -131,8 +136,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.id },
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          ...(session.id ? [{ id: session.id }] : []),
+          ...(session.email ? [{ email: session.email }] : [])
+        ]
+      },
       select: {
         id: true,
         role: true,
@@ -250,10 +260,21 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const dbUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          ...(session.id ? [{ id: session.id }] : []),
+          ...(session.email ? [{ email: session.email }] : [])
+        ]
+      }
+    });
+
+    const targetUserId = dbUser?.id || session.id;
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
@@ -267,7 +288,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Message not found" }, { status: 404 });
     }
 
-    if (session.role !== "ADMIN" && targetMsg.userId !== session.id) {
+    if (session.role !== "ADMIN" && targetMsg.userId !== targetUserId && targetMsg.userId !== session.id) {
       return NextResponse.json({ error: "Forbidden. You can only delete your own messages." }, { status: 403 });
     }
 

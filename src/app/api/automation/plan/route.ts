@@ -12,13 +12,18 @@ const PLAN_PRICES = {
 // GET /api/automation/plan - Fetch user's current automation mode & plan status
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.id },
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          ...(session.id ? [{ id: session.id }] : []),
+          ...(session.email ? [{ email: session.email }] : [])
+        ]
+      },
       select: {
         id: true,
         email: true,
@@ -66,7 +71,7 @@ export async function GET(request: NextRequest) {
 // POST /api/automation/plan - Purchase or renew Weekly ($5) or Monthly ($25) plan
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -80,8 +85,13 @@ export async function POST(request: NextRequest) {
 
     const cost = PLAN_PRICES[planType as keyof typeof PLAN_PRICES];
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.id },
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          ...(session.id ? [{ id: session.id }] : []),
+          ...(session.email ? [{ email: session.email }] : [])
+        ]
+      },
       select: { id: true, balance: true, planExpiresAt: true },
     });
 
@@ -105,7 +115,7 @@ export async function POST(request: NextRequest) {
 
     // Deduct cost and activate plan
     const updatedUser = await prisma.user.update({
-      where: { id: session.id },
+      where: { id: user.id },
       data: {
         balance: { decrement: cost },
         totalSpent: { increment: cost },
@@ -120,13 +130,14 @@ export async function POST(request: NextRequest) {
         planActive: true,
         planType: true,
         planExpiresAt: true,
-      }
+        automationMode: true,
+      },
     });
 
     return NextResponse.json({
       success: true,
-      message: `Successfully subscribed to Premium BYO-API ${planType} plan! Active until ${expiresAt.toLocaleDateString()}.`,
-      user: updatedUser,
+      message: `Activated ${planType} plan successfully! ₹${cost} deducted from wallet balance.`,
+      plan: updatedUser,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Failed to purchase plan" }, { status: 500 });
@@ -136,7 +147,7 @@ export async function POST(request: NextRequest) {
 // PUT /api/automation/plan - Save & test custom SMM panel API credentials
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -144,8 +155,13 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { customApiUrl, customApiKey, automationMode, testConnection } = body;
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.id },
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          ...(session.id ? [{ id: session.id }] : []),
+          ...(session.email ? [{ email: session.email }] : [])
+        ]
+      },
       select: { id: true, planActive: true, planExpiresAt: true },
     });
 
@@ -190,7 +206,7 @@ export async function PUT(request: NextRequest) {
 
     // Save user's custom API settings
     await prisma.user.update({
-      where: { id: session.id },
+      where: { id: user.id },
       data: {
         customApiUrl: customApiUrl ? String(customApiUrl).trim() : null,
         customApiKey: customApiKey ? String(customApiKey).trim() : null,

@@ -7,10 +7,21 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const dbUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          ...(session.id ? [{ id: session.id }] : []),
+          ...(session.email ? [{ email: session.email }] : [])
+        ]
+      }
+    });
+
+    const targetUserId = dbUser?.id || session.id;
 
     const resolvedParams = await params;
     const ticketId = resolvedParams.id;
@@ -30,7 +41,7 @@ export async function POST(
     }
 
     // Ensure non-admins can only message their own tickets
-    if (session.role !== "ADMIN" && ticket.userId !== session.id) {
+    if (session.role !== "ADMIN" && ticket.userId !== targetUserId && ticket.userId !== session.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -41,7 +52,7 @@ export async function POST(
       prisma.ticketMessage.create({
         data: {
           ticketId,
-          userId: session.id,
+          userId: targetUserId,
           message: message.trim(),
           isAdmin,
         },

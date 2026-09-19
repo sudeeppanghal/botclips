@@ -4,7 +4,7 @@ import { getSessionUser } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     const isAdmin = session?.role === "ADMIN";
 
     if (!isAdmin) {

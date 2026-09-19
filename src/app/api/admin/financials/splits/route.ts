@@ -4,7 +4,7 @@ import { getSessionUser } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (session?.role !== "ADMIN") {
       return NextResponse.json({ error: "Unauthorized. Admin access required." }, { status: 401 });
     }
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (session?.role !== "ADMIN") {
       return NextResponse.json({ error: "Unauthorized. Admin access required." }, { status: 401 });
     }

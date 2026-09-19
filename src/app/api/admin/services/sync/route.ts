@@ -6,7 +6,7 @@ import { SmmPanelClient } from "@/lib/delivery/panel-client";
 // POST /api/admin/services/sync - Auto-fetch real upstream rates and apply 3x markup
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (session?.role !== "ADMIN") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

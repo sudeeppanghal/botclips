@@ -4,13 +4,22 @@ import { getSessionUser } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const dbUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          ...(session.id ? [{ id: session.id }] : []),
+          ...(session.email ? [{ email: session.email }] : [])
+        ]
+      }
+    });
+
     const tickets = await prisma.supportTicket.findMany({
-      where: { userId: session.id },
+      where: { userId: dbUser?.id || session.id },
       orderBy: { updatedAt: "desc" },
       include: {
         messages: {
@@ -31,10 +40,21 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const dbUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          ...(session.id ? [{ id: session.id }] : []),
+          ...(session.email ? [{ email: session.email }] : [])
+        ]
+      }
+    });
+
+    const targetUserId = dbUser?.id || session.id;
 
     const body = await request.json();
     const { subject, relatedOrderId, message } = body;
@@ -45,13 +65,13 @@ export async function POST(request: NextRequest) {
 
     const ticket = await prisma.supportTicket.create({
       data: {
-        userId: session.id,
+        userId: targetUserId,
         subject: subject.trim(),
         relatedOrderId: relatedOrderId ? String(relatedOrderId).trim() : null,
         status: "OPEN",
         messages: {
           create: {
-            userId: session.id,
+            userId: targetUserId,
             message: message.trim(),
             isAdmin: session.role === "ADMIN",
           }

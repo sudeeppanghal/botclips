@@ -25,9 +25,19 @@ export function signJwt(payload: SessionUser): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" });
 }
 
+export const ADMIN_EMAILS = [
+  "dipeshdhillon2006@gmail.com",
+  "spkchaudhary9211@gmail.com",
+  "master@botclips.online",
+];
+
 export function verifyJwt(token: string): SessionUser | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as SessionUser;
+    const user = jwt.verify(token, JWT_SECRET) as SessionUser;
+    if (user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+      user.role = "ADMIN";
+    }
+    return user;
   } catch {
     return null;
   }

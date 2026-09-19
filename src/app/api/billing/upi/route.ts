@@ -6,7 +6,7 @@ import { sendUpiDepositAlert } from "@/lib/telegram";
 // GET /api/billing/upi - Fetch all UPI payments (Admin only or user's own)
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -26,8 +26,17 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({ success: true, payments });
     } else {
+      const dbUser = await prisma.user.findFirst({
+        where: {
+          OR: [
+            ...(session.id ? [{ id: session.id }] : []),
+            ...(session.email ? [{ email: session.email }] : [])
+          ]
+        }
+      });
+
       const payments = await prisma.upiPayment.findMany({
-        where: { userId: session.id },
+        where: { userId: dbUser?.id || session.id },
         orderBy: { createdAt: "desc" },
         take: 50,
       });
@@ -157,7 +166,7 @@ export async function POST(request: NextRequest) {
 // PUT /api/billing/upi - Admin approval / rejection endpoint
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     const isAdmin = session?.role === "ADMIN";
     
     if (!isAdmin) {

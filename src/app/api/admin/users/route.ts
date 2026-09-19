@@ -5,7 +5,7 @@ import { getSessionUser } from "@/lib/auth";
 // GET /api/admin/users - List all registered users
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (session?.role !== "ADMIN") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 // PUT /api/admin/users - Adjust balance or update user role/status/canChat
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (session?.role !== "ADMIN") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -64,10 +64,19 @@ export async function PUT(request: NextRequest) {
     const { userId, balanceAdjust, setBalance, role, status, name, canChat } = body;
 
     if (!userId) {
-      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+      return NextResponse.json({ error: "User ID or Email is required" }, { status: 400 });
     }
 
-    const existing = await prisma.user.findUnique({ where: { id: userId } });
+    const cleanId = String(userId).trim();
+    const existing = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { id: cleanId },
+          { email: cleanId.toLowerCase() }
+        ]
+      }
+    });
+
     if (!existing) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
@@ -97,7 +106,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const updated = await prisma.user.update({
-      where: { id: userId },
+      where: { id: existing.id },
       data: updateData
     });
 
@@ -114,7 +123,7 @@ export async function PUT(request: NextRequest) {
 // DELETE /api/admin/users - Delete user
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (session?.role !== "ADMIN") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -126,11 +135,25 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 });
     }
 
-    if (userId === session.id) {
+    const cleanId = String(userId).trim();
+    const existing = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { id: cleanId },
+          { email: cleanId.toLowerCase() }
+        ]
+      }
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    if (existing.id === session.id) {
       return NextResponse.json({ error: "Cannot delete your own admin account" }, { status: 400 });
     }
 
-    await prisma.user.delete({ where: { id: userId } });
+    await prisma.user.delete({ where: { id: existing.id } });
 
     return NextResponse.json({ success: true, message: "User deleted successfully" });
   } catch (error: any) {

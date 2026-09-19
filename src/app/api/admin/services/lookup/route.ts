@@ -6,7 +6,7 @@ import { SmmPanelClient } from "@/lib/delivery/panel-client";
 // GET /api/admin/services/lookup?serviceId=7537 - Lookup real upstream price & calculate 3x
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (session?.role !== "ADMIN") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

@@ -5,7 +5,7 @@ import { getSessionUser, signJwt } from "@/lib/auth";
 // POST /api/admin/impersonate - 1-Click Login into any user account
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (session?.role !== "ADMIN") {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
@@ -14,10 +14,18 @@ export async function POST(request: NextRequest) {
     const { userId } = body;
 
     if (!userId) {
-      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+      return NextResponse.json({ error: "User ID or Email is required" }, { status: 400 });
     }
 
-    const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+    const cleanId = String(userId).trim();
+    const targetUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { id: cleanId },
+          { email: cleanId.toLowerCase() }
+        ]
+      }
+    });
     if (!targetUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }

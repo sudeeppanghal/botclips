@@ -4,15 +4,20 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
 
     if (!session) {
       return NextResponse.json({ authenticated: false, user: null });
     }
 
     try {
-      const dbUser = await prisma.user.findUnique({
-        where: { id: session.id },
+      const dbUser = await prisma.user.findFirst({
+        where: {
+          OR: [
+            ...(session.id ? [{ id: session.id }] : []),
+            ...(session.email ? [{ email: session.email }] : [])
+          ]
+        },
         select: {
           id: true,
           email: true,
@@ -20,6 +25,7 @@ export async function GET(request: NextRequest) {
           role: true,
           balance: true,
           apiKey: true,
+          canChat: true,
         },
       });
 
@@ -47,9 +53,22 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const dbUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          ...(session.id ? [{ id: session.id }] : []),
+          ...(session.email ? [{ email: session.email }] : [])
+        ]
+      }
+    });
+
+    if (!dbUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const body = await request.json();
@@ -62,7 +81,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: session.id },
+      where: { id: dbUser.id },
       data: updateData,
       select: {
         id: true,
@@ -72,6 +91,7 @@ export async function PATCH(request: NextRequest) {
         role: true,
         balance: true,
         apiKey: true,
+        canChat: true,
       },
     });
 

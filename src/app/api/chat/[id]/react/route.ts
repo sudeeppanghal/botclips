@@ -7,10 +7,20 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const dbUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          ...(session.id ? [{ id: session.id }] : []),
+          ...(session.email ? [{ email: session.email }] : [])
+        ]
+      }
+    });
+    const targetUserId = dbUser?.id || session.id;
 
     const { id } = await params;
     const body = await request.json();
@@ -40,14 +50,14 @@ export async function POST(
       reactionsMap[emoji] = [];
     }
 
-    const userIndex = reactionsMap[emoji].indexOf(session.id);
+    const userIndex = reactionsMap[emoji].indexOf(targetUserId);
     if (userIndex > -1) {
       reactionsMap[emoji].splice(userIndex, 1);
       if (reactionsMap[emoji].length === 0) {
         delete reactionsMap[emoji];
       }
     } else {
-      reactionsMap[emoji].push(session.id);
+      reactionsMap[emoji].push(targetUserId);
     }
 
     await prisma.chatMessage.update({

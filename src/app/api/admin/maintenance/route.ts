@@ -26,7 +26,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionUser();
+    const session = await getSessionUser(request);
     if (!session || session.role !== "ADMIN") {
       return NextResponse.json({ error: "Unauthorized. Admin privileges required." }, { status: 403 });
     }

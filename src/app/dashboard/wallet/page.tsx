@@ -122,10 +122,11 @@ export default function WalletPage() {
   const upiId = siteSettings.upiId || "Jaatdhillon@fam";
   const trc20 = siteSettings.trc20Address || "TVTjQKqYuntgk6EfD6PqeFvezZnVCCimjz";
   const bep20 = siteSettings.bep20Address || "0x71C3Ba8921e10FdB89C40a12F8e312A7C3241410";
-  const minDeposit = siteSettings.minDeposit || 100;
+  const minDeposit = Math.max(100, siteSettings.minDeposit || 100);
   const activeCryptoAddress = cryptoNetwork === "TRC20" ? trc20 : bep20;
 
-  const activeUpiAmount = customAmount ? Number(customAmount) : amount;
+  const rawUpiAmount = customAmount ? Number(customAmount) : amount;
+  const activeUpiAmount = Math.max(100, Number(rawUpiAmount) || 100);
   const activeCryptoAmount = customCryptoUsdt ? Number(customCryptoUsdt) : cryptoUsdt;
   const activeCryptoInr = Math.round(activeCryptoAmount * (siteSettings.usdToInrRate || 96));
 
@@ -515,11 +516,25 @@ export default function WalletPage() {
                   <input
                     type="number"
                     min="100"
-                    placeholder="Or enter custom amount (e.g. ₹150, ₹250)"
+                    placeholder="Or enter custom amount (Min ₹100, e.g. ₹150, ₹250)"
                     value={customAmount}
                     onChange={(e) => setCustomAmount(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:border-blue-500"
+                    onBlur={() => {
+                      if (customAmount && Number(customAmount) < 100) {
+                        setCustomAmount("100");
+                      }
+                    }}
+                    className={`w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800/70 border rounded-xl text-slate-900 dark:text-white outline-hidden ${
+                      customAmount && Number(customAmount) < 100
+                        ? "border-rose-500 focus:border-rose-500"
+                        : "border-slate-200 dark:border-slate-700 focus:border-blue-500"
+                    }`}
                   />
+                  {customAmount && Number(customAmount) < 100 && (
+                    <p className="text-[11px] text-rose-500 font-bold mt-1">
+                      ⚠️ Minimum deposit amount is ₹100 INR.
+                    </p>
+                  )}
                 </div>
               </div>
 

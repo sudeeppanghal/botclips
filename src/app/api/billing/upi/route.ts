@@ -56,13 +56,13 @@ export async function POST(request: NextRequest) {
     let minDepositLimit = 100;
     try {
       const settings = await prisma.adminSettings.findUnique({ where: { id: "global" } });
-      if (settings?.minDeposit) minDepositLimit = Number(settings.minDeposit);
+      if (settings?.minDeposit) minDepositLimit = Math.max(100, Number(settings.minDeposit));
     } catch {}
 
-    // Enforce dynamic minimum deposit
+    // Enforce dynamic minimum deposit (strictly >= 100)
     if (depositAmount < minDepositLimit) {
       return NextResponse.json({ 
-        error: `Minimum deposit amount is strictly ₹${minDepositLimit} INR.` 
+        error: `Minimum deposit amount is strictly ₹${minDepositLimit} INR. Payments below ₹${minDepositLimit} cannot be processed.` 
       }, { status: 400 });
     }
 

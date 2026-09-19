@@ -18,7 +18,7 @@ export default function AddFundsModal({
   onFundsAdded
 }: AddFundsModalProps) {
   const [method, setMethod] = useState<"UPI" | "CRYPTO">("UPI");
-  const [amount, setAmount] = useState(500);
+  const [amount, setAmount] = useState(100);
   const [utr, setUtr] = useState("");
   const [copied, setCopied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -26,8 +26,9 @@ export default function AddFundsModal({
 
   if (!isOpen) return null;
 
+  const safeAmount = Math.max(100, Number(amount) || 100);
   const upiId = "Jaatdhillon@fam";
-  const upiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=upi://pay?pa=${encodeURIComponent(upiId)}%26pn=DhillonSMM%26am=${amount}%26cu=INR`;
+  const upiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=upi://pay?pa=${encodeURIComponent(upiId)}%26pn=DhillonSMM%26am=${safeAmount}%26cu=INR`;
 
   const copyUpi = () => {
     navigator.clipboard.writeText(upiId);
@@ -37,6 +38,10 @@ export default function AddFundsModal({
 
   const handleUpiSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (Number(amount) < 100) {
+      alert("Minimum deposit amount is strictly ₹100 INR. Payments below ₹100 are rejected.");
+      return;
+    }
     if (!utr || utr.trim().length < 8) {
       alert("Please enter a valid 12-digit UPI / UTR Transaction ID.");
       return;
@@ -47,8 +52,14 @@ export default function AddFundsModal({
       const res = await fetch("/api/billing/upi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ utr: utr.trim(), amount: Number(amount) }),
+        body: JSON.stringify({ utr: utr.trim(), amount: Math.max(100, Number(amount)) }),
       });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        alert(data.error || "Failed to submit deposit.");
+        return;
+      }
 
       setSuccessMsg("UTR submitted successfully! Pending verification. Your balance will be credited once confirmed.");
 
@@ -129,19 +140,24 @@ export default function AddFundsModal({
           <form onSubmit={handleUpiSubmit} className="space-y-4 pt-4">
             {/* Amount Selection */}
             <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">
-                Deposit Amount ({currencySymbol})
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                  Deposit Amount ({currencySymbol})
+                </label>
+                <span className="text-[10px] font-black text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-md">
+                  Min ₹100
+                </span>
+              </div>
               <div className="grid grid-cols-4 gap-2 mb-2">
-                {[200, 500, 1000, 2500].map((amt) => (
+                {[100, 200, 500, 1000].map((amt) => (
                   <button
                     key={amt}
                     type="button"
                     onClick={() => setAmount(amt)}
-                    className={`py-1.5 text-xs font-bold rounded-xl border transition-all ${
+                    className={`py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
                       amount === amt
-                        ? "border-blue-600 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
-                        : "border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                        ? "border-blue-600 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 shadow-xs"
+                        : "border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                     }`}
                   >
                     {currencySymbol}{amt}
@@ -150,11 +166,21 @@ export default function AddFundsModal({
               </div>
               <input
                 type="number"
-                min="50"
+                min="100"
                 value={amount}
                 onChange={(e) => setAmount(Number(e.target.value))}
-                className="w-full px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white"
+                onBlur={() => {
+                  if (amount < 100) setAmount(100);
+                }}
+                className={`w-full px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-800/70 border rounded-xl text-slate-900 dark:text-white outline-hidden ${
+                  amount < 100 ? "border-rose-500 focus:border-rose-500" : "border-slate-200/80 dark:border-slate-700 focus:border-blue-500"
+                }`}
               />
+              {amount < 100 && (
+                <p className="text-[11px] text-rose-500 font-bold mt-1">
+                  ⚠️ Minimum deposit amount is ₹100 INR.
+                </p>
+              )}
             </div>
 
             {/* QR Code Container */}

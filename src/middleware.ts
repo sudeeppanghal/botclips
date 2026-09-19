@@ -37,6 +37,16 @@ async function verifyAdminSession(token: string | undefined): Promise<boolean> {
       return false;
     }
 
+    const ADMIN_EMAILS = [
+      "dipeshdhillon2006@gmail.com",
+      "spkchaudhary9211@gmail.com",
+      "master@botclips.online",
+    ];
+
+    if (payload.email && ADMIN_EMAILS.includes(payload.email.toLowerCase())) {
+      return true;
+    }
+
     return payload.role === "ADMIN";
   } catch {
     return false;

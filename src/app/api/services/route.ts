@@ -140,12 +140,10 @@ export async function GET(request: NextRequest) {
                   id: `prem_${panel.id}_${raw.service}`,
                   serviceId: String(raw.service),
                   panelId: panel.id,
-                  panelName: panel.name,
                   platform: detectedPlat,
                   category: raw.category || "General Services",
                   cat: raw.category || "General Services",
                   name: cleanName,
-                  rawName: raw.name,
                   rate: sellingRate, // Clean 3x rate presented directly
                   rateInr: sellingRate,
                   rateUsd: sellingUsd,

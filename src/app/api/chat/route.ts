@@ -37,13 +37,8 @@ export async function GET(request: NextRequest) {
       });
 
       if (user) {
-        const hasDeposited = (user.upiPayments && user.upiPayments.length > 0) || 
-                             (user.cryptoPayments && user.cryptoPayments.length > 0) ||
-                             user.balance > 0 ||
-                             user.totalSpent > 0 ||
-                             (user.orders && user.orders.length > 0);
-
-        isEligible = user.role === "ADMIN" || Boolean(user.canChat) || hasDeposited;
+        // Strict Admin Whitelisting: ONLY Admin or users explicitly whitelisted by Admin can chat
+        isEligible = user.role === "ADMIN" || Boolean(user.canChat);
         currentUserData = {
           id: user.id,
           email: user.email,
@@ -161,18 +156,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User account not found." }, { status: 404 });
     }
 
-    const hasDeposited = (user.upiPayments && user.upiPayments.length > 0) || 
-                         (user.cryptoPayments && user.cryptoPayments.length > 0) ||
-                         user.balance > 0 ||
-                         user.totalSpent > 0 ||
-                         (user.orders && user.orders.length > 0);
-
-    const isEligible = user.role === "ADMIN" || Boolean(user.canChat) || hasDeposited;
+    // Strict Admin Whitelisting: ONLY Admin or users explicitly whitelisted by Admin can chat
+    const isEligible = user.role === "ADMIN" || Boolean(user.canChat);
 
     if (!isEligible) {
       return NextResponse.json(
         { 
-          error: "You can chat 💬 and share your wins after your first recharge / deposit! Please add funds to your wallet to unlock full community chat permissions.",
+          error: "🔒 Chat Box access is restricted. Only creators whitelisted by Admin can send messages & screenshots. Please contact support to request chat whitelist access.",
           locked: true
         },
         { status: 403 }

@@ -349,7 +349,7 @@ export default function ChatBoxWinsPage() {
         <div className="px-5 py-2.5 bg-slate-50 dark:bg-slate-900/80 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
           <div className="flex items-center gap-2 font-medium">
             <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-            <span>Anti-Spam Active • Only recharged & verified clippers can post screenshots & text</span>
+            <span>Community Feed • Only Admin-whitelisted verified creators can post messages & screenshots</span>
           </div>
           <span className="hidden sm:inline-block font-mono text-[11px] text-slate-400">
             {messages.length} Community Messages
@@ -560,32 +560,32 @@ export default function ChatBoxWinsPage() {
               </div>
             </form>
           ) : (
-            /* 🔒 LOCKED / DEPOSIT-GATED STATE */
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-blue-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            /* 🔒 LOCKED / ADMIN-WHITELIST ONLY STATE */
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-900/90 via-slate-800/90 to-indigo-950/90 border border-slate-700/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-500 shrink-0">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0 shadow-xs">
                   <Lock className="w-5 h-5 animate-pulse" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-                    <span>Chat Box Gated for Verified Creators</span>
-                    <span className="px-2 py-0.2 rounded-md bg-amber-500/20 text-amber-500 text-[10px] uppercase font-bold">
-                      Recharge Required
+                  <h4 className="text-xs font-black text-white flex items-center gap-1.5">
+                    <span>Chat Box Restricted • Admin Whitelist Only</span>
+                    <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] uppercase font-black">
+                      Invite / Whitelist Only
                     </span>
                   </h4>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5">
-                    You can chat 💬 and share your wins after your first recharge / deposit!
+                  <p className="text-[11px] text-slate-300 mt-0.5">
+                    Only verified creators approved & whitelisted by the Admin can send messages and upload screenshots.
                   </p>
                 </div>
               </div>
 
-              <button
-                onClick={() => setShowAddFundsModal(true)}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs shadow-md shadow-amber-500/25 flex items-center justify-center gap-1.5 cursor-pointer shrink-0 transition-all"
+              <Link
+                href="/dashboard/tickets"
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs shadow-md shadow-blue-500/25 flex items-center justify-center gap-1.5 cursor-pointer shrink-0 transition-all text-center"
               >
-                <Wallet className="w-3.5 h-3.5" />
-                <span>Add Funds / Recharge to Unlock</span>
-              </button>
+                <span>Request Whitelist Access</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </Link>
             </div>
           )}
         </div>

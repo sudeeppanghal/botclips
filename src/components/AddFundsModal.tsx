@@ -23,6 +23,7 @@ export default function AddFundsModal({
   const [copied, setCopied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -53,12 +54,15 @@ export default function AddFundsModal({
 
   const handleUpiSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
     if (Number(amount) < 100) {
-      alert("Minimum deposit amount is strictly ₹100 INR. Payments below ₹100 are rejected.");
+      setErrorMsg("Minimum deposit amount is strictly ₹100 INR. Payments below ₹100 are rejected.");
       return;
     }
     if (!utr || utr.trim().length < 8) {
-      alert("Please enter a valid 12-digit UPI / UTR Transaction ID.");
+      setErrorMsg("Please enter a valid 12-digit UPI / UTR Transaction ID.");
       return;
     }
 
@@ -76,7 +80,11 @@ export default function AddFundsModal({
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        alert(data.error || "Failed to submit deposit.");
+        if (res.status === 401) {
+          setErrorMsg("Your session expired. Please refresh the page or log in again.");
+        } else {
+          setErrorMsg(data.error || "Failed to submit deposit.");
+        }
         return;
       }
 
@@ -84,13 +92,14 @@ export default function AddFundsModal({
 
       setTimeout(() => {
         setSuccessMsg(null);
+        setErrorMsg(null);
         setUtr("");
         setScreenshot(null);
         onClose();
         if (onFundsAdded) onFundsAdded(Math.max(100, Number(amount)));
       }, 2000);
     } catch (err: any) {
-      alert("Error submitting deposit. Please check your internet connection.");
+      setErrorMsg("Error submitting deposit. Please check your internet connection.");
     } finally {
       setSubmitting(false);
     }
@@ -119,10 +128,19 @@ export default function AddFundsModal({
           </div>
         </div>
 
+        {/* Error Alert */}
+        {errorMsg && (
+          <div className="my-3 p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs font-bold text-rose-700 dark:text-rose-300 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
         {/* Success Alert */}
         {successMsg && (
-          <div className="my-4 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-            {successMsg}
+          <div className="my-3 p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+            <Check className="w-4 h-4 shrink-0 text-emerald-500" />
+            <span>{successMsg}</span>
           </div>
         )}
 

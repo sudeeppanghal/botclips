@@ -35,6 +35,13 @@ export async function getTelegramConfig(): Promise<TelegramConfig | null> {
   return { botToken, chatId };
 }
 
+function escapeHtml(str: string = ""): string {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 export async function sendTelegramMessage(text: string, options: {
   chatId?: string;
   replyMarkup?: any;
@@ -64,7 +71,8 @@ export async function sendTelegramMessage(text: string, options: {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(4000)
     });
 
     const data = await res.json();
@@ -151,12 +159,16 @@ export async function sendUpiDepositAlert(deposit: {
     proofLinks = "• <i>Attached via app/portal</i>\n";
   }
 
+  const safeName = escapeHtml(deposit.userName || "Customer");
+  const safeEmail = escapeHtml(deposit.userEmail);
+  const safeUtr = escapeHtml(deposit.utr);
+
   const text = 
 `🔔 <b>NEW UPI DEPOSIT SUBMITTED</b>
 ━━━━━━━━━━━━━━━━━━━━━━
-👤 <b>User:</b> ${deposit.userName || "Customer"} (<code>${deposit.userEmail}</code>)
+👤 <b>User:</b> ${safeName} (<code>${safeEmail}</code>)
 💵 <b>Amount:</b> <b>₹${deposit.amount.toLocaleString("en-IN")} INR</b>
-🔢 <b>12-Digit UTR:</b> <code>${deposit.utr}</code>
+🔢 <b>12-Digit UTR:</b> <code>${safeUtr}</code>
 ⏰ <b>Time:</b> ${timeStr} IST
 
 🖼️ <b>Proof Screenshots:</b>

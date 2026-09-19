@@ -24,6 +24,10 @@ export default function AddFundsModal({
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  const [screenshot, setScreenshot] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   if (!isOpen) return null;
 
   const safeAmount = Math.max(100, Number(amount) || 100);
@@ -34,6 +38,17 @@ export default function AddFundsModal({
     navigator.clipboard.writeText(upiId);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setScreenshot(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleUpiSubmit = async (e: React.FormEvent) => {
@@ -52,7 +67,11 @@ export default function AddFundsModal({
       const res = await fetch("/api/billing/upi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ utr: utr.trim(), amount: Math.max(100, Number(amount)) }),
+        body: JSON.stringify({ 
+          utr: utr.trim(), 
+          amount: Math.max(100, Number(amount)),
+          screenshot1: screenshot || undefined
+        }),
       });
 
       const data = await res.json();
@@ -66,15 +85,12 @@ export default function AddFundsModal({
       setTimeout(() => {
         setSuccessMsg(null);
         setUtr("");
+        setScreenshot(null);
         onClose();
-      }, 2500);
-    } catch (err) {
-      setSuccessMsg("UTR submitted! Pending verification.");
-      setTimeout(() => {
-        setSuccessMsg(null);
-        setUtr("");
-        onClose();
-      }, 2500);
+        if (onFundsAdded) onFundsAdded(Math.max(100, Number(amount)));
+      }, 2000);
+    } catch (err: any) {
+      alert("Error submitting deposit. Please check your internet connection.");
     } finally {
       setSubmitting(false);
     }
@@ -225,6 +241,35 @@ export default function AddFundsModal({
                 className="w-full px-3.5 py-2.5 text-sm font-mono bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white"
               />
               <p className="text-[11px] text-slate-400 mt-1">Found in your payment app receipt under UTR or UPI Ref No.</p>
+            </div>
+
+            {/* Optional Screenshot Proof Attachment */}
+            <div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                accept="image/*"
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className={`w-full py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all ${
+                  screenshot
+                    ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 text-emerald-600 dark:text-emerald-400"
+                    : "bg-slate-50 dark:bg-slate-800/60 border-dashed border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100"
+                }`}
+              >
+                {screenshot ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-500" />
+                    <span>Receipt Screenshot Attached ✅</span>
+                  </>
+                ) : (
+                  <span>📷 Attach Payment Screenshot (Optional)</span>
+                )}
+              </button>
             </div>
 
             {/* Submit Button */}

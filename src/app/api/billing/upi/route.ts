@@ -66,14 +66,8 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const s1 = String(screenshot1 || screenshot2 || "uploaded_via_app");
-    const s2 = String(screenshot2 || screenshot1 || "uploaded_via_app");
-
-    if (!screenshot1 && !screenshot2) {
-      return NextResponse.json({ 
-        error: "Please upload at least one payment verification screenshot (Receipt or Success Confirmation)." 
-      }, { status: 400 });
-    }
+    const s1 = String(screenshot1 || screenshot2 || `Submitted via UPI QR Modal • UTR: ${cleanUtr}`);
+    const s2 = String(screenshot2 || screenshot1 || s1);
 
     let userId = session?.id;
     if (!userId) {
@@ -108,20 +102,16 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Await Telegram channel alert with 1-click inline approval buttons
-    try {
-      await sendUpiDepositAlert({
-        id: payment.id,
-        amount: depositAmount,
-        utr: cleanUtr,
-        userName: payment.user?.name || session?.name,
-        userEmail: payment.user?.email || session?.email || "customer@botclips.online",
-        screenshot1: s1,
-        screenshot2: s2
-      });
-    } catch (err) {
-      console.error("Telegram alert error:", err);
-    }
+    // Trigger Telegram channel alert with 1-click inline approval buttons asynchronously
+    sendUpiDepositAlert({
+      id: payment.id,
+      amount: depositAmount,
+      utr: cleanUtr,
+      userName: payment.user?.name || session?.name,
+      userEmail: payment.user?.email || session?.email || "customer@botclips.online",
+      screenshot1: s1,
+      screenshot2: s2
+    }).catch((err) => console.error("Telegram alert error:", err));
 
     return NextResponse.json({ 
       success: true, 

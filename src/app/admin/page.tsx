@@ -264,6 +264,17 @@ export default function AdminDashboardPage() {
     loadCryptoPayments();
     loadOrders();
     loadUsers();
+
+    // Ultra-fast live poller for incoming deposits & orders (auto-syncs in background)
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        loadRealPayments();
+        loadCryptoPayments();
+        loadOrders();
+      }
+    }, 8000);
+
+    return () => clearInterval(interval);
   }, []);
 
   async function loadAdminSettings() {

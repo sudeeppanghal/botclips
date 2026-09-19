@@ -57,6 +57,23 @@ export async function POST(request: NextRequest) {
           ]
         }
       });
+
+      // Auto-heal: If user has valid session email but was missing from DB, ensure record exists
+      if (!dbUser && session?.email) {
+        try {
+          dbUser = await prisma.user.upsert({
+            where: { email: session.email },
+            update: {},
+            create: {
+              email: session.email,
+              name: session.name || session.email.split("@")[0],
+              role: session.role || "USER",
+              balance: 0.0,
+              status: "ACTIVE"
+            }
+          });
+        } catch {}
+      }
     }
 
     if (!dbUser) {

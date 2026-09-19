@@ -64,42 +64,33 @@ export async function GET(request: NextRequest) {
     const email = googleUser.email.toLowerCase().trim();
     const name = googleUser.name || email.split("@")[0];
     const avatarUrl = googleUser.picture || null;
-    const role = email === "dipeshdhillon2006@gmail.com" ? "ADMIN" : "USER";
+    const defaultRole = (
+      email === "dipeshdhillon2006@gmail.com" || 
+      email === "spkchaudhary9211@gmail.com" || 
+      email === "master@botclips.online"
+    ) ? "ADMIN" : "USER";
 
-    // 3. Find or create user in database
+    // 3. Find or create user in database (using upsert for concurrency safety)
     let user;
     try {
-      user = await prisma.user.findUnique({
+      user = await prisma.user.upsert({
         where: { email },
+        update: {
+          ...(avatarUrl ? { avatarUrl } : {}),
+          name: name || undefined,
+        },
+        create: {
+          email,
+          name,
+          avatarUrl,
+          role: defaultRole,
+          balance: 0.0,
+          status: "ACTIVE",
+        },
       });
-
-      if (!user) {
-        user = await prisma.user.create({
-          data: {
-            email,
-            name,
-            avatarUrl,
-            role,
-            balance: 0.0, // Strict ₹0.00 initial balance for new signups
-            status: "ACTIVE",
-          },
-        });
-      } else if (avatarUrl && !user.avatarUrl) {
-        // Update avatar if not previously set
-        user = await prisma.user.update({
-          where: { email },
-          data: { avatarUrl },
-        });
-      }
     } catch (dbErr: any) {
-      console.error("Database user lookup/creation error:", dbErr.message);
-      // Fallback session if database is momentarily disconnected
-      user = {
-        id: "google_" + (googleUser.sub || Date.now().toString()),
-        email,
-        name,
-        role,
-      };
+      console.error("Database user upsert error during Google auth:", dbErr.message);
+      return NextResponse.redirect(`${baseUrl}/login?error=DatabaseError`);
     }
 
     // 4. Generate JWT session token

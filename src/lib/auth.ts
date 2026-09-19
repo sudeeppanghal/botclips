@@ -34,7 +34,7 @@ export function verifyJwt(token: string): SessionUser | null {
 }
 
 export async function getSessionUser(req?: NextRequest): Promise<SessionUser | null> {
-  // 1. Check Bearer token from request argument if passed
+  // 1. Check Bearer token or cookie from request argument if passed
   if (req) {
     const authHeader = req.headers.get("authorization");
     if (authHeader && authHeader.startsWith("Bearer ")) {
@@ -42,6 +42,14 @@ export async function getSessionUser(req?: NextRequest): Promise<SessionUser | n
       const user = verifyJwt(token);
       if (user) return user;
     }
+
+    try {
+      const cookieToken = req.cookies.get(COOKIE_NAME)?.value;
+      if (cookieToken) {
+        const user = verifyJwt(cookieToken);
+        if (user) return user;
+      }
+    } catch {}
   }
 
   // 2. Check Next.js headers()

@@ -1169,6 +1169,28 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleToggleUserChat = async (userId: string, currentCanChat: boolean) => {
+    const nextVal = !currentCanChat;
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, canChat: nextVal } : u));
+    try {
+      const res = await fetch("/api/admin/chat/permissions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "TOGGLE_USER_CHAT", userId, canChat: nextVal })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(data.message || `User chat permission set to ${nextVal ? "ALLOWED" : "LOCKED"}`);
+      } else {
+        notify(data.error || "Failed to update chat permission", "error");
+        loadUsers();
+      }
+    } catch {
+      notify("Network error updating chat permission", "error");
+      loadUsers();
+    }
+  };
+
   const handleToggleUserStatus = async (userId: string, currentStatus: string) => {
     const newStatus = currentStatus === "BANNED" ? "ACTIVE" : "BANNED";
     try {
@@ -2748,6 +2770,7 @@ export default function AdminDashboardPage() {
                       <th className="py-3 px-2">User / Email</th>
                       <th className="py-3 px-2">Role</th>
                       <th className="py-3 px-2">Status</th>
+                      <th className="py-3 px-2">Chat Access</th>
                       <th className="py-3 px-2">Wallet Balance</th>
                       <th className="py-3 px-2">Total Deposited</th>
                       <th className="py-3 px-2">Total Spent</th>
@@ -2820,6 +2843,21 @@ export default function AdminDashboardPage() {
                               }`}
                             >
                               {u.status}
+                            </button>
+                          </td>
+
+                          {/* Chat Box Permission */}
+                          <td className="py-3.5 px-2">
+                            <button
+                              onClick={() => handleToggleUserChat(u.id, Boolean(u.canChat))}
+                              title="Click to toggle Chat permission (ALLOW / LOCK)"
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition-all flex items-center gap-1 ${
+                                u.canChat || (u.totalDeposited || 0) > 0 || u.role === "ADMIN"
+                                  ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+                                  : "bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
+                              }`}
+                            >
+                              <span>{u.canChat || (u.totalDeposited || 0) > 0 || u.role === "ADMIN" ? "💬 UNLOCKED" : "🔒 LOCKED"}</span>
                             </button>
                           </td>
 

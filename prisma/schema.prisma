@@ -32,6 +32,8 @@ model User {
   planExpiresAt   DateTime?     @map("plan_expires_at")
   defaultServices String?       @map("default_services") // JSON string of default service IDs
 
+  canChat         Boolean       @default(false) @map("can_chat")
+
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
@@ -40,6 +42,7 @@ model User {
   cryptoPayments  CryptoPayment[]
   supportTickets  SupportTicket[]
   ticketMessages  TicketMessage[]
+  chatMessages    ChatMessage[]
   auditLogs       AuditLog[]
 
   @@map("users")
@@ -344,4 +347,21 @@ model ProfitSplit {
   @@index([paymentId])
   @@index([isSettled])
   @@map("profit_splits")
+}
+
+// ──────────────── COMMUNITY CHAT & WINS MESSAGE ────────────────
+model ChatMessage {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message     String   @db.Text
+  imageUrl    String?  @map("image_url") @db.Text
+  reactions   String?  @db.Text // JSON string: { "🔥": ["userId1"], "🚀": ["userId2"], ... }
+  isPinned    Boolean  @default(false) @map("is_pinned")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("chat_messages")
 }

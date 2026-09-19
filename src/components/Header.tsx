@@ -13,7 +13,8 @@ import {
   LogOut, 
   ShieldCheck, 
   Wallet,
-  ExternalLink
+  ExternalLink,
+  MessageSquare
 } from "lucide-react";
 import { useTheme } from "./ThemeContext";
 import BotClipsLogo from "@/components/BotClipsLogo";

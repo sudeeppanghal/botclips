@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
         avatarUrl: u.avatarUrl || null,
         totalSpent: Math.round(totalSpent * 100) / 100,
         totalDeposited: Math.round(totalDeposited * 100) / 100,
+        canChat: Boolean(u.canChat),
         orderCount: u.orders.length,
         depositCount: u.upiPayments.length + u.cryptoPayments.length,
         createdAt: u.createdAt
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PUT /api/admin/users - Adjust balance or update user role/status
+// PUT /api/admin/users - Adjust balance or update user role/status/canChat
 export async function PUT(request: NextRequest) {
   try {
     const session = await getSessionUser();
@@ -60,7 +61,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { userId, balanceAdjust, setBalance, role, status, name } = body;
+    const { userId, balanceAdjust, setBalance, role, status, name, canChat } = body;
 
     if (!userId) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 });
@@ -85,6 +86,10 @@ export async function PUT(request: NextRequest) {
 
     if (status && ["ACTIVE", "SUSPENDED", "BANNED"].includes(status)) {
       updateData.status = status;
+    }
+
+    if (canChat !== undefined) {
+      updateData.canChat = Boolean(canChat);
     }
 
     if (name) {

@@ -9,6 +9,7 @@ import {
   History, 
   ArrowDownLeft, 
   AlertCircle, 
+  AlertTriangle,
   UploadCloud, 
   Image as ImageIcon, 
   CheckCircle2, 
@@ -435,12 +436,31 @@ export default function WalletPage() {
         </div>
       )}
 
-      {/* Strict Policy Banner */}
-      <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3 text-amber-800 dark:text-amber-300 text-xs font-semibold">
-        <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-        <div>
-          <span className="font-black tracking-wide uppercase text-amber-700 dark:text-amber-400">Strict Minimum Deposit Notice:</span>{" "}
-          Minimum deposit is strictly <strong className="font-black text-amber-900 dark:text-amber-200">₹{minDeposit} INR (or 1 USDT)</strong>. Any deposit sent below ₹{minDeposit} is <strong className="font-black underline text-rose-600 dark:text-rose-400">strictly non-refundable</strong> and will not be credited to your account.
+      {/* Strict Policy & Ban Warning Banner */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-amber-500/15 border border-amber-500/30 text-xs font-semibold space-y-2">
+        <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-black uppercase tracking-wide">
+          <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0" />
+          <span>⚠️ Mandatory Deposit Policy & Security Warnings</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 text-slate-800 dark:text-slate-200">
+          <div className="flex items-start gap-2 p-2.5 rounded-xl bg-white/60 dark:bg-slate-900/40 border border-amber-500/20">
+            <span className="text-rose-500 font-bold text-sm">❌</span>
+            <div>
+              <strong className="text-slate-900 dark:text-white font-bold block">Below ₹100 = Strictly Non-Refundable</strong>
+              <span className="text-[11px] text-slate-600 dark:text-slate-400">
+                Minimum deposit is strictly <strong>₹{minDeposit} INR (or 1 USDT)</strong>. Any amount sent below ₹{minDeposit} will NOT be credited and cannot be refunded.
+              </span>
+            </div>
+          </div>
+          <div className="flex items-start gap-2 p-2.5 rounded-xl bg-white/60 dark:bg-slate-900/40 border border-rose-500/20">
+            <span className="text-rose-500 font-bold text-sm">🚫</span>
+            <div>
+              <strong className="text-rose-600 dark:text-rose-400 font-bold block">Fake Screenshot = Instant Permanent Ban</strong>
+              <span className="text-[11px] text-slate-600 dark:text-slate-400">
+                Uploading edited / forged screenshots or fake UTRs results in an <strong>immediate permanent IP & account ban</strong> with total wallet balance freeze.
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 

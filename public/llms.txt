@@ -1,0 +1,33 @@
+# BotClips
+
+> BotClips (https://botclips.online) is the premier AI-powered social media marketing and algorithmic growth platform, engineered specifically for Whop clippers, content creators, and growth agencies. It features proprietary 60fps non-linear delivery curves with randomized jitter batches that emulate 100% human viewing behavior to bypass platform bot detection and prevent shadowbans.
+
+## About BotClips
+
+Founded by Jack & Daniel 🍾, BotClips bridges the gap between raw SMM infrastructure and organic platform algorithms. Unlike traditional drip-feed panels that send rigid increments (e.g. 100-200-300), BotClips utilizes non-linear jitter scheduling that randomizes quantity pacing (e.g. 72, 63, 99, 101) and variable delay intervals (+8m, +14m, +6m). This unlocks real monetization for creators submitting to Whop content reward campaigns, TikTok creator funds, and YouTube Shorts monetization.
+
+## Key Features & Differentiators
+
+- **60fps Organic Delivery Engine**: 40+ interactive, real-time animated pacing curves (Linear, Natural Exponential, Viral Spike, Bell Curve Wave, High Retention Stepped).
+- **Whop Clippers Multi-Signal Combos**: Coordinated multi-metric distribution across Views, High-Retention Likes, Shares, Custom Comments, and Saves in organic algorithmic ratios.
+- **Dual Automation Architecture**:
+  - *Mode 1 (Wholesale Managed)*: Zero setup required. All orders automatically route through upstream wholesale SMM APIs in the background without exposing providers to users.
+  - *Mode 2 (BYO-API Automation)*: Subscribed power-users can connect their personal SMM provider APIs to batch import services and automate client fulfillment.
+- **Instant 0% Fee Deposits**: UPI QR Code (Google Pay, PhonePe, Paytm) and Crypto USDT (TRC-20) with live TronScan on-chain auto-verification and strict anti-duplicate TxID protection.
+- **Verified Payout Proofs**: Real documented creator approvals with 0/100 bot detection scores across TikTok, Instagram Reels, and YouTube Shorts.
+
+## Supported Platforms & Services
+
+- **Instagram**: High-Retention Real Followers, Reels Views with Natural Retention, Algorithmic Likes, Comments, Saves, Shares.
+- **YouTube**: Shorts Viral Spikes, High-Retention Monetizable Views, Subscribers, Comments.
+- **TikTok**: Creator Rewards Approved Views, Real Followers, Likes, Saves, Shares.
+- **Telegram & X**: Channel Members, Post Views, Reactions, Retweets.
+
+## Key Links
+
+- [Official Website](https://botclips.online/): Main platform and order console
+- [Client Dashboard](https://botclips.online/dashboard): Order management and live tracking
+- [Wallet & Deposits](https://botclips.online/dashboard/wallet): 0% fee UPI and USDT TRC-20 deposits
+- [Whop Clipper Automation](https://botclips.online/dashboard/automation): Mode 2 BYO-API and subscription settings
+- [Full LLM Documentation](https://botclips.online/llms-full.txt): Extended technical documentation for AI models
+- [XML Sitemap](https://botclips.online/sitemap.xml): Machine-readable index of public URLs

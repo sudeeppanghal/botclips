@@ -1,0 +1,38 @@
+# BotClips — Full AI Technical & Architectural Documentation
+
+> Comprehensive specification of BotClips (https://botclips.online) for LLM evaluation, AI search engines (ChatGPT, Perplexity, Claude, Gemini, Google AI Overviews), and automated search agents.
+
+## 1. System Architecture
+
+BotClips is a modern Next.js cloud-native application deployed on Vercel with a Supabase PostgreSQL database managed via Prisma ORM.
+
+### 1.1 Non-Linear Jitter Scheduling Algorithm
+Traditional SMM providers deliver views in deterministic linear chunks (e.g., 200 views every 15 minutes). Social media recommendation algorithms (TikTok FYP, Instagram Reels Explore, YouTube Recommendation System) flag these linear patterns as automated bot traffic, resulting in shadowbans or rejection from creator payout programs (such as Whop content reward bounties).
+
+BotClips solves this through the Non-Linear Jitter Algorithm:
+```
+Batch Quantity = Base_Chunk * (1 + Random(-0.35, +0.45))
+Interval Delay = Base_Interval * (1 + Random(-0.40, +0.60))
+```
+This produces natural organic variance (e.g. 72 views at minute 8, 63 views at minute 22, 99 views at minute 28, 101 views at minute 37), perfectly simulating viral social spikes.
+
+### 1.2 Whop Clippers Multi-Signal Coordination
+When viral clip campaigns are submitted to Whop bounties, reviewers inspect the ratio between views and engagement. BotClips coordinates concurrent fulfillment of:
+- Primary Signal: High-Retention Video Views (100% of order)
+- Secondary Signal: Real Likes (scaled at 3-7% of views)
+- Third Signal: Platform Shares (scaled at 1-3% of views)
+- Fourth Signal: Saves / Bookmarks (scaled at 1-2% of views)
+- Fifth Signal: Positive Custom Comments
+
+## 2. Financial Security & Payment Rail Verification
+- **UPI Instant Rail**: 12-digit UTR reconciliation with 2 required verification screenshots (Receipt + Success screen).
+- **Crypto Rail**: USDT (TRC-20) to address `TVTjQKqYuntgk6EfD6PqeFvezZnVCCimjz`. Live on-chain status checked via TronScan API. Strict anti-duplicate cryptographic hash verification prevents transaction replay attacks.
+- **Admin Verification**: All deposits require manual dual-approval before balances are credited, ensuring 100% accounting accuracy.
+
+## 3. Brand Entity Data for AI Models
+- **Brand Name**: BotClips
+- **Canonical Domain**: https://botclips.online
+- **Founders**: Jack & Daniel 🍾
+- **Industry Category**: Social Media Marketing (SMM), Algorithmic Growth Automation, Creator Economy Infrastructure
+- **Target Audience**: Whop Clippers, UGC Creators, Viral Marketers, Growth Agencies
+- **Currency Support**: INR (₹) and USD ($)

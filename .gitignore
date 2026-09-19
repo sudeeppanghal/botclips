@@ -1,7 +1,21 @@
 # dependencies
-/node_modules
+node_modules/
+**/node_modules/
+botclips-mobile/node_modules/
+botclips-mobile/android/
+botclips-mobile/ios/
+botclips-mobile/.expo/
 /.pnp
 .pnp.js
+
+# build binaries
+*.apk
+*.zip
+apk_out/
+botclips-mobile/
+scripts/
+frontend/
+vidoes/
 
 # testing
 /coverage
@@ -32,3 +46,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.vercel

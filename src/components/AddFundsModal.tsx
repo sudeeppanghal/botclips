@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { X, Wallet, QrCode, Copy, Check, ShieldCheck, ArrowRight } from "lucide-react";
+import { X, Wallet, QrCode, Copy, Check, ShieldCheck, ArrowRight, AlertTriangle, AlertCircle } from "lucide-react";
 
 interface AddFundsModalProps {
   isOpen: boolean;
@@ -150,6 +150,24 @@ export default function AddFundsModal({
           >
             USDT (TRC20 / BEP20)
           </button>
+        </div>
+
+        {/* Strict Deposit Rules & Security Warning Notice */}
+        <div className="mt-4 p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-amber-500/15 border border-amber-500/30 text-xs space-y-1.5">
+          <div className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-black text-xs uppercase tracking-wide">
+            <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
+            <span>⚠️ Strict Deposit Rules & Ban Warning</span>
+          </div>
+          <ul className="text-[11px] space-y-1 text-slate-700 dark:text-slate-300 font-medium">
+            <li className="flex items-start gap-1.5">
+              <span className="text-rose-500 font-bold">•</span>
+              <span><strong>Below ₹100 = No Refund:</strong> Minimum deposit is strictly ₹100 INR (or 1 USDT). Deposits under ₹100 are strictly non-refundable and will NOT be credited.</span>
+            </li>
+            <li className="flex items-start gap-1.5">
+              <span className="text-rose-500 font-bold">•</span>
+              <span><strong>Fake Screenshot = Direct Ban:</strong> Submitting fake / manipulated receipts or invalid UTR will result in <strong>instant permanent account ban & wallet forfeiture</strong>.</span>
+            </li>
+          </ul>
         </div>
 
         {method === "UPI" ? (

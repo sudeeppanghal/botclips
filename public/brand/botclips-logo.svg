@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="380" height="120" viewBox="0 0 380 120" fill="none">
+
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1769FF"/><stop offset="1" stop-color="#6B3CFF"/></linearGradient></defs>
+<rect x="12" y="32" width="72" height="64" rx="20" fill="url(#g)"/>
+<rect x="27" y="48" width="12" height="12" rx="6" fill="white"/><rect x="57" y="48" width="12" height="12" rx="6" fill="white"/>
+<path d="M30 75C39 82 57 82 66 75" stroke="white" stroke-width="6" stroke-linecap="round"/>
+<path d="M48 32V18" stroke="#1769FF" stroke-width="6" stroke-linecap="round"/><circle cx="48" cy="14" r="5" fill="#6B3CFF"/>
+<path d="M12 53H5M84 53H91" stroke="#1769FF" stroke-width="6" stroke-linecap="round"/>
+<text x="104" y="61" font-family="Inter,Arial,sans-serif" font-size="30" font-weight="800" fill="#12264D">BotClips</text>
+<text x="105" y="82" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="700" letter-spacing="2" fill="#7082A4">SMM AUTOMATION</text>
+
+</svg>

@@ -1,0 +1,25 @@
+{
+  "colors": {
+    "navy": "#12264D",
+    "blue": "#1769FF",
+    "violet": "#6B3CFF",
+    "background": "#F7FAFF",
+    "surface": "#FFFFFF",
+    "muted": "#7082A4",
+    "border": "#DDE8F7",
+    "success": "#16B981",
+    "warning": "#F59E0B",
+    "danger": "#EF4444"
+  },
+  "radii": {
+    "sm": "10px",
+    "md": "18px",
+    "lg": "28px",
+    "xl": "36px"
+  },
+  "shadows": {
+    "sm": "0 8px 24px rgba(36,85,160,.08)",
+    "md": "0 18px 50px rgba(36,85,160,.12)",
+    "blue": "0 18px 50px rgba(23,105,255,.22)"
+  }
+}

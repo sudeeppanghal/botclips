@@ -1,0 +1,44 @@
+{
+  "stats": [
+    {
+      "label": "Active Users",
+      "value": "10K+"
+    },
+    {
+      "label": "Orders Delivered",
+      "value": "50M+"
+    },
+    {
+      "label": "Uptime",
+      "value": "99.9%"
+    },
+    {
+      "label": "User Rating",
+      "value": "4.9/5"
+    }
+  ],
+  "services": [
+    "Instagram",
+    "YouTube",
+    "TikTok",
+    "Facebook",
+    "Telegram",
+    "X",
+    "Discord",
+    "LinkedIn",
+    "Pinterest"
+  ],
+  "features": [
+    "Organic Delivery Curves",
+    "Multi-Provider API",
+    "Real-Time Analytics",
+    "Bulk Account Creation",
+    "Smart Proxy Support",
+    "Custom Scheduling"
+  ],
+  "steps": [
+    "Set Up",
+    "Choose",
+    "Grow"
+  ]
+}

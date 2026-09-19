@@ -37,15 +37,19 @@ export async function GET(request: NextRequest) {
       });
 
       if (user) {
-        // Strict Admin Whitelisting: ONLY Admin or users explicitly whitelisted by Admin can chat
-        isEligible = user.role === "ADMIN" || Boolean(user.canChat);
+        const userTotalSpent = Number(user.totalSpent || 0);
+        const meetsSpendThreshold = userTotalSpent >= 500;
+        isEligible = user.role === "ADMIN" || Boolean(user.canChat) || meetsSpendThreshold;
         currentUserData = {
           id: user.id,
           email: user.email,
           name: user.name,
           role: user.role,
           balance: user.balance,
+          totalSpent: userTotalSpent,
           canChat: isEligible,
+          spendThreshold: 500,
+          spendNeeded: Math.max(0, 500 - userTotalSpent),
         };
       }
     }
@@ -156,14 +160,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User account not found." }, { status: 404 });
     }
 
-    // Strict Admin Whitelisting: ONLY Admin or users explicitly whitelisted by Admin can chat
-    const isEligible = user.role === "ADMIN" || Boolean(user.canChat);
+    const userTotalSpent = Number(user.totalSpent || 0);
+    const meetsSpendThreshold = userTotalSpent >= 500;
+    const isEligible = user.role === "ADMIN" || Boolean(user.canChat) || meetsSpendThreshold;
 
     if (!isEligible) {
+      const remaining = Math.max(0, 500 - userTotalSpent);
       return NextResponse.json(
         { 
-          error: "🔒 Chat Box access is restricted. Only creators whitelisted by Admin can send messages & screenshots. Please contact support to request chat whitelist access.",
-          locked: true
+          error: `🔒 To unlock Chat Box permissions & share your wins, you must spend ₹500 INR or more on BotClips services (Current lifetime spend: ₹${userTotalSpent.toFixed(2)} — ₹${remaining.toFixed(2)} remaining).`,
+          locked: true,
+          currentSpend: userTotalSpent,
+          spendThreshold: 500,
+          remaining,
         },
         { status: 403 }
       );

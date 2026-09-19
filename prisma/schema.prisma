@@ -34,6 +34,20 @@ model User {
 
   canChat         Boolean       @default(false) @map("can_chat")
 
+  // Referral & Influencer Partner Program
+  referralCode       String?           @unique @map("referral_code")
+  referredById       String?           @map("referred_by_id")
+  referredBy         User?             @relation("UserReferrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals          User[]            @relation("UserReferrals")
+  isPromoter         Boolean           @default(false) @map("is_promoter")
+  isInfluencer       Boolean           @default(false) @map("is_influencer")
+  influencerChannel  String?           @map("influencer_channel")
+  payoutUpi          String?           @map("payout_upi")
+  payoutCrypto       String?           @map("payout_crypto")
+  referralRewards    ReferralReward[]  @relation("PromoterRewards")
+  receivedRewards    ReferralReward[]  @relation("ReferredUserRewards")
+  referralPayouts    ReferralPayout[]
+
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
@@ -364,4 +378,40 @@ model ChatMessage {
   @@index([userId])
   @@index([createdAt])
   @@map("chat_messages")
+}
+
+// ──────────────── REFERRALS & INFLUENCER PARTNER PROGRAM ────────────────
+model ReferralReward {
+  id               String       @id @default(cuid())
+  promoterId       String       @map("promoter_id")
+  promoter         User         @relation("PromoterRewards", fields: [promoterId], references: [id], onDelete: Cascade)
+  referredUserId   String       @map("referred_user_id")
+  referredUser     User         @relation("ReferredUserRewards", fields: [referredUserId], references: [id], onDelete: Cascade)
+  paymentType      String       @default("UPI") @map("payment_type") // UPI or CRYPTO
+  paymentId        String?      @map("payment_id")
+  depositAmount    Float        @map("deposit_amount")
+  nominalProfit    Float        @map("nominal_profit") // Exactly 30% of deposit (nominal profit shown to influencer)
+  commissionAmount Float        @map("commission_amount") // Exactly 10% of nominalProfit (= 3% of deposit)
+  status           String       @default("CONFIRMED") // CONFIRMED, REVERSED
+  createdAt        DateTime     @default(now()) @map("created_at")
+
+  @@index([promoterId])
+  @@index([referredUserId])
+  @@map("referral_rewards")
+}
+
+model ReferralPayout {
+  id           String    @id @default(cuid())
+  promoterId   String    @map("promoter_id")
+  promoter     User      @relation(fields: [promoterId], references: [id], onDelete: Cascade)
+  amount       Float
+  method       String    @default("UPI") // UPI or USDT
+  destination  String    // UPI ID or USDT TRC20 address
+  status       String    @default("PENDING") // PENDING, PAID, REJECTED
+  utrOrTxHash  String?   @map("utr_or_tx_hash")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  paidAt       DateTime? @map("paid_at")
+
+  @@index([promoterId])
+  @@map("referral_payouts")
 }

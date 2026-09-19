@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, signJwt, COOKIE_NAME } from "@/lib/auth";
+import { generateUniqueReferralCode } from "@/lib/referral";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, email, phone, password } = body;
+    const { name, email, phone, password, referralCode: inputRef } = body;
 
     if (!email || !password) {
       return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
@@ -13,6 +14,21 @@ export async function POST(request: NextRequest) {
 
     const cleanEmail = String(email).trim().toLowerCase();
     const hashedPassword = await hashPassword(password);
+
+    // Check referral code from request body or cookie
+    const cookieRef = request.cookies.get("botclips_ref")?.value;
+    const refCodeToLookup = (inputRef || cookieRef || "").trim().toUpperCase();
+
+    let referredById: string | null = null;
+    if (refCodeToLookup) {
+      const promoter = await prisma.user.findUnique({
+        where: { referralCode: refCodeToLookup },
+        select: { id: true },
+      });
+      if (promoter) {
+        referredById = promoter.id;
+      }
+    }
 
     let user: any = null;
 
@@ -26,6 +42,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "An account with this email already exists" }, { status: 400 });
       }
 
+      // Generate unique referral code for this new user
+      const assignedRefCode = await generateUniqueReferralCode(name || cleanEmail.split("@")[0]);
+
       // Create user in DB with initial balance of 0.0 (users must deposit to place orders)
       user = await prisma.user.create({
         data: {
@@ -35,6 +54,8 @@ export async function POST(request: NextRequest) {
           phone: phone || null,
           balance: 0.0,
           role: cleanEmail === "dipeshdhillon2006@gmail.com" ? "ADMIN" : "USER",
+          referralCode: assignedRefCode,
+          referredById: referredById,
         },
       });
     } catch (dbErr: any) {

@@ -53,8 +53,20 @@ async function verifyAdminSession(token: string | undefined): Promise<boolean> {
   }
 }
 
+function attachRefCookie(res: NextResponse, refCode: string | null): NextResponse {
+  if (refCode && refCode.trim()) {
+    res.cookies.set("botclips_ref", refCode.trim().toUpperCase(), {
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+      path: "/",
+      sameSite: "lax",
+    });
+  }
+  return res;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const refCode = request.nextUrl.searchParams.get("ref") || request.nextUrl.searchParams.get("referral");
 
   // 1. Strict route protection for /admin (requires verified cryptographically signed ADMIN role)
   if (pathname.startsWith("/admin")) {
@@ -63,7 +75,7 @@ export async function middleware(request: NextRequest) {
     if (!isAdmin) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(loginUrl);
+      return attachRefCookie(NextResponse.redirect(loginUrl), refCode);
     }
   }
 
@@ -82,7 +94,7 @@ export async function middleware(request: NextRequest) {
     if (!token) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(loginUrl);
+      return attachRefCookie(NextResponse.redirect(loginUrl), refCode);
     }
   }
 
@@ -96,10 +108,10 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/screenshots") ||
     pathname === "/favicon.ico"
   ) {
-    return NextResponse.next();
+    return attachRefCookie(NextResponse.next(), refCode);
   }
 
-  // 2. Check if maintenance mode is active
+  // 4. Check if maintenance mode is active
   const isMaintenanceActive = request.cookies.get("botclips_maintenance")?.value === "true";
 
   if (isMaintenanceActive) {
@@ -113,7 +125,7 @@ export async function middleware(request: NextRequest) {
           const payload = JSON.parse(Buffer.from(parts[1], "base64").toString());
           if (payload.role === "ADMIN") {
             // Admin bypasses maintenance mode
-            return NextResponse.next();
+            return attachRefCookie(NextResponse.next(), refCode);
           }
         }
       } catch {
@@ -124,10 +136,10 @@ export async function middleware(request: NextRequest) {
     // Rewrite regular visitors to the maintenance screen
     const url = request.nextUrl.clone();
     url.pathname = "/maintenance";
-    return NextResponse.rewrite(url);
+    return attachRefCookie(NextResponse.rewrite(url), refCode);
   }
 
-  return NextResponse.next();
+  return attachRefCookie(NextResponse.next(), refCode);
 }
 
 export const config = {

@@ -16,7 +16,8 @@ import {
   X,
   Sparkles,
   Cpu,
-  MessageSquare
+  MessageSquare,
+  Share2
 } from "lucide-react";
 import BotClipsLogo from "@/components/BotClipsLogo";
 
@@ -31,6 +32,7 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile, brandName =
 
   const navItems = [
     { label: "Home", href: "/dashboard", icon: Home },
+    { label: "Affiliates & Earn", href: "/dashboard/affiliates", icon: Share2, badge: "10% SHARE" },
     { label: "Chat Box ( Wins )", href: "/dashboard/chat", icon: MessageSquare, badge: "WINS" },
     { label: "Automation", href: "/dashboard/automation", icon: Zap },
     { label: "M-Automation", href: "/dashboard/m-automation", icon: Cpu, badge: "PRO" },

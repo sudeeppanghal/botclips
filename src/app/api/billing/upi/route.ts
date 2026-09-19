@@ -205,6 +205,19 @@ export async function PUT(request: NextRequest) {
         }),
       ]);
 
+      // Record referral commission if user was referred (10% of nominal 30% profit)
+      try {
+        const { recordReferralReward } = await import("@/lib/referral");
+        await recordReferralReward({
+          userId: payment.userId,
+          depositAmount: payment.amount,
+          paymentType: "UPI",
+          paymentId: payment.id,
+        });
+      } catch (refErr) {
+        console.error("Referral reward error:", refErr);
+      }
+
       return NextResponse.json({ 
         success: true, 
         message: `Payment approved! Credited ₹${payment.amount} to user balance.` 

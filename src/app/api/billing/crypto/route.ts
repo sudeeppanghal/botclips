@@ -283,6 +283,19 @@ export async function PUT(request: NextRequest) {
         }),
       ]);
 
+      // Record referral commission if user was referred (10% of nominal 30% profit)
+      try {
+        const { recordReferralReward } = await import("@/lib/referral");
+        await recordReferralReward({
+          userId: payment.userId,
+          depositAmount: creditInr,
+          paymentType: "CRYPTO",
+          paymentId: payment.id,
+        });
+      } catch (refErr) {
+        console.error("Crypto referral reward error:", refErr);
+      }
+
       return NextResponse.json({ 
         success: true, 
         message: "Crypto deposit approved! Credited ₹" + creditInr + " (" + payment.amountUsdt + " USDT) to user balance." 

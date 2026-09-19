@@ -70,6 +70,22 @@ export async function GET(request: NextRequest) {
       email === "master@botclips.online"
     ) ? "ADMIN" : "USER";
 
+    // 2b. Check referral cookie
+    const cookieRef = request.cookies.get("botclips_ref")?.value;
+    let referredById: string | null = null;
+    if (cookieRef) {
+      const promoter = await prisma.user.findUnique({
+        where: { referralCode: cookieRef.trim().toUpperCase() },
+        select: { id: true },
+      });
+      if (promoter) {
+        referredById = promoter.id;
+      }
+    }
+
+    const { generateUniqueReferralCode } = await import("@/lib/referral");
+    const assignedRefCode = await generateUniqueReferralCode(name || email.split("@")[0]);
+
     // 3. Find or create user in database (using upsert for concurrency safety)
     let user;
     try {
@@ -86,8 +102,18 @@ export async function GET(request: NextRequest) {
           role: defaultRole,
           balance: 0.0,
           status: "ACTIVE",
+          referralCode: assignedRefCode,
+          referredById: referredById,
         },
       });
+
+      // If user existed previously without referralCode, ensure they have one
+      if (!user.referralCode) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { referralCode: assignedRefCode },
+        });
+      }
     } catch (dbErr: any) {
       console.error("Database user upsert error during Google auth:", dbErr.message);
       return NextResponse.redirect(`${baseUrl}/login?error=DatabaseError`);

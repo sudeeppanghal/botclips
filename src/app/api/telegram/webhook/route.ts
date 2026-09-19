@@ -50,6 +50,19 @@ export async function POST(request: NextRequest) {
           })
         ]);
 
+        // Record referral commission if user was referred (10% of nominal 30% profit)
+        try {
+          const { recordReferralReward } = await import("@/lib/referral");
+          await recordReferralReward({
+            userId: payment.userId,
+            depositAmount: payment.amount,
+            paymentType: "UPI",
+            paymentId: payment.id,
+          });
+        } catch (refErr) {
+          console.error("Telegram UPI referral reward error:", refErr);
+        }
+
         const timeStr = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
         await answerCallbackQuery(callbackQueryId, `Approved! ₹${payment.amount} credited to user.`);
 
@@ -144,6 +157,19 @@ export async function POST(request: NextRequest) {
             data: { balance: { increment: creditInr } }
           })
         ]);
+
+        // Record referral commission if user was referred (10% of nominal 30% profit)
+        try {
+          const { recordReferralReward } = await import("@/lib/referral");
+          await recordReferralReward({
+            userId: payment.userId,
+            depositAmount: creditInr,
+            paymentType: "CRYPTO",
+            paymentId: payment.id,
+          });
+        } catch (refErr) {
+          console.error("Telegram Crypto referral reward error:", refErr);
+        }
 
         const timeStr = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
         await answerCallbackQuery(callbackQueryId, `Approved! ₹${creditInr} credited.`);

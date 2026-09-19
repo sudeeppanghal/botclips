@@ -50,6 +50,7 @@ export default function AdminLayout({
 
   const navItems = [
     { label: "Overview", href: "/admin", icon: ShieldCheck },
+    { label: "Affiliates & Promoters", href: "/admin/affiliates", icon: Users },
     { label: "Services & Catalog", href: "/admin/services", icon: Layers },
     { label: "SMM Providers", href: "/admin/panels", icon: Server },
     { label: "Payment Verification", href: "/admin/payments", icon: CreditCard },

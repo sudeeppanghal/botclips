@@ -41,15 +41,54 @@ export default function AddFundsModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1200;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL("image/jpeg", 0.75));
+          } else {
+            resolve(e.target?.result as string);
+          }
+        };
+        img.onerror = () => resolve(e.target?.result as string);
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setScreenshot(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImage(file);
+      setScreenshot(compressed);
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => setScreenshot(reader.result as string);
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleUpiSubmit = async (e: React.FormEvent) => {
@@ -280,7 +319,7 @@ export default function AddFundsModal({
               <p className="text-[11px] text-slate-400 mt-1">Found in your payment app receipt under UTR or UPI Ref No.</p>
             </div>
 
-            {/* Optional Screenshot Proof Attachment */}
+            {/* Screenshot Proof Attachment */}
             <div>
               <input
                 type="file"
@@ -289,24 +328,45 @@ export default function AddFundsModal({
                 accept="image/*"
                 className="hidden"
               />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className={`w-full py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all ${
-                  screenshot
-                    ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 text-emerald-600 dark:text-emerald-400"
-                    : "bg-slate-50 dark:bg-slate-800/60 border-dashed border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100"
-                }`}
-              >
-                {screenshot ? (
-                  <>
-                    <Check className="w-4 h-4 text-emerald-500" />
-                    <span>Receipt Screenshot Attached ✅</span>
-                  </>
-                ) : (
-                  <span>📷 Attach Payment Screenshot (Optional)</span>
-                )}
-              </button>
+              {screenshot ? (
+                <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700/50">
+                  <div className="flex items-center gap-2.5 overflow-hidden">
+                    <img
+                      src={screenshot}
+                      alt="Attached Screenshot"
+                      className="w-10 h-10 rounded-lg object-cover border border-emerald-400/40 shrink-0"
+                    />
+                    <div className="text-left overflow-hidden">
+                      <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Screenshot Attached</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">
+                        Payment proof ready to verify
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScreenshot(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    className="p-1.5 rounded-lg hover:bg-emerald-200/50 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-xs font-bold cursor-pointer transition-colors"
+                    title="Remove Screenshot"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-2.5 px-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all"
+                >
+                  <span>📷 Upload Payment Screenshot / Receipt (Recommended)</span>
+                </button>
+              )}
             </div>
 
             {/* Submit Button */}

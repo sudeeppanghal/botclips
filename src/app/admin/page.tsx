@@ -42,11 +42,65 @@ import {
   Scale,
   BadgePercent,
   Wine,
-  LogIn
+  LogIn,
+  ImageIcon
 } from "lucide-react";
 import BotClipsLogo from "@/components/BotClipsLogo";
 
 type AdminTab = "OVERVIEW" | "ORDERS" | "USERS" | "PANELS" | "SERVICES" | "COMBOS" | "PAYMENTS" | "SETTINGS" | "TICKETS" | "SPLITS";
+
+function ProofThumbnail({
+  src,
+  label,
+  onPreview,
+}: {
+  src: string | null | undefined;
+  label: string;
+  onPreview: (url: string) => void;
+}) {
+  const [hasError, setHasError] = useState(false);
+  const isValidUrl = Boolean(
+    src &&
+    typeof src === "string" &&
+    (src.startsWith("http://") || src.startsWith("https://") || src.startsWith("data:image/")) &&
+    !hasError
+  );
+
+  if (!src) {
+    return <span className="text-slate-400 text-[11px] italic font-mono">None</span>;
+  }
+
+  if (!isValidUrl) {
+    return (
+      <button
+        type="button"
+        onClick={() => onPreview(src)}
+        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-mono transition-colors cursor-pointer"
+        title={src}
+      >
+        <span>📝 App Note</span>
+      </button>
+    );
+  }
+
+  return (
+    <div
+      onClick={() => onPreview(src)}
+      className="relative w-11 h-11 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden cursor-pointer hover:scale-105 transition-transform group shadow-2xs shrink-0"
+      title={`Click to preview ${label}`}
+    >
+      <img
+        src={src}
+        alt={label}
+        onError={() => setHasError(true)}
+        className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+      />
+      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold transition-opacity">
+        <Eye className="w-3.5 h-3.5" />
+      </div>
+    </div>
+  );
+}
 
 export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>("OVERVIEW");
@@ -3506,36 +3560,20 @@ export default function AdminDashboardPage() {
                           
                           {/* Proof 1 */}
                           <td className="py-3.5 px-2">
-                            {p.screenshot1 ? (
-                              <div 
-                                onClick={() => setPreviewImage(p.screenshot1)}
-                                className="relative w-12 h-12 rounded-lg border border-slate-200 overflow-hidden cursor-pointer hover:scale-105 transition-transform group shadow-2xs"
-                              >
-                                <img src={p.screenshot1} alt="Proof 1" className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold transition-opacity">
-                                  <Eye className="w-3.5 h-3.5" />
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="text-slate-400 text-[11px] italic">None</span>
-                            )}
+                            <ProofThumbnail
+                              src={p.screenshot1}
+                              label="Proof 1"
+                              onPreview={(url) => setPreviewImage(url)}
+                            />
                           </td>
 
                           {/* Proof 2 */}
                           <td className="py-3.5 px-2">
-                            {p.screenshot2 ? (
-                              <div 
-                                onClick={() => setPreviewImage(p.screenshot2)}
-                                className="relative w-12 h-12 rounded-lg border border-slate-200 overflow-hidden cursor-pointer hover:scale-105 transition-transform group shadow-2xs"
-                              >
-                                <img src={p.screenshot2} alt="Proof 2" className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold transition-opacity">
-                                  <Eye className="w-3.5 h-3.5" />
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="text-slate-400 text-[11px] italic">None</span>
-                            )}
+                            <ProofThumbnail
+                              src={p.screenshot2}
+                              label="Proof 2"
+                              onPreview={(url) => setPreviewImage(url)}
+                            />
                           </td>
 
                           <td className="py-3.5 px-2">
@@ -3662,36 +3700,20 @@ export default function AdminDashboardPage() {
 
                           {/* Proof 1 */}
                           <td className="py-3.5 px-2">
-                            {cp.screenshot1 ? (
-                              <div 
-                                onClick={() => setPreviewImage(cp.screenshot1)}
-                                className="relative w-12 h-12 rounded-lg border border-slate-200 overflow-hidden cursor-pointer hover:scale-105 transition-transform group shadow-2xs"
-                              >
-                                <img src={cp.screenshot1} alt="Withdrawal Proof" className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold transition-opacity">
-                                  <Eye className="w-3.5 h-3.5" />
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="text-slate-400 text-[11px] italic">None</span>
-                            )}
+                            <ProofThumbnail
+                              src={cp.screenshot1}
+                              label="Withdrawal Proof"
+                              onPreview={(url) => setPreviewImage(url)}
+                            />
                           </td>
 
                           {/* Proof 2 */}
                           <td className="py-3.5 px-2">
-                            {cp.screenshot2 ? (
-                              <div 
-                                onClick={() => setPreviewImage(cp.screenshot2)}
-                                className="relative w-12 h-12 rounded-lg border border-slate-200 overflow-hidden cursor-pointer hover:scale-105 transition-transform group shadow-2xs"
-                              >
-                                <img src={cp.screenshot2} alt="Explorer Proof" className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold transition-opacity">
-                                  <Eye className="w-3.5 h-3.5" />
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="text-slate-400 text-[11px] italic">None</span>
-                            )}
+                            <ProofThumbnail
+                              src={cp.screenshot2}
+                              label="Explorer Proof"
+                              onPreview={(url) => setPreviewImage(url)}
+                            />
                           </td>
 
                           {/* Status */}
@@ -4899,6 +4921,48 @@ export default function AdminDashboardPage() {
               >
                 Add Provider
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────── MODAL 5: HIGH-RESOLUTION SCREENSHOT PREVIEW ──────────────── */}
+      {previewImage && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div 
+            className="max-w-2xl w-full max-h-[90vh] bg-white dark:bg-[#0b0f19] rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col cursor-default shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-amber-500" />
+                Deposit Verification Proof
+              </span>
+              <button
+                onClick={() => setPreviewImage(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 flex items-center justify-center overflow-auto max-h-[calc(90vh-70px)]">
+              {previewImage.startsWith("http") || previewImage.startsWith("data:image") ? (
+                <img
+                  src={previewImage}
+                  alt="Deposit Screenshot"
+                  className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
+                />
+              ) : (
+                <div className="p-6 text-center space-y-2">
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Transaction Submission Note</p>
+                  <div className="p-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-600 dark:text-slate-300 select-all">
+                    {previewImage}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -113,8 +113,10 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const s1 = String(screenshot1 || screenshot2 || `Submitted via UPI QR Modal • UTR: ${cleanUtr}`);
-    const s2 = String(screenshot2 || screenshot1 || s1);
+    const isImg1 = Boolean(screenshot1 && typeof screenshot1 === "string" && (screenshot1.startsWith("http") || screenshot1.startsWith("data:image")));
+    const isImg2 = Boolean(screenshot2 && typeof screenshot2 === "string" && (screenshot2.startsWith("http") || screenshot2.startsWith("data:image")));
+    const s1 = isImg1 ? screenshot1 : (isImg2 ? screenshot2 : null);
+    const s2 = isImg2 ? screenshot2 : s1;
 
     // Check for duplicate UTR submission
     const existing = await prisma.upiPayment.findUnique({

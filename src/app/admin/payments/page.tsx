@@ -39,6 +39,57 @@ interface PaymentItem {
   createdAt: string;
 }
 
+function ProofThumbnail({
+  src,
+  label,
+  onPreview,
+}: {
+  src: string | null | undefined;
+  label: string;
+  onPreview: (url: string) => void;
+}) {
+  const [hasError, setHasError] = useState(false);
+  const isValidUrl = Boolean(
+    src &&
+    typeof src === "string" &&
+    (src.startsWith("http://") || src.startsWith("https://") || src.startsWith("data:image/")) &&
+    !hasError
+  );
+
+  if (!src) {
+    return <span className="text-slate-400 text-[10px] italic font-mono">None</span>;
+  }
+
+  if (!isValidUrl) {
+    return (
+      <button
+        type="button"
+        onClick={() => onPreview(src)}
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-mono transition-colors cursor-pointer"
+        title={src}
+      >
+        <span>📝 Note</span>
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onPreview(src)}
+      className="w-9 h-9 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden relative group cursor-pointer shrink-0"
+      title={`Click to preview ${label}`}
+    >
+      <img
+        src={src}
+        alt={label}
+        onError={() => setHasError(true)}
+        className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+      />
+    </button>
+  );
+}
+
 export default function AdminPaymentsPage() {
   const [payments, setPayments] = useState<PaymentItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -495,30 +546,17 @@ export default function AdminPaymentsPage() {
                       {/* Proof Screenshots */}
                       <td className="py-4 px-2">
                         <div className="flex items-center gap-1.5">
-                          {hasImage1 ? (
-                            <button
-                              type="button"
-                              onClick={() => setPreviewImage(p.screenshot1!)}
-                              className="w-9 h-9 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden relative group cursor-pointer shrink-0"
-                              title="Click to view full screenshot 1"
-                            >
-                              <img src={p.screenshot1} alt="Proof 1" className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
-                            </button>
-                          ) : (
-                            <span className="text-[10px] text-slate-400 font-mono italic">
-                              {p.screenshot1 ? "Note provided" : "No receipt"}
-                            </span>
-                          )}
-
-                          {hasImage2 && (
-                            <button
-                              type="button"
-                              onClick={() => setPreviewImage(p.screenshot2!)}
-                              className="w-9 h-9 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden relative group cursor-pointer shrink-0"
-                              title="Click to view full screenshot 2"
-                            >
-                              <img src={p.screenshot2} alt="Proof 2" className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
-                            </button>
+                          <ProofThumbnail
+                            src={p.screenshot1}
+                            label="Proof 1"
+                            onPreview={(url) => setPreviewImage(url)}
+                          />
+                          {p.screenshot2 && p.screenshot2 !== p.screenshot1 && (
+                            <ProofThumbnail
+                              src={p.screenshot2}
+                              label="Proof 2"
+                              onPreview={(url) => setPreviewImage(url)}
+                            />
                           )}
                         </div>
                       </td>

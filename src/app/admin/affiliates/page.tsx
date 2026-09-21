@@ -83,6 +83,7 @@ export default function AdminAffiliatesPage() {
   const [vanityCodeInput, setVanityCodeInput] = useState("");
   const [channelInput, setChannelInput] = useState("");
   const [vanityRateInput, setVanityRateInput] = useState("5.0");
+  const [selectedPromoterStatus, setSelectedPromoterStatus] = useState(true);
   const [vanitySubmitting, setVanitySubmitting] = useState(false);
   const [vanityError, setVanityError] = useState("");
 
@@ -266,6 +267,7 @@ export default function AdminAffiliatesPage() {
           customCode: vanityCodeInput.trim().toUpperCase(),
           influencerChannel: channelInput.trim(),
           commissionRate: rateNum,
+          isPromoter: selectedPromoterStatus,
         }),
       });
 
@@ -290,6 +292,7 @@ export default function AdminAffiliatesPage() {
     setVanityCodeInput(promoter.referralCode || "");
     setChannelInput(promoter.influencerChannel || "");
     setVanityRateInput(String(promoter.referralCommissionRate ?? 5.0));
+    setSelectedPromoterStatus(Boolean(promoter.isPromoter));
     setVanityError("");
   };
 
@@ -558,7 +561,7 @@ export default function AdminAffiliatesPage() {
                 <th className="pb-3">Affiliate Status</th>
                 <th className="pb-3">Signups</th>
                 <th className="pb-3">Total Deposits</th>
-                <th className="pb-3">Deposit Commission %</th>
+                <th className="pb-3 text-purple-300 font-bold">Profit Share (% Per Deposit)</th>
                 <th className="pb-3">Total Earned</th>
                 <th className="pb-3">Available</th>
                 <th className="pb-3 text-right">Actions</th>
@@ -590,7 +593,7 @@ export default function AdminAffiliatesPage() {
                     <button
                       onClick={() => handleTogglePromoterStatus(p.id, Boolean(p.isPromoter), p.email)}
                       title="Click to toggle Affiliate Access (Default: OFF)"
-                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition-all ${
+                      className={`px-2.5 py-1 rounded-md text-[10px] font-bold cursor-pointer transition-all ${
                         p.isPromoter
                           ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-xs"
                           : "bg-slate-800 text-slate-400 border border-slate-700"
@@ -607,7 +610,7 @@ export default function AdminAffiliatesPage() {
                   </td>
                   <td className="py-3 font-sans">
                     {editingRateId === p.id ? (
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5">
                         <input
                           type="number"
                           step="0.5"
@@ -615,19 +618,20 @@ export default function AdminAffiliatesPage() {
                           max="100"
                           value={editingRateVal}
                           onChange={(e) => setEditingRateVal(e.target.value)}
-                          className="w-14 px-1.5 py-0.5 rounded bg-slate-900 border border-purple-500 text-white font-mono text-xs font-bold"
+                          className="w-16 px-2 py-1 rounded-lg bg-slate-950 border border-purple-500 text-white font-mono text-xs font-bold focus:ring-2 focus:ring-purple-500"
                           autoFocus
                         />
+                        <span className="text-purple-400 font-bold text-xs">%</span>
                         <button
                           onClick={() => handleUpdateCommissionRate(p.id, Number(editingRateVal))}
-                          className="p-1 rounded bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold cursor-pointer"
-                          title="Save rate"
+                          className="px-2 py-1 rounded bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold cursor-pointer transition-all shadow-xs"
+                          title="Save custom rate"
                         >
-                          ✓
+                          Save
                         </button>
                         <button
                           onClick={() => setEditingRateId(null)}
-                          className="p-1 rounded bg-slate-700 text-slate-300 text-[10px] cursor-pointer"
+                          className="px-1.5 py-1 rounded bg-slate-800 text-slate-400 hover:text-white text-[11px] cursor-pointer"
                           title="Cancel"
                         >
                           ✕
@@ -639,11 +643,11 @@ export default function AdminAffiliatesPage() {
                           setEditingRateId(p.id);
                           setEditingRateVal(String(p.referralCommissionRate ?? 5.0));
                         }}
-                        title="Admin Secret: Click to edit commission % for this promoter"
-                        className="px-2 py-0.5 rounded-md text-[11px] font-bold font-mono bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 transition-all cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                        title="Admin Secret: Click to edit custom profit share % for this partner"
+                        className="px-2.5 py-1 rounded-md text-[11px] font-bold font-mono bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 transition-all cursor-pointer inline-flex items-center gap-1.5 shadow-xs"
                       >
-                        <span>{p.referralCommissionRate ?? 5.0}%</span>
-                        <Edit3 className="w-2.5 h-2.5 opacity-60" />
+                        <span>{p.referralCommissionRate ?? 5.0}% Cut</span>
+                        <Edit3 className="w-3 h-3 text-purple-400 opacity-80" />
                       </button>
                     )}
                   </td>
@@ -656,10 +660,11 @@ export default function AdminAffiliatesPage() {
                   <td className="py-3 text-right font-sans">
                     <button
                       onClick={() => openVanityModal(p)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs transition-colors"
+                      title="Set custom code, profit % and partner settings"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 hover:text-white border border-purple-500/30 text-xs font-bold transition-all shadow-xs cursor-pointer"
                     >
-                      <Edit3 className="w-3 h-3" />
-                      Set Custom Code
+                      <Edit3 className="w-3.5 h-3.5" />
+                      Edit % & Code
                     </button>
                   </td>
                 </tr>
@@ -669,21 +674,92 @@ export default function AdminAffiliatesPage() {
         </div>
       </div>
 
-      {/* Custom Vanity Code Modal */}
+      {/* Custom Vanity Code & Profit Share Modal */}
       {selectedPromoter && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl p-6 space-y-4 shadow-xl">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-purple-400" />
-              Assign Vanity Referral Code
-            </h3>
-            <p className="text-xs text-slate-400">
-              Create a custom branded code for <b>{selectedPromoter.name || selectedPromoter.email}</b>.
-            </p>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">
+                    Configure Partner: {selectedPromoter.name || selectedPromoter.email}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Set custom profit share % on referral deposits & custom referral code.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedPromoter(null)}
+                className="text-slate-400 hover:text-white text-xs font-bold px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 transition-all cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
 
             <form onSubmit={handleSaveVanityCode} className="space-y-4">
+              {/* 1. Custom Profit Share % Per Deposit */}
+              <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-purple-300 uppercase tracking-wider">
+                    Custom Profit Share (% Per Deposit) *
+                  </label>
+                  <span className="text-[10px] bg-purple-500/20 text-purple-300 font-bold px-2 py-0.5 rounded border border-purple-500/30">
+                    🔒 Admin Secret
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="relative flex items-center">
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      max="100"
+                      placeholder="5.0"
+                      value={vanityRateInput}
+                      onChange={(e) => setVanityRateInput(e.target.value)}
+                      className="w-32 px-3.5 py-2 bg-slate-950 border-2 border-purple-500 rounded-xl text-sm font-mono font-bold text-white outline-none focus:ring-2 focus:ring-purple-400"
+                      required
+                    />
+                    <span className="absolute right-3 text-purple-400 font-bold text-sm">%</span>
+                  </div>
+                  <div className="text-xs text-slate-300 font-medium">
+                    <div>Partner cut: <span className="text-emerald-400 font-bold font-mono">₹{((Number(vanityRateInput) || 0) * 10).toFixed(2)}</span> per ₹1,000 deposit</div>
+                    <div className="text-[11px] text-slate-400">or <span className="text-emerald-400 font-bold font-mono">₹{((Number(vanityRateInput) || 0) * 1).toFixed(2)}</span> per ₹100 deposit</div>
+                  </div>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                  <span className="text-[10px] text-slate-400 font-semibold mr-1">Quick Select:</span>
+                  {[3, 5, 7.5, 10, 15, 20, 25, 50].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setVanityRateInput(String(preset))}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold font-mono transition-all cursor-pointer ${
+                        Number(vanityRateInput) === preset
+                          ? "bg-purple-600 text-white shadow-xs"
+                          : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
+                      }`}
+                    >
+                      {preset}%
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  This exact % is calculated directly on every successful deposit made by this partner&apos;s referrals. User never sees this formula.
+                </p>
+              </div>
+
+              {/* 2. Custom Referral Code */}
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
                   Custom Referral Code
                 </label>
                 <input
@@ -691,57 +767,49 @@ export default function AdminAffiliatesPage() {
                   placeholder="e.g. TECHBURST or ROUND2HELL"
                   value={vanityCodeInput}
                   onChange={(e) => setVanityCodeInput(e.target.value.toUpperCase())}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-sm uppercase focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-sm uppercase tracking-wider focus:outline-hidden focus:ring-2 focus:ring-purple-500"
                   required
                 />
-                <span className="text-[11px] text-slate-500 mt-1 block">
-                  Link will be: https://botclips.online/signup?ref={vanityCodeInput || "CODE"}
+                <span className="text-[11px] text-slate-400 mt-1 block font-mono">
+                  Referral URL: <span className="text-purple-400">https://botclips.online/signup?ref={vanityCodeInput || "CODE"}</span>
                 </span>
               </div>
 
+              {/* 3. Influencer Channel / Handle */}
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                  Influencer Channel / Handle
+                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                  Influencer Channel / Social Handle (Optional)
                 </label>
                 <input
                   type="text"
                   placeholder="e.g. YouTube: @TechBurst (100k subs)"
                   value={channelInput}
                   onChange={(e) => setChannelInput(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-hidden focus:ring-2 focus:ring-purple-500"
                 />
               </div>
 
-              {/* Commission Rate (Deposit % - Secret) */}
-              <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-purple-400 uppercase tracking-wider">
-                    Deposit Commission % (Admin Secret)
-                  </label>
-                  <span className="text-[10px] bg-purple-500/20 text-purple-300 font-bold px-2 py-0.5 rounded">
-                    🔒 Hidden from Promoter
-                  </span>
+              {/* 4. Affiliate Status Switch */}
+              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-800/60 border border-slate-800">
+                <div>
+                  <div className="text-xs font-bold text-white">Affiliate Access Status</div>
+                  <div className="text-[10px] text-slate-400">Enable or disable this user&apos;s affiliate dashboard access</div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    max="100"
-                    placeholder="5.0"
-                    value={vanityRateInput}
-                    onChange={(e) => setVanityRateInput(e.target.value)}
-                    className="w-28 px-3 py-1.5 bg-slate-900 border border-purple-500/40 rounded-lg text-xs font-mono font-bold text-white outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                  <span className="text-xs font-bold text-slate-400">%</span>
-                  <span className="text-[11px] text-slate-400 italic">
-                    (Promoter gets ₹{((Number(vanityRateInput) || 0) * 1).toFixed(2)} on ₹100 deposit)
-                  </span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPromoterStatus(!selectedPromoterStatus)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    selectedPromoterStatus
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : "bg-slate-700 text-slate-400"
+                  }`}
+                >
+                  {selectedPromoterStatus ? "🟢 ENABLED" : "⚪ DISABLED"}
+                </button>
               </div>
 
               {vanityError && (
-                <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
                   {vanityError}
                 </div>
               )}
@@ -750,16 +818,16 @@ export default function AdminAffiliatesPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedPromoter(null)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={vanitySubmitting}
-                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all shadow-sm"
+                  className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition-all shadow-md cursor-pointer disabled:opacity-50"
                 >
-                  {vanitySubmitting ? "Saving..." : "Save Vanity Code"}
+                  {vanitySubmitting ? "Saving Changes..." : "Save Profit % & Code"}
                 </button>
               </div>
             </form>
@@ -836,32 +904,54 @@ export default function AdminAffiliatesPage() {
               </div>
 
               {/* Deposit Commission % (Admin Secret) */}
-              <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 space-y-1.5">
+              <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/30 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-purple-400 uppercase tracking-wider">
-                    Deposit Commission % (Admin Secret)
+                  <label className="block text-xs font-bold text-purple-300 uppercase tracking-wider">
+                    Deposit Commission / Profit Share % (Admin Secret)
                   </label>
-                  <span className="text-[10px] bg-purple-500/20 text-purple-300 font-bold px-2 py-0.5 rounded">
-                    🔒 Hidden from User
+                  <span className="text-[10px] bg-purple-500/20 text-purple-300 font-bold px-2 py-0.5 rounded border border-purple-500/30">
+                    🔒 Admin Only
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    max="100"
-                    placeholder="5.0"
-                    value={assignRate}
-                    onChange={(e) => setAssignRate(e.target.value)}
-                    className="w-28 px-3 py-1.5 bg-slate-900 border border-purple-500/40 rounded-lg text-xs font-mono font-bold text-white outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                  <span className="text-xs font-bold text-slate-400">%</span>
-                  <span className="text-[11px] text-slate-400 italic">
-                    (₹100 deposit = ₹{((Number(assignRate) || 0) * 1).toFixed(2)} to partner)
+                <div className="flex items-center gap-2.5">
+                  <div className="relative flex items-center">
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      max="100"
+                      placeholder="5.0"
+                      value={assignRate}
+                      onChange={(e) => setAssignRate(e.target.value)}
+                      className="w-28 px-3 py-1.5 bg-slate-950 border border-purple-500/50 rounded-lg text-xs font-mono font-bold text-white outline-none focus:ring-2 focus:ring-purple-500"
+                      required
+                    />
+                    <span className="absolute right-2.5 text-purple-400 font-bold text-xs">%</span>
+                  </div>
+                  <span className="text-xs text-slate-300 font-medium">
+                    = <span className="text-emerald-400 font-bold font-mono">₹{((Number(assignRate) || 0) * 10).toFixed(2)}</span> on ₹1,000 deposit
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-500">
+
+                {/* Quick Presets */}
+                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                  <span className="text-[10px] text-slate-400 font-semibold mr-1">Presets:</span>
+                  {[3, 5, 7.5, 10, 15, 20, 25, 50].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setAssignRate(String(preset))}
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold font-mono transition-all cursor-pointer ${
+                        Number(assignRate) === preset
+                          ? "bg-purple-600 text-white shadow-xs"
+                          : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
+                      }`}
+                    >
+                      {preset}%
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-slate-400">
                   You decide the exact % cut from every deposit made by this partner&apos;s referrals.
                 </p>
               </div>

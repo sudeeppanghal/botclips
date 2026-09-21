@@ -33,6 +33,8 @@ model User {
   defaultServices String?       @map("default_services") // JSON string of default service IDs
 
   canChat         Boolean       @default(false) @map("can_chat")
+  isChatMuted     Boolean       @default(false) @map("is_chat_muted")
+  isChatBanned    Boolean       @default(false) @map("is_chat_banned")
 
   // Referral & Influencer Partner Program
   referralCode       String?           @unique @map("referral_code")
@@ -58,6 +60,7 @@ model User {
   supportTickets  SupportTicket[]
   ticketMessages  TicketMessage[]
   chatMessages    ChatMessage[]
+  storePurchases  StorePurchase[]
   auditLogs       AuditLog[]
 
   @@map("users")
@@ -417,3 +420,45 @@ model ReferralPayout {
   @@index([promoterId])
   @@map("referral_payouts")
 }
+
+// ──────────────── CLIPPING STUFFS DIGITAL STORE ────────────────
+model StoreProduct {
+  id              String          @id @default(cuid())
+  title           String
+  slug            String?         @unique
+  category        String          // APPS, COURSES, EBOOKS_PDF, GUIDES, TEMPLATES, TOOLS, BUNDLES
+  description     String          @db.Text
+  price           Float           @default(0.0)
+  originalPrice   Float?          @map("original_price")
+  badge           String?         // HOT, BESTSELLER, NEW, etc.
+  iconType        String?         @map("icon_type") // instagram, tiktok, youtube, course, pdf, templates, tools, bundle
+  imageUrl        String?         @map("image_url")
+  buttonText      String?         @default("Get Now") @map("button_text")
+  deliveryUrl     String?         @map("delivery_url") @db.Text
+  deliveryContent String?         @map("delivery_content") @db.Text
+  isActive        Boolean         @default(true) @map("is_active")
+  sortOrder       Int             @default(0) @map("sort_order")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  purchases       StorePurchase[]
+
+  @@index([category])
+  @@index([isActive])
+  @@map("store_products")
+}
+
+model StorePurchase {
+  id          String       @id @default(cuid())
+  userId      String       @map("user_id")
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId   String       @map("product_id")
+  product     StoreProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  amountPaid  Float        @map("amount_paid")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+  @@map("store_purchases")
+}
+

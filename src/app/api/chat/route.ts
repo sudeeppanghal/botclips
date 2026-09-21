@@ -24,6 +24,8 @@ export async function GET(request: NextRequest) {
           balance: true,
           totalSpent: true,
           canChat: true,
+          isChatMuted: true,
+          isChatBanned: true,
           upiPayments: {
             where: { status: "CONFIRMED" },
             take: 1,
@@ -44,7 +46,17 @@ export async function GET(request: NextRequest) {
       if (user) {
         const userTotalSpent = Number(user.totalSpent || 0);
         const meetsSpendThreshold = userTotalSpent >= 500;
-        isEligible = user.role === "ADMIN" || Boolean(user.canChat) || meetsSpendThreshold;
+        const isMuted = Boolean(user.isChatMuted);
+        const isBanned = Boolean(user.isChatBanned);
+
+        if (user.role === "ADMIN") {
+          isEligible = true;
+        } else if (isBanned || isMuted) {
+          isEligible = false;
+        } else {
+          isEligible = Boolean(user.canChat) || meetsSpendThreshold;
+        }
+
         currentUserData = {
           id: user.id,
           email: user.email,
@@ -53,6 +65,8 @@ export async function GET(request: NextRequest) {
           balance: user.balance,
           totalSpent: userTotalSpent,
           canChat: isEligible,
+          isChatMuted: isMuted,
+          isChatBanned: isBanned,
           spendThreshold: 500,
           spendNeeded: Math.max(0, 500 - userTotalSpent),
         };
@@ -74,6 +88,8 @@ export async function GET(request: NextRequest) {
             avatarUrl: true,
             role: true,
             totalSpent: true,
+            isChatMuted: true,
+            isChatBanned: true,
           },
         },
       },
@@ -106,6 +122,8 @@ export async function GET(request: NextRequest) {
         userRole: m.user.role,
         userBadge: badge,
         avatarUrl: m.user.avatarUrl,
+        isChatMuted: Boolean(m.user.isChatMuted),
+        isChatBanned: Boolean(m.user.isChatBanned),
         message: m.message,
         imageUrl: m.imageUrl,
         reactions: parsedReactions,
@@ -149,6 +167,8 @@ export async function POST(request: NextRequest) {
         balance: true,
         totalSpent: true,
         canChat: true,
+        isChatMuted: true,
+        isChatBanned: true,
         upiPayments: {
           where: { status: "CONFIRMED" },
           take: 1,
@@ -168,6 +188,28 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: "User account not found." }, { status: 404 });
+    }
+
+    if (user.role !== "ADMIN") {
+      if (user.isChatBanned) {
+        return NextResponse.json(
+          { 
+            error: "🚫 You have been banned from Chat Box by an admin.",
+            banned: true,
+          },
+          { status: 403 }
+        );
+      }
+
+      if (user.isChatMuted) {
+        return NextResponse.json(
+          { 
+            error: "🔇 You are currently muted in Chat Box by an admin. You cannot send messages.",
+            muted: true,
+          },
+          { status: 403 }
+        );
+      }
     }
 
     const userTotalSpent = Number(user.totalSpent || 0);
@@ -278,6 +320,20 @@ export async function DELETE(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
+    const action = searchParams.get("action");
+    const userToWipeId = searchParams.get("userId");
+
+    // Bulk wipe messages from a user (Admin only)
+    if (session.role === "ADMIN" && action === "DELETE_ALL_USER_MESSAGES" && userToWipeId) {
+      const deleted = await prisma.chatMessage.deleteMany({
+        where: { userId: userToWipeId }
+      });
+      return NextResponse.json({
+        success: true,
+        message: `Deleted all ${deleted.count} messages from this user.`,
+        count: deleted.count,
+      });
+    }
 
     if (!id) {
       return NextResponse.json({ error: "Message ID required" }, { status: 400 });

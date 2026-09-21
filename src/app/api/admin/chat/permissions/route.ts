@@ -30,6 +30,74 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (action === "MUTE_USER") {
+      if (!userId) return NextResponse.json({ error: "User ID required" }, { status: 400 });
+      const updated = await prisma.user.update({
+        where: { id: userId },
+        data: { isChatMuted: true },
+        select: { id: true, email: true, name: true, isChatMuted: true },
+      });
+      return NextResponse.json({
+        success: true,
+        message: `User ${updated.name || updated.email} has been MUTED in chat.`,
+        user: updated,
+      });
+    }
+
+    if (action === "UNMUTE_USER") {
+      if (!userId) return NextResponse.json({ error: "User ID required" }, { status: 400 });
+      const updated = await prisma.user.update({
+        where: { id: userId },
+        data: { isChatMuted: false },
+        select: { id: true, email: true, name: true, isChatMuted: true },
+      });
+      return NextResponse.json({
+        success: true,
+        message: `User ${updated.name || updated.email} has been UNMUTED.`,
+        user: updated,
+      });
+    }
+
+    if (action === "BAN_USER") {
+      if (!userId) return NextResponse.json({ error: "User ID required" }, { status: 400 });
+      const updated = await prisma.user.update({
+        where: { id: userId },
+        data: { isChatBanned: true, isChatMuted: true },
+        select: { id: true, email: true, name: true, isChatBanned: true },
+      });
+      return NextResponse.json({
+        success: true,
+        message: `User ${updated.name || updated.email} has been BANNED from chat.`,
+        user: updated,
+      });
+    }
+
+    if (action === "UNBAN_USER") {
+      if (!userId) return NextResponse.json({ error: "User ID required" }, { status: 400 });
+      const updated = await prisma.user.update({
+        where: { id: userId },
+        data: { isChatBanned: false, isChatMuted: false },
+        select: { id: true, email: true, name: true, isChatBanned: true },
+      });
+      return NextResponse.json({
+        success: true,
+        message: `User ${updated.name || updated.email} has been UNBANNED.`,
+        user: updated,
+      });
+    }
+
+    if (action === "DELETE_USER_MESSAGES") {
+      if (!userId) return NextResponse.json({ error: "User ID required" }, { status: 400 });
+      const deleted = await prisma.chatMessage.deleteMany({
+        where: { userId },
+      });
+      return NextResponse.json({
+        success: true,
+        message: `Deleted ${deleted.count} messages from this user.`,
+        count: deleted.count,
+      });
+    }
+
     if (action === "CLEAR_CHAT") {
       await prisma.chatMessage.deleteMany({});
       return NextResponse.json({ success: true, message: "Chat feed cleared successfully." });

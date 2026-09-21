@@ -27,7 +27,11 @@ import {
   Wallet,
   Zap,
   TrendingUp,
-  Smile
+  Smile,
+  VolumeX,
+  Volume2,
+  ShieldBan,
+  Eraser
 } from "lucide-react";
 import AddFundsModal from "@/components/AddFundsModal";
 
@@ -39,6 +43,8 @@ interface ChatMsg {
   userRole: string;
   userBadge: string;
   avatarUrl?: string | null;
+  isChatMuted?: boolean;
+  isChatBanned?: boolean;
   message: string;
   imageUrl?: string | null;
   reactions: Record<string, string[]>;
@@ -281,9 +287,78 @@ export default function ChatBoxWinsPage() {
     setMessages((prev) => prev.filter((m) => m.id !== messageId));
     try {
       await fetch(`/api/chat?id=${messageId}`, { method: "DELETE" });
-      notify("Message deleted");
+      notify("Message deleted successfully");
     } catch {
       notify("Error deleting message");
+    }
+  };
+
+  // Admin Moderation: Mute / Unmute User
+  const handleToggleMute = async (targetUserId: string, currentlyMuted: boolean, userName: string) => {
+    const action = currentlyMuted ? "UNMUTE_USER" : "MUTE_USER";
+    const confirmPrompt = currentlyMuted
+      ? `Unmute ${userName}? They will be able to send messages again.`
+      : `⚠️ Mute ${userName}? They will NOT be able to send any messages in the Chat Box.`;
+    if (!confirm(confirmPrompt)) return;
+
+    try {
+      const res = await fetch("/api/admin/chat/permissions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, userId: targetUserId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(data.message);
+        loadMessages(false);
+      } else {
+        notify(data.error || "Failed to update mute status");
+      }
+    } catch {
+      notify("Failed to update mute status");
+    }
+  };
+
+  // Admin Moderation: Ban / Unban User from Chat
+  const handleToggleBan = async (targetUserId: string, currentlyBanned: boolean, userName: string) => {
+    const action = currentlyBanned ? "UNBAN_USER" : "BAN_USER";
+    const confirmPrompt = currentlyBanned
+      ? `Unban ${userName} from chat?`
+      : `⛔ BAN ${userName} from chat completely?`;
+    if (!confirm(confirmPrompt)) return;
+
+    try {
+      const res = await fetch("/api/admin/chat/permissions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, userId: targetUserId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(data.message);
+        loadMessages(false);
+      } else {
+        notify(data.error || "Failed to update ban status");
+      }
+    } catch {
+      notify("Failed to update ban status");
+    }
+  };
+
+  // Admin Moderation: Wipe All Messages from this user
+  const handleWipeUserMessages = async (targetUserId: string, userName: string) => {
+    if (!confirm(`🧹 Delete ALL messages sent by ${userName} from the chat feed?`)) return;
+    try {
+      const res = await fetch(`/api/chat?action=DELETE_ALL_USER_MESSAGES&userId=${targetUserId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        notify(data.message);
+        setMessages((prev) => prev.filter((m) => m.userId !== targetUserId));
+      } else {
+        notify(data.error || "Failed to wipe messages");
+      }
+    } catch {
+      notify("Error wiping messages");
     }
   };
 
@@ -422,16 +497,75 @@ export default function ChatBoxWinsPage() {
                         {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
 
-                      {/* Delete action for Admin or Author */}
-                      {(currentUser?.role === "ADMIN" || isMe) && (
-                        <button
-                          onClick={() => handleDeleteMessage(msg.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500 cursor-pointer ml-auto"
-                          title="Delete message"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      {/* Moderation Controls (Admin or Message Author) */}
+                      <div className="ml-auto flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {/* Status indicators for other users */}
+                        {msg.isChatBanned && (
+                          <span className="text-[9px] bg-rose-500/20 text-rose-400 border border-rose-500/40 px-1.5 py-0.5 rounded font-black tracking-wider">
+                            BANNED
+                          </span>
+                        )}
+                        {msg.isChatMuted && !msg.isChatBanned && (
+                          <span className="text-[9px] bg-amber-500/20 text-amber-400 border border-amber-500/40 px-1.5 py-0.5 rounded font-black tracking-wider">
+                            MUTED
+                          </span>
+                        )}
+
+                        {/* Admin Moderation Actions on other users */}
+                        {currentUser?.role === "ADMIN" && !isMe && (
+                          <div className="flex items-center gap-1 bg-slate-800/90 border border-slate-700 rounded-lg p-0.5 shadow-sm">
+                            {/* Mute/Unmute */}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleMute(msg.userId, Boolean(msg.isChatMuted), msg.userName)}
+                              className={`p-1 rounded transition-colors cursor-pointer ${
+                                msg.isChatMuted
+                                  ? "text-amber-400 bg-amber-500/20 hover:bg-amber-500/30"
+                                  : "text-slate-400 hover:text-amber-400 hover:bg-slate-700"
+                              }`}
+                              title={msg.isChatMuted ? "Unmute User" : "Mute User from Chat"}
+                            >
+                              {msg.isChatMuted ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+                            </button>
+
+                            {/* Ban/Unban */}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleBan(msg.userId, Boolean(msg.isChatBanned), msg.userName)}
+                              className={`p-1 rounded transition-colors cursor-pointer ${
+                                msg.isChatBanned
+                                  ? "text-rose-400 bg-rose-500/20 hover:bg-rose-500/30"
+                                  : "text-slate-400 hover:text-rose-400 hover:bg-slate-700"
+                              }`}
+                              title={msg.isChatBanned ? "Unban User from Chat" : "Ban User from Chat"}
+                            >
+                              <ShieldBan className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* Wipe all user messages */}
+                            <button
+                              type="button"
+                              onClick={() => handleWipeUserMessages(msg.userId, msg.userName)}
+                              className="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-slate-700 transition-colors cursor-pointer"
+                              title="Delete all messages from this user"
+                            >
+                              <Eraser className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Delete this single message */}
+                        {(currentUser?.role === "ADMIN" || isMe) && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteMessage(msg.id)}
+                            className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded transition-all cursor-pointer"
+                            title="Delete this message"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Text Message */}
@@ -559,6 +693,36 @@ export default function ChatBoxWinsPage() {
                 </button>
               </div>
             </form>
+          ) : currentUser?.isChatBanned ? (
+            /* 🚫 BANNED STATE */
+            <div className="p-4 sm:p-5 rounded-2xl bg-rose-950/40 border border-rose-500/40 flex items-center gap-3.5 text-rose-300 shadow-xl">
+              <div className="w-11 h-11 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shrink-0 shadow-xs">
+                <ShieldBan className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-black text-rose-200">
+                  🚫 Chat Box Access Suspended
+                </h4>
+                <p className="text-xs text-rose-400/90 mt-0.5">
+                  You have been banned from the community Chat Box by an administrator.
+                </p>
+              </div>
+            </div>
+          ) : currentUser?.isChatMuted ? (
+            /* 🔇 MUTED STATE */
+            <div className="p-4 sm:p-5 rounded-2xl bg-amber-950/40 border border-amber-500/40 flex items-center gap-3.5 text-amber-300 shadow-xl">
+              <div className="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0 shadow-xs">
+                <VolumeX className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-black text-amber-200">
+                  🔇 Chat Sending Privileges Muted
+                </h4>
+                <p className="text-xs text-amber-400/90 mt-0.5">
+                  An administrator has muted your account in the Chat Box. You cannot post new messages.
+                </p>
+              </div>
+            </div>
           ) : (
             /* 🔒 LOCKED / 500 INR SPEND REQUIREMENT STATE */
             <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-[#0f172a] to-[#1e1b4b] border border-amber-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">

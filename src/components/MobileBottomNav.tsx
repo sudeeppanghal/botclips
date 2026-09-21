@@ -49,7 +49,7 @@ export default function MobileBottomNav({
       icon: ShoppingCart,
       badge: runningCount > 0 ? runningCount : null 
     },
-    { label: "Services", href: "/dashboard/services", icon: Clapperboard },
+    { label: "Store", href: "/dashboard/store", icon: Clapperboard },
     { label: "Wallet", href: "/dashboard/wallet", icon: Wallet },
   ];
 

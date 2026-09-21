@@ -51,7 +51,7 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile, brandName =
     ...(isPromoter ? [{ label: "Affiliates", href: "/dashboard/affiliates", icon: Share2, badge: "VIP" }] : []),
     { label: "Settings", href: "/dashboard/settings", icon: Settings },
     { label: "Contact Us", href: "/dashboard/tickets", icon: Headphones },
-    { label: "Clipping Stuffs", href: "/dashboard/services", icon: Clapperboard },
+    { label: "Clipping Stuffs", href: "/dashboard/store", icon: Clapperboard },
   ];
 
   return (

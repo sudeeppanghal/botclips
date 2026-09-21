@@ -49,6 +49,7 @@ interface StoreProduct {
   deliveryUrl: string | null;
   deliveryContent: string | null;
   isOwned: boolean;
+  isActive?: boolean;
   createdAt: string;
 }
 
@@ -231,6 +232,32 @@ export default function StorePage() {
     }
   }
 
+  // Handle Admin Toggle Active/Inactive (ON/OFF)
+  async function handleToggleActive(id: string, currentActive: boolean, title: string) {
+    const nextState = !currentActive;
+    try {
+      const res = await fetch("/api/admin/store", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, isActive: nextState }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setProducts((prev) =>
+          prev.map((p) => (p.id === id ? { ...p, isActive: nextState } : p))
+        );
+        setBannerNotice({
+          type: "success",
+          text: `"${title}" is now ${nextState ? "ON (Visible to users)" : "OFF (Hidden from users)"}`,
+        });
+      } else {
+        alert(data.error || "Failed to toggle status");
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to toggle product status");
+    }
+  }
+
   // Open Edit Admin Modal
   function openEditModal(prod: StoreProduct) {
     setEditingProduct(prod);
@@ -247,7 +274,7 @@ export default function StorePage() {
       deliveryUrl: prod.deliveryUrl || "https://t.me/botclips_online",
       deliveryContent: prod.deliveryContent || "",
       sortOrder: 0,
-      isActive: true,
+      isActive: prod.isActive !== false,
     });
     setShowAdminModal(true);
   }
@@ -589,15 +616,43 @@ export default function StorePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredProducts.map((product) => {
             const isOwned = product.isOwned || purchasedIds.includes(product.id);
+            const isProductActive = product.isActive !== false;
 
             return (
               <div
                 key={product.id}
-                className="bg-[#111827] border border-slate-800/90 rounded-2xl p-5 flex flex-col justify-between hover:border-slate-700/90 transition-all hover:shadow-xl hover:shadow-blue-500/5 group relative"
+                className={`bg-[#111827] border ${
+                  !isProductActive
+                    ? "border-rose-500/50 bg-slate-900/80 opacity-80"
+                    : "border-slate-800/90 hover:border-slate-700/90"
+                } rounded-2xl p-5 flex flex-col justify-between transition-all hover:shadow-xl hover:shadow-blue-500/5 group relative`}
               >
                 {/* Admin Quick Action Floating Buttons */}
                 {isAdmin && (
-                  <div className="absolute top-3 right-3 flex items-center gap-1 z-20 opacity-90 group-hover:opacity-100">
+                  <div className="absolute top-3 right-3 flex items-center gap-1.5 z-20">
+                    {/* 1-Click ON / OFF Toggle */}
+                    <button
+                      type="button"
+                      onClick={() => handleToggleActive(product.id, isProductActive, product.title)}
+                      className={`px-2 py-1 rounded-lg text-[10px] font-extrabold flex items-center gap-1.5 cursor-pointer transition-all shadow-xs ${
+                        isProductActive
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30"
+                          : "bg-rose-500/20 text-rose-400 border border-rose-500/40 hover:bg-rose-500/30 animate-pulse"
+                      }`}
+                      title={
+                        isProductActive
+                          ? "Visible to users (ON). Click to turn OFF (Hide from users)"
+                          : "Hidden from users (OFF). Click to turn ON (Show to users)"
+                      }
+                    >
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          isProductActive ? "bg-emerald-400" : "bg-rose-400"
+                        }`}
+                      />
+                      {isProductActive ? "ON" : "OFF"}
+                    </button>
+
                     <button
                       onClick={() => openEditModal(product)}
                       className="p-1.5 rounded-lg bg-slate-800/90 hover:bg-blue-600 text-slate-300 hover:text-white transition-colors cursor-pointer"
@@ -623,7 +678,11 @@ export default function StorePage() {
 
                     {/* Badges */}
                     <div className="flex flex-col items-end gap-1.5 pt-0.5">
-                      {isOwned ? (
+                      {!isProductActive ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/40 text-rose-400 text-[10px] font-black uppercase tracking-wider">
+                          🔴 OFF (Hidden)
+                        </span>
+                      ) : isOwned ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase tracking-wider">
                           <Check className="w-3 h-3 stroke-[3]" /> Owned
                         </span>

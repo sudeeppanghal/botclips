@@ -30,8 +30,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Default off: Only enabled if admin granted promoter status or if admin
-    const isAffiliateActive = Boolean(user.isPromoter) || session.role === "ADMIN";
+    // Default off: Only enabled if admin granted promoter status from admin panel
+    const isAffiliateActive = Boolean(user.isPromoter);
     if (!isAffiliateActive) {
       return NextResponse.json({
         success: false,

@@ -32,14 +32,20 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile, brandName =
   const [isPromoter, setIsPromoter] = React.useState(false);
 
   React.useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.user?.isPromoter || data?.user?.role === "ADMIN") {
-          setIsPromoter(true);
-        }
-      })
-      .catch(() => {});
+    const checkPromoter = () => {
+      fetch("/api/auth/me")
+        .then((res) => res.json())
+        .then((data) => {
+          setIsPromoter(Boolean(data?.user?.isPromoter));
+        })
+        .catch(() => {
+          setIsPromoter(false);
+        });
+    };
+
+    checkPromoter();
+    window.addEventListener("focus", checkPromoter);
+    return () => window.removeEventListener("focus", checkPromoter);
   }, []);
 
   const navItems = [

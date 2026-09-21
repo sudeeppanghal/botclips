@@ -175,17 +175,10 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 2. Fetch all active products
-    const products = await prisma.storeProduct.findMany({
-      where: { isActive: true },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-    });
-
-    // 3. User details & purchased product IDs
+    // 2. User details & purchased product IDs
     let userBalance = 0;
     let isAdmin = false;
     let purchasedProductIds: string[] = [];
-    let userPurchases: any[] = [];
 
     if (session) {
       const user = await prisma.user.findFirst({
@@ -213,11 +206,17 @@ export async function GET(request: NextRequest) {
         userBalance = user.balance;
         isAdmin = user.role === "ADMIN";
         purchasedProductIds = user.storePurchases.map((p) => p.productId);
-        userPurchases = user.storePurchases;
       }
     }
 
-    // Sanitize deliveryUrl and deliveryContent for unpurchased products if user is not admin
+    // 3. Fetch products: If admin, fetch all products (so admin can toggle them ON/OFF).
+    // If normal user, fetch only active (ON) products.
+    const products = await prisma.storeProduct.findMany({
+      where: isAdmin ? {} : { isActive: true },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+    });
+
+    // 4. Sanitize deliveryUrl and deliveryContent for unpurchased products if user is not admin
     const sanitizedProducts = products.map((p) => {
       const isOwned = purchasedProductIds.includes(p.id) || isAdmin;
       return {
@@ -234,6 +233,8 @@ export async function GET(request: NextRequest) {
         deliveryUrl: isOwned ? p.deliveryUrl : null,
         deliveryContent: isOwned ? p.deliveryContent : null,
         isOwned,
+        isActive: p.isActive,
+        sortOrder: p.sortOrder,
         createdAt: p.createdAt,
       };
     });

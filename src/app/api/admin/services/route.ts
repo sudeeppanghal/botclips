@@ -48,6 +48,16 @@ export async function GET(request: NextRequest) {
       select: { id: true, name: true, apiUrl: true, apiKeyEncrypted: true, status: true, balance: true, currency: true },
     });
 
+    // 2.5 Fetch manual custom price overrides for upstream/premium services
+    const premiumOverrides = await prisma.adminService.findMany({
+      where: { isFarm: false, isActive: true },
+      select: { id: true, panelId: true, serviceId: true, customRate: true },
+    });
+    const overrideMap = new Map<string, { id: string; customRate: number }>();
+    for (const o of premiumOverrides) {
+      overrideMap.set(`${o.panelId}_${o.serviceId}`, { id: o.id, customRate: o.customRate });
+    }
+
     // 3. Auto dynamically fetch upstream services from all active panels
     const upstreamServices: any[] = [];
     for (const panel of panels) {
@@ -64,12 +74,15 @@ export async function GET(request: NextRequest) {
               if (panel.currency?.toUpperCase() === "USD") {
                 costInr = rawCost * 96;
               }
-              const sellingRate = Math.max(1, Math.round(costInr * 3 * 100) / 100);
+              const defaultSellingRate = Math.max(1, Math.round(costInr * 3 * 100) / 100);
 
               const plat = detectPlatform(`${raw.category || ""} ${raw.name || ""}`);
               if (platform !== "ALL" && plat !== platform) {
                 continue;
               }
+
+              const override = overrideMap.get(`${panel.id}_${String(raw.service)}`);
+              const sellingRate = override ? override.customRate : defaultSellingRate;
 
               upstreamServices.push({
                 serviceId: String(raw.service),
@@ -79,7 +92,10 @@ export async function GET(request: NextRequest) {
                 category: raw.category || "General",
                 platform: plat,
                 originalRate: costInr,
-                sellingRate, // 3x price
+                sellingRate, // Custom price if overridden, otherwise 3x price
+                defaultSellingRate,
+                isCustomPrice: !!override,
+                overrideId: override?.id || null,
                 minQuantity: Number(raw.min) || 10,
                 maxQuantity: Number(raw.max) || 1000000,
                 type: raw.type || "Default",
@@ -161,6 +177,97 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, service: updated });
     }
 
+    // ──────────────── 1.5 UPDATE PREMIUM MODE CUSTOM PRICE OVERRIDE ────────────────
+    if (action === "update-premium-price") {
+      const { panelId, serviceId, customRate, name, platform = "OTHER", category = "General", originalRate = 0, minQuantity = 10, maxQuantity = 1000000 } = body;
+      if (!panelId || !serviceId || customRate === undefined) {
+        return NextResponse.json({ error: "Panel ID, service ID, and custom rate are required" }, { status: 400 });
+      }
+
+      const numRate = parseFloat(String(customRate));
+      if (isNaN(numRate) || numRate <= 0) {
+        return NextResponse.json({ error: "Please provide a valid price greater than 0" }, { status: 400 });
+      }
+
+      const existing = await prisma.adminService.findFirst({
+        where: {
+          panelId,
+          serviceId: String(serviceId),
+          isFarm: false,
+        },
+      });
+
+      let updatedService;
+      if (existing) {
+        updatedService = await prisma.adminService.update({
+          where: { id: existing.id },
+          data: {
+            customRate: numRate,
+            originalRate: originalRate ? parseFloat(String(originalRate)) : existing.originalRate,
+            isActive: true,
+          },
+        });
+      } else {
+        updatedService = await prisma.adminService.create({
+          data: {
+            id: `srv_prem_${Date.now()}`,
+            panelId,
+            platform: platform as any,
+            category: category || "General",
+            name: name || `Service #${serviceId}`,
+            serviceId: String(serviceId),
+            originalRate: parseFloat(String(originalRate)),
+            customRate: numRate,
+            minQuantity: parseInt(String(minQuantity), 10),
+            maxQuantity: parseInt(String(maxQuantity), 10),
+            isFarm: false,
+            badge: "PREMIUM OVERRIDE",
+            isActive: true,
+          },
+        });
+      }
+
+      try {
+        await prisma.serviceChangeLog.create({
+          data: {
+            serviceId: updatedService.id,
+            serviceName: updatedService.name,
+            platform: updatedService.platform,
+            oldProviderId: String(serviceId),
+            newProviderId: String(serviceId),
+            oldRate: existing ? existing.customRate : null,
+            newRate: numRate,
+            reason: "Admin updated premium mode selling price",
+            changedBy: session.email || "Admin",
+          },
+        });
+      } catch {}
+
+      return NextResponse.json({
+        success: true,
+        message: `Custom price updated to ₹${numRate.toFixed(2)}`,
+        service: updatedService,
+      });
+    }
+
+    // ──────────────── 1.6 RESET PREMIUM MODE PRICE TO DEFAULT 3X ────────────────
+    if (action === "reset-premium-price") {
+      const { panelId, serviceId } = body;
+      if (!panelId || !serviceId) {
+        return NextResponse.json({ error: "Panel ID and Service ID required" }, { status: 400 });
+      }
+
+      await prisma.adminService.deleteMany({
+        where: {
+          panelId,
+          serviceId: String(serviceId),
+          isFarm: false,
+        },
+      });
+
+      return NextResponse.json({ success: true, message: "Reset to default 3x pricing" });
+    }
+
     // ──────────────── 2. SAVE OR UPDATE FARM/GENERAL PACKAGE ────────────────
     if (action === "save-farm-package" || !action) {
       const {
@@ -199,6 +306,8 @@ export async function POST(request: NextRequest) {
       }
 
       const existing = id ? await prisma.adminService.findUnique({ where: { id } }) : null;
+      // Farm packages MUST have isFarm: true by default
+      const isFarmValue = body.isFarm !== undefined ? Boolean(body.isFarm) : true;
 
       const service = await prisma.adminService.upsert({
         where: { id: id || `srv_${Date.now()}` },
@@ -214,8 +323,8 @@ export async function POST(request: NextRequest) {
           customRate: parseFloat(String(customRate)),
           minQuantity: parseInt(String(minQuantity), 10),
           maxQuantity: parseInt(String(maxQuantity), 10),
-          isFarm: Boolean(body.isFarm),
-          badge: badge || "STANDARD",
+          isFarm: isFarmValue,
+          badge: badge || "ALGORITHM FARM",
           isActive: isActive !== false,
         },
         update: {
@@ -229,7 +338,7 @@ export async function POST(request: NextRequest) {
           customRate: customRate !== undefined ? parseFloat(String(customRate)) : undefined,
           minQuantity: minQuantity !== undefined ? parseInt(String(minQuantity), 10) : undefined,
           maxQuantity: maxQuantity !== undefined ? parseInt(String(maxQuantity), 10) : undefined,
-          isFarm: body.isFarm !== undefined ? Boolean(body.isFarm) : undefined,
+          isFarm: isFarmValue,
           badge: badge || undefined,
           isActive: isActive !== false,
         },

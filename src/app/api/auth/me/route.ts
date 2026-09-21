@@ -26,6 +26,9 @@ export async function GET(request: NextRequest) {
           balance: true,
           apiKey: true,
           canChat: true,
+          isPromoter: true,
+          referralCode: true,
+          influencerChannel: true,
         },
       });
 

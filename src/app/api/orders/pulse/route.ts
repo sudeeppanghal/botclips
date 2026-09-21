@@ -20,15 +20,27 @@ async function handlePulseDispatch() {
   try {
     const nowTime = Date.now();
 
-    // 1. Fetch active orders with multi-batch jitter engine
+    // 1. Fetch active orders with multi-batch jitter engine (including self-healing for prematurely completed orders)
     const activeJitterOrders = await prisma.order.findMany({
       where: {
-        status: { in: ["IN_PROGRESS", "PROCESSING"] },
-        comboData: { contains: '"isJitterEngine":true' },
+        OR: [
+          {
+            status: { in: ["IN_PROGRESS", "PROCESSING"] },
+            comboData: { contains: '"isJitterEngine":true' },
+          },
+          {
+            status: "COMPLETED",
+            comboData: {
+              contains: '"isJitterEngine":true',
+              not: { contains: '"allBatchesDispatched":true' },
+            },
+          },
+        ],
       },
       select: {
         id: true,
         link: true,
+        status: true,
         comboData: true,
         panel: {
           select: {
@@ -156,18 +168,23 @@ async function handlePulseDispatch() {
                     await prisma.order.update({
                       where: { id: jOrder.id },
                       data: {
+                        status: "IN_PROGRESS",
                         comboData: JSON.stringify(data),
                         providerOrderId: String(result.order),
                       },
                     });
                   } else if (result && result.error) {
-                    // Reschedule with 60-120 seconds organic delay if provider busy
-                    const retrySec = 60 + Math.floor(Math.random() * 60);
+                    // Reschedule with organic delay if provider busy or previous batch delivering on same link
+                    const isLinkBusy = /active order with this link|wait until order/i.test(result.error);
+                    const retrySec = isLinkBusy ? (90 + Math.floor(Math.random() * 60)) : (60 + Math.floor(Math.random() * 60));
                     batch.scheduledAt = new Date(Date.now() + retrySec * 1000).toISOString();
                     batch.lastError = result.error;
                     await prisma.order.update({
                       where: { id: jOrder.id },
-                      data: { comboData: JSON.stringify(data) },
+                      data: {
+                        status: "IN_PROGRESS",
+                        comboData: JSON.stringify(data),
+                      },
                     });
                   }
                 } catch (dispatchErr) {

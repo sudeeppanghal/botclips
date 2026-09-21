@@ -23,9 +23,9 @@ export async function POST(request: NextRequest) {
     if (refCodeToLookup) {
       const promoter = await prisma.user.findUnique({
         where: { referralCode: refCodeToLookup },
-        select: { id: true },
+        select: { id: true, isPromoter: true },
       });
-      if (promoter) {
+      if (promoter && promoter.isPromoter) {
         referredById = promoter.id;
       }
     }

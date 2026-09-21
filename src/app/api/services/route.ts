@@ -48,14 +48,14 @@ export async function GET(request: NextRequest) {
     const search = (searchParams.get("search") || "").toLowerCase().trim();
 
     // ──────────────── 1. FETCH FARM SERVICES (ADMIN CONFIGURED PACKAGES) ────────────────
-    const farmWhere: any = { isActive: true };
+    const farmWhere: any = { isActive: true, isFarm: true };
     if (platform !== "ALL") {
       farmWhere.platform = platform;
     }
 
     const farmDbServices = await prisma.adminService.findMany({
       where: farmWhere,
-      orderBy: [{ isFarm: "desc" }, { platform: "asc" }, { customRate: "asc" }],
+      orderBy: [{ platform: "asc" }, { customRate: "asc" }],
       select: {
         id: true,
         platform: true,
@@ -102,6 +102,16 @@ export async function GET(request: NextRequest) {
       if (upstreamCache && now - upstreamCache.timestamp < CACHE_TTL_MS) {
         premiumList = upstreamCache.services;
       } else {
+        // Fetch any custom price overrides configured by admin for upstream services
+        const premiumOverrides = await prisma.adminService.findMany({
+          where: { isFarm: false, isActive: true },
+          select: { panelId: true, serviceId: true, customRate: true },
+        });
+        const overrideMap = new Map<string, number>();
+        for (const o of premiumOverrides) {
+          overrideMap.set(`${o.panelId}_${o.serviceId}`, o.customRate);
+        }
+
         // Auto-fetch from active connected SMM panels
         const activePanels = await prisma.panel.findMany({
           where: { isActive: true },
@@ -130,7 +140,9 @@ export async function GET(request: NextRequest) {
                 if (panel.currency?.toUpperCase() === "USD") {
                   rateInr = rawRate * 96;
                 }
-                const sellingRate = Math.max(1, Math.round(rateInr * 3 * 100) / 100);
+                const overrideRate = overrideMap.get(`${panel.id}_${String(raw.service)}`);
+                const defaultRate = Math.max(1, Math.round(rateInr * 3 * 100) / 100);
+                const sellingRate = overrideRate !== undefined ? overrideRate : defaultRate;
                 const sellingUsd = Math.round((sellingRate / 96) * 100) / 100;
 
                 const detectedPlat = detectPlatform(`${raw.category || ""} ${raw.name || ""}`);

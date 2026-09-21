@@ -29,14 +29,26 @@ interface SidebarProps {
 
 export default function Sidebar({ mobileOpen = false, onCloseMobile, brandName = "BotClips" }: SidebarProps) {
   const pathname = usePathname();
+  const [isPromoter, setIsPromoter] = React.useState(false);
+
+  React.useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.user?.isPromoter || data?.user?.role === "ADMIN") {
+          setIsPromoter(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const navItems = [
     { label: "Home", href: "/dashboard", icon: Home },
-    { label: "Affiliates & Earn", href: "/dashboard/affiliates", icon: Share2, badge: "10% SHARE" },
     { label: "Chat Box ( Wins )", href: "/dashboard/chat", icon: MessageSquare, badge: "WINS" },
     { label: "Automation", href: "/dashboard/automation", icon: Zap },
     { label: "M-Automation", href: "/dashboard/m-automation", icon: Cpu, badge: "PRO" },
     { label: "Wallet", href: "/dashboard/wallet", icon: Wallet },
+    ...(isPromoter ? [{ label: "Affiliates", href: "/dashboard/affiliates", icon: Share2, badge: "VIP" }] : []),
     { label: "Settings", href: "/dashboard/settings", icon: Settings },
     { label: "Contact Us", href: "/dashboard/tickets", icon: Headphones },
     { label: "Clipping Stuffs", href: "/dashboard/services", icon: Clapperboard },

@@ -27,14 +27,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Payout address / UPI ID is required" }, { status: 400 });
     }
 
-    // Verify user balance
+    // Verify user balance & promoter status
     const user = await prisma.user.findUnique({
       where: { id: session.id },
-      select: { id: true, name: true, email: true, influencerChannel: true },
+      select: { id: true, name: true, email: true, influencerChannel: true, isPromoter: true, role: true },
     });
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    if (!user.isPromoter && user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Affiliate payouts are only available to active affiliate partners." }, { status: 403 });
     }
 
     // Sum total commission earned

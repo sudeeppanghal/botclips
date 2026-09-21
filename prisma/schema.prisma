@@ -41,6 +41,7 @@ model User {
   referrals          User[]            @relation("UserReferrals")
   isPromoter         Boolean           @default(false) @map("is_promoter")
   isInfluencer       Boolean           @default(false) @map("is_influencer")
+  referralCommissionRate Float         @default(5.0) @map("referral_commission_rate") // Admin decided % cut from deposit
   influencerChannel  String?           @map("influencer_channel")
   payoutUpi          String?           @map("payout_upi")
   payoutCrypto       String?           @map("payout_crypto")
@@ -392,6 +393,7 @@ model ReferralReward {
   depositAmount    Float        @map("deposit_amount")
   nominalProfit    Float        @map("nominal_profit") // Exactly 30% of deposit (nominal profit shown to influencer)
   commissionAmount Float        @map("commission_amount") // Exactly 10% of nominalProfit (= 3% of deposit)
+  commissionRate   Float        @default(5.0) @map("commission_rate") // Admin decided % applied
   status           String       @default("CONFIRMED") // CONFIRMED, REVERSED
   createdAt        DateTime     @default(now()) @map("created_at")
 

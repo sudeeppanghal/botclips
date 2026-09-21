@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { 
   Users, 
   Share2, 
@@ -15,7 +17,9 @@ import {
   Sparkles, 
   ExternalLink,
   MessageCircle,
-  Send
+  Send,
+  Lock,
+  Headphones
 } from "lucide-react";
 
 interface AffiliateStats {
@@ -24,28 +28,21 @@ interface AffiliateStats {
   totalAppUsers: number;
   referredUsersCount: number;
   totalDeposits: number;
-  totalNominalProfit: number;
   totalCommission: number;
   paidCommission: number;
   pendingCommission: number;
   availableBalance: number;
   minPayout: number;
-  payoutUpi: string;
-  payoutCrypto: string;
-  isInfluencer: boolean;
-  influencerChannel: string;
-  commissionFormula: {
-    nominalProfitRate: string;
-    influencerShareRate: string;
-    explanation: string;
-  };
+  payoutUpi?: string;
+  payoutCrypto?: string;
+  isInfluencer?: boolean;
+  influencerChannel?: string;
 }
 
 interface RewardItem {
   id: string;
   user: string;
   depositAmount: number;
-  nominalProfit: number;
   commissionAmount: number;
   paymentType: string;
   createdAt: string;
@@ -56,14 +53,17 @@ interface PayoutItem {
   amount: number;
   method: string;
   destination: string;
-  status: "PENDING" | "PAID" | "REJECTED";
+  status: string;
   utrOrTxHash?: string;
   createdAt: string;
   paidAt?: string;
 }
 
 export default function AffiliatesPage() {
+  const router = useRouter();
   const [stats, setStats] = useState<AffiliateStats | null>(null);
+  const [isAffiliateEnabled, setIsAffiliateEnabled] = useState<boolean | null>(null);
+
   const [rewards, setRewards] = useState<RewardItem[]>([]);
   const [payouts, setPayouts] = useState<PayoutItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,7 +83,8 @@ export default function AffiliatesPage() {
       setLoading(true);
       const res = await fetch("/api/affiliates/stats");
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.enabled) {
+        setIsAffiliateEnabled(true);
         setStats(data.stats);
         setRewards(data.rewards || []);
         setPayouts(data.payouts || []);
@@ -93,9 +94,12 @@ export default function AffiliatesPage() {
         if (data.stats.influencerChannel && !influencerChannel) {
           setInfluencerChannel(data.stats.influencerChannel);
         }
+      } else {
+        setIsAffiliateEnabled(false);
       }
     } catch (err) {
       console.error("Failed to load affiliate stats:", err);
+      setIsAffiliateEnabled(false);
     } finally {
       setLoading(false);
     }
@@ -177,6 +181,68 @@ export default function AffiliatesPage() {
     );
   }
 
+  // If Affiliate is NOT enabled by Admin for this user
+  if (!isAffiliateEnabled) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto space-y-6 pt-12">
+        <div className="p-8 sm:p-10 rounded-3xl bg-white dark:bg-[#131b2e] border border-slate-200 dark:border-slate-800 text-center space-y-6 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shadow-inner">
+            <Lock className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-2">
+            <span className="px-3 py-1 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 text-xs font-bold uppercase tracking-wider">
+              Exclusive Partner Program
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
+              Affiliate & Creator Access
+            </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+              The BotClips Partner Program is <b>invite-only</b> and currently <b>OFF</b> for your account. It is reserved for active YouTubers, Instagram creators, clippers, and promoters.
+            </p>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 text-left space-y-3 font-sans">
+            <h4 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
+              Partner Privileges Once Enabled:
+            </h4>
+            <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-2.5">
+              <li className="flex items-start gap-2.5">
+                <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">✓</span>
+                <span><b>Personalized Referral Code & Link:</b> Branded code to share with your viewers or subscribers.</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">✓</span>
+                <span><b>10% Profit Share:</b> Earn transparent 10% commission on the platform profit for every deposit.</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">✓</span>
+                <span><b>Instant UPI & USDT Payouts:</b> Request payout anytime directly to your UPI ID or USDT wallet.</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+            <Link
+              href="/dashboard/tickets"
+              className="px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2"
+            >
+              <Headphones className="w-4 h-4" />
+              <span>Contact Admin to Request Code</span>
+            </Link>
+            <Link
+              href="/dashboard"
+              className="px-6 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-sm transition-all flex items-center justify-center"
+            >
+              Back to Dashboard
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const code = stats?.referralCode || "VIPPARTNER";
   const link = stats?.referralLink || `https://botclips.online/signup?ref=${code}`;
 
@@ -191,10 +257,10 @@ export default function AffiliatesPage() {
               Creator & Influencer Affiliate Program
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Earn 10% Profit Share on Every Referral
+              Earn Direct Commission on Every Referral Deposit
             </h1>
             <p className="text-slate-300 text-sm max-w-2xl">
-              Promote BotClips on YouTube, Instagram, or Telegram. Receive direct profit commission on every deposit made by your audience.
+              Promote BotClips on YouTube, Instagram, or Telegram. Receive instant commission credited directly to your affiliate wallet whenever your referred users deposit.
             </p>
           </div>
 
@@ -259,16 +325,14 @@ export default function AffiliatesPage() {
             <div className="text-2xl font-bold text-slate-900 dark:text-white">
               ₹{(stats?.totalDeposits || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Platform Profit (30%): ₹{(stats?.totalNominalProfit || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Total deposit volume</p>
           </div>
         </div>
 
-        {/* Metric 4: Your Commission (10% of profit) */}
+        {/* Metric 4: Total Commission Earned */}
         <div className="p-5 rounded-xl bg-white dark:bg-slate-900/80 border border-emerald-500/30 dark:border-emerald-500/30 shadow-xs relative overflow-hidden group">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Your 10% Profit Cut</span>
+            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Total Commission Earned</span>
             <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 dark:text-emerald-400">
               <Sparkles className="w-4 h-4" />
             </div>
@@ -277,7 +341,7 @@ export default function AffiliatesPage() {
             <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
               ₹{(stats?.totalCommission || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">10% of 30% platform margin</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Lifetime affiliate earnings</p>
           </div>
         </div>
       </div>
@@ -356,34 +420,34 @@ export default function AffiliatesPage() {
           </div>
         </div>
 
-        {/* Right 1 Col: Transparent Rules Card */}
+        {/* Right 1 Col: Partner Highlights Card */}
         <div className="p-6 rounded-2xl bg-gradient-to-b from-purple-950/40 to-slate-900/60 border border-purple-500/20 shadow-xs space-y-4">
           <h3 className="text-sm font-bold text-purple-300 uppercase tracking-wider flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-purple-400" />
-            Partner Profit Formula
+            Partner Program Highlights
           </h3>
           <p className="text-xs text-slate-300 leading-relaxed">
-            BotClips operates on a fixed <b>30% platform margin</b> on deposits. As an affiliate partner, you receive a direct <b>10% cut of the platform profit</b>.
+            Welcome to the BotClips Creator Circle! Promote your personalized link or code and earn passive revenue on every referral.
           </p>
 
-          <div className="space-y-2 text-xs font-mono bg-slate-950/60 p-3.5 rounded-xl border border-slate-800">
-            <div className="flex justify-between text-slate-300">
-              <span>Customer Deposit:</span>
-              <span className="text-white font-bold">₹100.00</span>
+          <div className="space-y-2.5 text-xs text-slate-300 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+            <div className="flex items-start gap-2">
+              <span className="w-4 h-4 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">1</span>
+              <span>Share your referral link or custom promo code across your social networks.</span>
             </div>
-            <div className="flex justify-between text-slate-400">
-              <span>Platform Profit (30%):</span>
-              <span className="text-purple-400 font-bold">₹30.00</span>
+            <div className="flex items-start gap-2">
+              <span className="w-4 h-4 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">2</span>
+              <span>Users who sign up are permanently attributed to your affiliate dashboard.</span>
             </div>
-            <div className="flex justify-between text-emerald-400 pt-1 border-t border-slate-800">
-              <span>Your Share (10% of profit):</span>
-              <span className="text-emerald-400 font-bold">₹3.00 (3% net)</span>
+            <div className="flex items-start gap-2">
+              <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">3</span>
+              <span>Commissions are credited automatically each time a referred user deposits.</span>
             </div>
           </div>
 
           <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-            Commissions credit instantly when user deposit is confirmed.
+            Commissions credit instantly upon deposit confirmation.
           </div>
         </div>
       </div>
@@ -605,9 +669,8 @@ export default function AffiliatesPage() {
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-semibold uppercase">
                   <th className="pb-3">User</th>
                   <th className="pb-3">Deposit Amount</th>
-                  <th className="pb-3">Platform Profit (30%)</th>
-                  <th className="pb-3">Your 10% Cut</th>
-                  <th className="pb-3">Channel</th>
+                  <th className="pb-3">Commission Earned</th>
+                  <th className="pb-3">Payment Mode</th>
                   <th className="pb-3 text-right">Date</th>
                 </tr>
               </thead>
@@ -616,7 +679,6 @@ export default function AffiliatesPage() {
                   <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                     <td className="py-3 text-slate-300 font-sans">{r.user}</td>
                     <td className="py-3 text-slate-200">₹{r.depositAmount.toFixed(2)}</td>
-                    <td className="py-3 text-purple-400">₹{r.nominalProfit.toFixed(2)}</td>
                     <td className="py-3 font-bold text-emerald-400">₹{r.commissionAmount.toFixed(2)}</td>
                     <td className="py-3 text-slate-400 font-sans">{r.paymentType}</td>
                     <td className="py-3 text-right text-slate-400 font-sans">

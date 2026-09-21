@@ -76,9 +76,9 @@ export async function GET(request: NextRequest) {
     if (cookieRef) {
       const promoter = await prisma.user.findUnique({
         where: { referralCode: cookieRef.trim().toUpperCase() },
-        select: { id: true },
+        select: { id: true, isPromoter: true },
       });
-      if (promoter) {
+      if (promoter && promoter.isPromoter) {
         referredById = promoter.id;
       }
     }

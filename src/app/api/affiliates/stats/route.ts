@@ -30,7 +30,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Auto-generate referral code if missing
+    // Default off: Only enabled if admin granted promoter status or if admin
+    const isAffiliateActive = Boolean(user.isPromoter) || session.role === "ADMIN";
+    if (!isAffiliateActive) {
+      return NextResponse.json({
+        success: false,
+        enabled: false,
+        message: "Affiliate partner program is invite-only and currently disabled for your account. Please contact admin to unlock your referral code.",
+      });
+    }
+
+    // Auto-generate referral code if missing for approved promoter
     let code = user.referralCode;
     if (!code) {
       code = await generateUniqueReferralCode(user.name || user.email.split("@")[0]);
@@ -77,17 +87,14 @@ export async function GET(request: NextRequest) {
 
     // Compute totals
     let totalDeposits = 0;
-    let totalNominalProfit = 0;
     let totalCommission = 0;
 
     rewards.forEach((r) => {
       totalDeposits += r.depositAmount;
-      totalNominalProfit += r.nominalProfit;
       totalCommission += r.commissionAmount;
     });
 
     totalDeposits = Math.round(totalDeposits * 100) / 100;
-    totalNominalProfit = Math.round(totalNominalProfit * 100) / 100;
     totalCommission = Math.round(totalCommission * 100) / 100;
 
     let paidCommission = 0;
@@ -106,7 +113,7 @@ export async function GET(request: NextRequest) {
 
     const availableBalance = Math.max(0, Math.round((totalCommission - paidCommission - pendingCommission) * 100) / 100);
 
-    // Format safe rewards list with masked identifiers
+    // Format safe rewards list with masked identifiers (only user-facing earnings, no internal margins)
     const safeRewards = rewards.map((r) => {
       const email = r.referredUser?.email || "";
       const maskedEmail = email
@@ -117,8 +124,7 @@ export async function GET(request: NextRequest) {
         id: r.id,
         user: r.referredUser?.name || maskedEmail,
         depositAmount: r.depositAmount,
-        nominalProfit: r.nominalProfit, // Strictly 30% of deposit
-        commissionAmount: r.commissionAmount, // Strictly 10% of nominal profit
+        commissionAmount: r.commissionAmount,
         paymentType: r.paymentType,
         createdAt: r.createdAt,
       };
@@ -130,14 +136,14 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      enabled: true,
       stats: {
         referralCode: code,
         referralLink,
         totalAppUsers,
         referredUsersCount,
         totalDeposits,
-        totalNominalProfit, // 30% nominal profit
-        totalCommission, // 10% of nominal profit (3% of deposits)
+        totalCommission,
         paidCommission,
         pendingCommission,
         availableBalance,
@@ -146,11 +152,6 @@ export async function GET(request: NextRequest) {
         payoutCrypto: user.payoutCrypto || "",
         isInfluencer: user.isInfluencer,
         influencerChannel: user.influencerChannel || "",
-        commissionFormula: {
-          nominalProfitRate: "30%",
-          influencerShareRate: "10% of profit",
-          explanation: "Platform calculates a 30% nominal margin on referral deposits. You earn exactly 10% of this platform profit (₹3 on every ₹100 deposit)."
-        }
       },
       rewards: safeRewards,
       payouts,

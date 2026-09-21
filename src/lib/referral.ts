@@ -5,13 +5,14 @@ export const NOMINAL_PROFIT_PERCENT = 30; // 30% platform profit presented to pr
 export const PROMOTER_SHARE_OF_PROFIT_PERCENT = 10; // 10% cut of the nominal profit
 
 /**
- * Calculates nominal profit (displayed 30%) and promoter commission (10% of nominal profit).
- * Example: ₹100 deposit -> ₹30 nominal profit -> ₹3.00 promoter cut.
+ * Calculates promoter commission directly from deposit amount based on admin-configured percentage.
+ * Example: ₹100 deposit with 5% rate -> ₹5.00 promoter cut.
  */
-export function calculateReferralEarning(depositAmount: number) {
+export function calculateReferralEarning(depositAmount: number, ratePercent: number = 5.0) {
+  const rate = Math.max(0, Number(ratePercent) || 0);
   const nominalProfit = Math.round(depositAmount * 0.30 * 100) / 100;
-  const commissionAmount = Math.round(nominalProfit * 0.10 * 100) / 100;
-  return { nominalProfit, commissionAmount };
+  const commissionAmount = Math.round(depositAmount * (rate / 100) * 100) / 100;
+  return { nominalProfit, commissionAmount, commissionRate: rate };
 }
 
 /**
@@ -60,6 +61,16 @@ export async function recordReferralReward(params: {
       return null;
     }
 
+    // Verify promoter is an active affiliate partner and fetch their admin-assigned commission %
+    const promoter = await prisma.user.findUnique({
+      where: { id: user.referredById },
+      select: { id: true, isPromoter: true, referralCommissionRate: true },
+    });
+
+    if (!promoter || !promoter.isPromoter) {
+      return null;
+    }
+
     // Check if duplicate for same paymentId
     if (paymentId) {
       const existing = await prisma.referralReward.findFirst({
@@ -70,7 +81,8 @@ export async function recordReferralReward(params: {
       }
     }
 
-    const { nominalProfit, commissionAmount } = calculateReferralEarning(depositAmount);
+    const rate = promoter.referralCommissionRate ?? 5.0;
+    const { nominalProfit, commissionAmount, commissionRate } = calculateReferralEarning(depositAmount, rate);
     if (commissionAmount <= 0) return null;
 
     const reward = await prisma.referralReward.create({
@@ -80,6 +92,7 @@ export async function recordReferralReward(params: {
         depositAmount,
         nominalProfit,
         commissionAmount,
+        commissionRate,
         paymentType,
         paymentId: paymentId || null,
         status: "CONFIRMED",

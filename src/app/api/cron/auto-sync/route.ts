@@ -296,8 +296,42 @@ export async function GET(request: NextRequest) {
             const upstream = statusRes.status.toLowerCase();
             let newStatus = order.status;
 
+            let updatedComboData = order.comboData;
             if (upstream === "completed") {
-              newStatus = "COMPLETED";
+              let isBatchedJitter = false;
+              let allBatchesComplete = true;
+
+              if (order.comboData) {
+                try {
+                  const combo = JSON.parse(order.comboData);
+                  if (combo.isJitterEngine && Array.isArray(combo.batches) && combo.batches.length > 1) {
+                    isBatchedJitter = true;
+                    // Mark the specific batch that finished as COMPLETED
+                    let batchUpdated = false;
+                    for (const b of combo.batches) {
+                      if (String(b.upstreamOrderId) === String(order.providerOrderId)) {
+                        b.status = "COMPLETED";
+                        batchUpdated = true;
+                      }
+                    }
+                    if (batchUpdated) {
+                      updatedComboData = JSON.stringify(combo);
+                    }
+                    // Check if any batch is still PENDING or DISPATCHED
+                    const hasRemaining = combo.batches.some((b: any) => b.status === "PENDING" || b.status === "DISPATCHED");
+                    if (hasRemaining) {
+                      allBatchesComplete = false;
+                    }
+                  }
+                } catch {}
+              }
+
+              if (isBatchedJitter && !allBatchesComplete) {
+                // Keep order in IN_PROGRESS so remaining scheduled pulses can fire
+                newStatus = "IN_PROGRESS";
+              } else {
+                newStatus = "COMPLETED";
+              }
             } else if (upstream === "in progress" || upstream === "processing") {
               newStatus = "IN_PROGRESS";
             } else if (upstream === "partial") {
@@ -341,6 +375,7 @@ export async function GET(request: NextRequest) {
               where: { id: order.id },
               data: {
                 status: newStatus,
+                comboData: updatedComboData,
                 startCount: statusRes.start_count ? Number(statusRes.start_count) : order.startCount,
                 remains: statusRes.remains ? Number(statusRes.remains) : order.remains,
               },
@@ -360,12 +395,25 @@ export async function GET(request: NextRequest) {
       try {
         const jitterOrders = await prisma.order.findMany({
           where: {
-            status: { in: ["IN_PROGRESS", "PROCESSING"] },
-            comboData: { contains: '"isJitterEngine":true' },
+            OR: [
+              {
+                status: { in: ["IN_PROGRESS", "PROCESSING"] },
+                comboData: { contains: '"isJitterEngine":true' },
+              },
+              {
+                // Self-heal: order mistakenly marked COMPLETED but still has pending batches
+                status: "COMPLETED",
+                comboData: {
+                  contains: '"isJitterEngine":true',
+                  not: { contains: '"allBatchesDispatched":true' },
+                },
+              },
+            ],
           },
           select: {
             id: true,
             link: true,
+            status: true,
             comboData: true,
             panel: {
               select: {
@@ -432,8 +480,7 @@ export async function GET(request: NextRequest) {
                   data.lastDispatchedBatch = batch.batchNumber;
                   jitterBatchesFired++;
 
-                  // Handle Micro-Engagement Pacing (e.g. 1-3-5-2-8 likes)
-                  // When minimum threshold is reached, dispatch engagement order to upstream
+                  // 1. Handle Micro-Engagement Likes Accumulator
                   if (batch.likes && batch.likes > 0 && (data.likeServiceId || data.engagementServiceId)) {
                     data.accumulatedLikes = (data.accumulatedLikes || 0) + batch.likes;
                     const likeThreshold = data.likeServiceMin || 10;
@@ -446,10 +493,53 @@ export async function GET(request: NextRequest) {
                         });
                         if (engResult && engResult.order) {
                           batch.engagementOrderId = String(engResult.order);
-                          data.accumulatedLikes = 0; // reset accumulated after firing
+                          batch.likeOrderId = String(engResult.order);
+                          data.accumulatedLikes = 0;
                         }
                       } catch (engErr) {
                         console.error(`Micro-engagement pulse error for order #${jOrder.id}:`, engErr);
+                      }
+                    }
+                  }
+
+                  // 2. Handle Micro-Saves Accumulator
+                  if (batch.saves && batch.saves > 0 && data.saveServiceId) {
+                    data.accumulatedSaves = (data.accumulatedSaves || 0) + batch.saves;
+                    const saveThreshold = data.saveServiceMin || 10;
+                    if (data.accumulatedSaves >= saveThreshold) {
+                      try {
+                        const saveRes = await client.addOrder({
+                          serviceId: data.saveServiceId,
+                          link: jOrder.link,
+                          quantity: data.accumulatedSaves,
+                        });
+                        if (saveRes && saveRes.order) {
+                          batch.saveOrderId = String(saveRes.order);
+                          data.accumulatedSaves = 0;
+                        }
+                      } catch (saveErr) {
+                        console.error(`Save pulse error for order #${jOrder.id}:`, saveErr);
+                      }
+                    }
+                  }
+
+                  // 3. Handle Micro-Shares Accumulator
+                  if (batch.shares && batch.shares > 0 && data.shareServiceId) {
+                    data.accumulatedShares = (data.accumulatedShares || 0) + batch.shares;
+                    const shareThreshold = data.shareServiceMin || 10;
+                    if (data.accumulatedShares >= shareThreshold) {
+                      try {
+                        const shareRes = await client.addOrder({
+                          serviceId: data.shareServiceId,
+                          link: jOrder.link,
+                          quantity: data.accumulatedShares,
+                        });
+                        if (shareRes && shareRes.order) {
+                          batch.shareOrderId = String(shareRes.order);
+                          data.accumulatedShares = 0;
+                        }
+                      } catch (shareErr) {
+                        console.error(`Share pulse error for order #${jOrder.id}:`, shareErr);
                       }
                     }
                   }
@@ -462,19 +552,21 @@ export async function GET(request: NextRequest) {
                   await prisma.order.update({
                     where: { id: jOrder.id },
                     data: {
+                      status: "IN_PROGRESS",
                       comboData: JSON.stringify(data),
                       providerOrderId: String(result.order),
                     },
                   });
                 } else if (result && result.error) {
-                  // If provider is busy or previous order on same link is still delivering,
-                  // delay this pulse by randomized 60-150 seconds (1.0 - 2.5m) so it retries organically
-                  const retryJitterSeconds = 60 + Math.floor(Math.random() * 90);
+                  // If provider reports active order on this link, wait 90-150s for it to finish delivering
+                  const isLinkBusy = /active order with this link|wait until order/i.test(result.error);
+                  const retryJitterSeconds = isLinkBusy ? (90 + Math.floor(Math.random() * 60)) : (60 + Math.floor(Math.random() * 60));
                   batch.scheduledAt = new Date(Date.now() + retryJitterSeconds * 1000).toISOString();
                   batch.lastError = result.error;
                   await prisma.order.update({
                     where: { id: jOrder.id },
                     data: {
+                      status: "IN_PROGRESS",
                       comboData: JSON.stringify(data),
                     },
                   });

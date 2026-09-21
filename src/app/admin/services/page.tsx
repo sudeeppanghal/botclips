@@ -49,7 +49,10 @@ interface UpstreamService {
   category: string;
   platform: string;
   originalRate: number;
-  sellingRate: number; // 3x price
+  sellingRate: number; // custom price if overridden, otherwise 3x price
+  defaultSellingRate?: number;
+  isCustomPrice?: boolean;
+  overrideId?: string | null;
   minQuantity: number;
   maxQuantity: number;
   type: string;
@@ -66,10 +69,15 @@ export default function AdminServicesPage() {
   const [panels, setPanels] = useState<any[]>([]);
   const [platformCounts, setPlatformCounts] = useState<Record<string, { farm: number; upstream: number }>>({});
 
-  // Inline Price Editing State
+  // Farm Packages Inline Price Editing State
   const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
   const [tempPrice, setTempPrice] = useState<string>("");
   const [savingPrice, setSavingPrice] = useState(false);
+
+  // Premium Mode Inline Price Editing State
+  const [editingPremiumKey, setEditingPremiumKey] = useState<string | null>(null);
+  const [tempPremiumPrice, setTempPremiumPrice] = useState<string>("");
+  const [savingPremiumPrice, setSavingPremiumPrice] = useState(false);
 
   // Create / Edit Farm Package Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -86,6 +94,7 @@ export default function AdminServicesPage() {
     minQuantity: 100,
     maxQuantity: 1000000,
     badge: "ALGORITHM FARM",
+    isFarm: true,
   });
   const [submittingModal, setSubmittingModal] = useState(false);
 
@@ -190,7 +199,83 @@ export default function AdminServicesPage() {
     }
   };
 
-  // 4. Open Promote Upstream Service to Farm Mode Modal
+  // 4. Save Custom Price for Upstream / Premium Service
+  const handleSavePremiumPrice = async (svc: UpstreamService) => {
+    const num = parseFloat(tempPremiumPrice);
+    if (isNaN(num) || num <= 0) {
+      showMessage("Please enter a valid price greater than 0", "error");
+      return;
+    }
+
+    setSavingPremiumPrice(true);
+    try {
+      const res = await fetch("/api/admin/services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update-premium-price",
+          panelId: svc.panelId,
+          serviceId: svc.serviceId,
+          customRate: num,
+          name: svc.name,
+          platform: svc.platform,
+          category: svc.category,
+          originalRate: svc.originalRate,
+          minQuantity: svc.minQuantity,
+          maxQuantity: svc.maxQuantity,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUpstreamServices(prev =>
+          prev.map(s =>
+            s.panelId === svc.panelId && s.serviceId === svc.serviceId
+              ? { ...s, sellingRate: num, isCustomPrice: true }
+              : s
+          )
+        );
+        setEditingPremiumKey(null);
+        showMessage(`Premium service custom price saved: ₹${num.toFixed(2)}`);
+      } else {
+        throw new Error(data.error || "Failed to update price");
+      }
+    } catch (err: any) {
+      showMessage(err.message, "error");
+    } finally {
+      setSavingPremiumPrice(false);
+    }
+  };
+
+  // 4.1 Reset Premium Service Price back to default 3x
+  const handleResetPremiumPrice = async (svc: UpstreamService) => {
+    try {
+      const res = await fetch("/api/admin/services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "reset-premium-price",
+          panelId: svc.panelId,
+          serviceId: svc.serviceId,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const defRate = svc.defaultSellingRate || Math.round(svc.originalRate * 3 * 100) / 100;
+        setUpstreamServices(prev =>
+          prev.map(s =>
+            s.panelId === svc.panelId && s.serviceId === svc.serviceId
+              ? { ...s, sellingRate: defRate, isCustomPrice: false }
+              : s
+          )
+        );
+        showMessage("Reset to automatic 3x pricing");
+      }
+    } catch (err: any) {
+      showMessage(err.message, "error");
+    }
+  };
+
+  // 5. Open Promote Upstream Service to Farm Mode Modal
   const handlePromoteToFarm = (svc: UpstreamService) => {
     setModalMode("PROMOTE");
     // Suggest 3x or 2.5x custom price
@@ -207,11 +292,12 @@ export default function AdminServicesPage() {
       minQuantity: svc.minQuantity || 100,
       maxQuantity: svc.maxQuantity || 1000000,
       badge: "SMARTPHONE FARM",
+      isFarm: true,
     });
     setModalOpen(true);
   };
 
-  // 5. Submit Modal (Create, Edit or Promote)
+  // 6. Submit Modal (Create, Edit or Promote)
   const handleModalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittingModal(true);
@@ -223,6 +309,7 @@ export default function AdminServicesPage() {
         body: JSON.stringify({
           action: "save-farm-package",
           ...formData,
+          isFarm: true,
         }),
       });
       const data = await res.json();
@@ -230,7 +317,7 @@ export default function AdminServicesPage() {
         throw new Error(data.error || "Failed to save package");
       }
 
-      showMessage(modalMode === "PROMOTE" ? "Promoted to Farm Package successfully!" : "Farm package saved!");
+      showMessage(modalMode === "PROMOTE" ? "⭐ Promoted to Farm Package successfully!" : "🌾 Farm package saved successfully!");
       setModalOpen(false);
       loadServicesData();
     } catch (err: any) {
@@ -301,6 +388,7 @@ export default function AdminServicesPage() {
                 minQuantity: 100,
                 maxQuantity: 1000000,
                 badge: "ALGORITHM FARM",
+                isFarm: true,
               });
               setModalOpen(true);
             }}
@@ -312,15 +400,21 @@ export default function AdminServicesPage() {
         </div>
       </div>
 
-      {/* Message Banner */}
+      {/* Floating Sticky Notification Toast */}
       {message && (
-        <div className={`p-4 rounded-2xl text-xs font-bold flex items-center gap-2.5 border ${
+        <div className={`fixed top-6 right-6 z-50 p-4 rounded-2xl text-xs font-bold flex items-center gap-3 shadow-2xl border backdrop-blur-md transition-all duration-300 animate-in fade-in slide-in-from-top-3 ${
           message.type === "success" 
-            ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
-            : "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300"
+            ? "bg-slate-900/95 dark:bg-emerald-950/95 border-emerald-500/50 text-emerald-300 shadow-emerald-950/40"
+            : "bg-slate-900/95 dark:bg-red-950/95 border-red-500/50 text-red-300 shadow-red-950/40"
         }`}>
-          {message.type === "success" ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
-          <span>{message.text}</span>
+          {message.type === "success" ? <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" /> : <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />}
+          <span className="text-sm font-semibold pr-2">{message.text}</span>
+          <button 
+            onClick={() => setMessage(null)} 
+            className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
@@ -554,6 +648,7 @@ export default function AdminServicesPage() {
                                 minQuantity: pkg.minQuantity,
                                 maxQuantity: pkg.maxQuantity,
                                 badge: pkg.badge || "ALGORITHM FARM",
+                                isFarm: true,
                               });
                               setModalOpen(true);
                             }}
@@ -619,7 +714,7 @@ export default function AdminServicesPage() {
                 <th className="py-3 px-3">Category</th>
                 <th className="py-3 px-3">Platform</th>
                 <th className="py-3 px-3">Provider Cost</th>
-                <th className="py-3 px-3 font-black text-amber-600 dark:text-amber-400">Selling Price (3x)</th>
+                <th className="py-3 px-3 font-black text-amber-600 dark:text-amber-400">Selling Price (Click to Edit)</th>
                 <th className="py-3 px-3">Min / Max</th>
                 <th className="py-3 px-3 text-right">Action</th>
               </tr>
@@ -632,31 +727,91 @@ export default function AdminServicesPage() {
                   </td>
                 </tr>
               ) : (
-                filteredUpstream.slice(0, 100).map((svc) => (
-                  <tr key={`${svc.panelId}_${svc.serviceId}`} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
-                    <td className="py-3 px-3 font-mono font-bold text-slate-700 dark:text-slate-300">
-                      #{svc.serviceId}
-                    </td>
-                    <td className="py-3 px-3 max-w-sm">
-                      <div className="font-bold text-slate-900 dark:text-white truncate" title={svc.name}>
-                        {svc.name}
-                      </div>
-                      <div className="text-[10px] text-slate-400 truncate">
-                        Provider: {svc.panelName}
-                      </div>
-                    </td>
-                    <td className="py-3 px-3 text-slate-500 dark:text-slate-400 max-w-[160px] truncate" title={svc.category}>
-                      {svc.category}
-                    </td>
-                    <td className="py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">
-                      {svc.platform}
-                    </td>
-                    <td className="py-3 px-3 font-mono text-slate-500">
-                      ₹{svc.originalRate.toFixed(2)}
-                    </td>
-                    <td className="py-3 px-3 font-mono font-black text-amber-600 dark:text-amber-400 text-xs">
-                      ₹{svc.sellingRate.toFixed(2)}
-                    </td>
+                filteredUpstream.slice(0, 100).map((svc) => {
+                  const itemKey = `${svc.panelId}_${svc.serviceId}`;
+                  const isEditingThis = editingPremiumKey === itemKey;
+
+                  return (
+                    <tr key={itemKey} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
+                      <td className="py-3 px-3 font-mono font-bold text-slate-700 dark:text-slate-300">
+                        #{svc.serviceId}
+                      </td>
+                      <td className="py-3 px-3 max-w-sm">
+                        <div className="font-bold text-slate-900 dark:text-white truncate" title={svc.name}>
+                          {svc.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">
+                          Provider: {svc.panelName}
+                        </div>
+                      </td>
+                      <td className="py-3 px-3 text-slate-500 dark:text-slate-400 max-w-[160px] truncate" title={svc.category}>
+                        {svc.category}
+                      </td>
+                      <td className="py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">
+                        {svc.platform}
+                      </td>
+                      <td className="py-3 px-3 font-mono text-slate-500">
+                        ₹{svc.originalRate.toFixed(2)}
+                      </td>
+
+                      {/* Inline Edit Premium Price */}
+                      <td className="py-3 px-3 font-mono">
+                        {isEditingThis ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold text-slate-500">₹</span>
+                            <input
+                              type="number"
+                              step="0.5"
+                              value={tempPremiumPrice}
+                              onChange={(e) => setTempPremiumPrice(e.target.value)}
+                              className="w-20 px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-amber-500 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => handleSavePremiumPrice(svc)}
+                              disabled={savingPremiumPrice}
+                              className="p-1 rounded-md bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer"
+                              title="Save custom price"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setEditingPremiumKey(null)}
+                              className="p-1 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer"
+                              title="Cancel"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <div
+                              onClick={() => {
+                                setEditingPremiumKey(itemKey);
+                                setTempPremiumPrice(String(svc.sellingRate));
+                              }}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-black text-xs cursor-pointer group transition-colors ${
+                                svc.isCustomPrice
+                                  ? "bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+                                  : "bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400"
+                              }`}
+                              title="Click to edit custom price"
+                            >
+                              <span>₹{Number(svc.sellingRate).toFixed(2)}</span>
+                              <Edit3 className="w-3 h-3 opacity-50 group-hover:opacity-100" />
+                            </div>
+                            {svc.isCustomPrice && (
+                              <button
+                                onClick={() => handleResetPremiumPrice(svc)}
+                                className="text-[10px] text-slate-400 hover:text-red-500 underline cursor-pointer"
+                                title="Reset back to default 3x pricing"
+                              >
+                                Reset
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </td>
                     <td className="py-3 px-3 font-mono text-[11px] text-slate-400">
                       {svc.minQuantity} - {svc.maxQuantity.toLocaleString()}
                     </td>
@@ -670,9 +825,10 @@ export default function AdminServicesPage() {
                       </button>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
+                );
+              })
+            )}
+          </tbody>
           </table>
         </div>
       </div>

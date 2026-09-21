@@ -139,6 +139,10 @@ export default function AdminDashboardPage() {
   const [userSearch, setUserSearch] = useState("");
   const [editingUser, setEditingUser] = useState<any | null>(null);
   const [customBalanceInput, setCustomBalanceInput] = useState("");
+  const [editUserAffiliateCode, setEditUserAffiliateCode] = useState("");
+  const [editUserAffiliateChannel, setEditUserAffiliateChannel] = useState("");
+  const [editUserAffiliateRate, setEditUserAffiliateRate] = useState("5.0");
+  const [savingAffiliate, setSavingAffiliate] = useState(false);
   const [savingBalance, setSavingBalance] = useState(false);
   const [syncingPrices, setSyncingPrices] = useState(false);
   const [lookingUpService, setLookingUpService] = useState(false);
@@ -576,6 +580,9 @@ export default function AdminDashboardPage() {
   }
 
   async function handleRedispatchOrder(orderId: string) {
+    if (!window.confirm(`⚠️ CAUTION: Are you sure you want to RE-DISPATCH order #${orderId} to the upstream provider?\n\nThis will send a live order to the upstream API and use provider balance.`)) {
+      return;
+    }
     setRedispatchingOrderId(orderId);
     try {
       const res = await fetch("/api/admin/orders/actions", {
@@ -599,6 +606,11 @@ export default function AdminDashboardPage() {
 
   async function handleExecuteOrderAction() {
     if (!orderActionModal) return;
+    const confirmMsg = orderActionRefund
+      ? `⚠️ Are you sure you want to set order #${orderActionModal.id} to "${orderActionStatus}" and REFUND ₹${orderActionModal.charge || 0} to the user's wallet?`
+      : `Are you sure you want to change order #${orderActionModal.id} status to "${orderActionStatus}"?`;
+    if (!window.confirm(confirmMsg)) return;
+
     setProcessingOrderAction(true);
     try {
       const res = await fetch("/api/admin/orders/actions", {
@@ -678,6 +690,9 @@ export default function AdminDashboardPage() {
   }
 
   async function handleUpdateTicketStatus(ticketId: string, status: string) {
+    if (!window.confirm(`Are you sure you want to change ticket #${ticketId} status to "${status}"?`)) {
+      return;
+    }
     try {
       const res = await fetch("/api/admin/tickets", {
         method: "PUT",
@@ -710,6 +725,9 @@ export default function AdminDashboardPage() {
   }
 
   async function handleRecordProfitSplit() {
+    if (!window.confirm("Are you sure you want to record this partner profit split in the ledger?")) {
+      return;
+    }
     setRecordingSplit(true);
     try {
       const totalDep = financials?.deposits?.totalCombinedInr || 0;
@@ -745,6 +763,9 @@ export default function AdminDashboardPage() {
   }
 
   async function handleSettleSplit(splitId: string, isSettled: boolean) {
+    if (!window.confirm(`Are you sure you want to mark this profit split as ${isSettled ? "SETTLED & PAID" : "UNSETTLED"}?`)) {
+      return;
+    }
     try {
       const res = await fetch("/api/admin/financials/splits", {
         method: "PUT",
@@ -811,6 +832,9 @@ export default function AdminDashboardPage() {
   }
 
   const handleApproveCrypto = async (id: string, amountUsdt: number, amountInr: number, user: string) => {
+    if (!window.confirm(`⚠️ Are you sure you want to APPROVE deposit of ${amountUsdt} USDT (~₹${amountInr}) for ${user}?\n\nThis will credit their wallet balance immediately.`)) {
+      return;
+    }
     setCryptoPayments(prev => prev.map(p => p.id === id ? { ...p, status: "CONFIRMED" } : p));
     notify("Approved " + amountUsdt + " USDT (~₹" + amountInr + ") for " + user + "! Balance credited.");
     try {
@@ -824,6 +848,9 @@ export default function AdminDashboardPage() {
   };
 
   const handleRejectCrypto = async (id: string) => {
+    if (!window.confirm(`⚠️ Are you sure you want to REJECT this crypto deposit?`)) {
+      return;
+    }
     setCryptoPayments(prev => prev.map(p => p.id === id ? { ...p, status: "REJECTED" } : p));
     notify("Crypto deposit rejected.");
     try {
@@ -1105,6 +1132,9 @@ export default function AdminDashboardPage() {
   }
 
   async function handleToggleMaintenance(newMode: boolean) {
+    if (!window.confirm(`⚠️ CAUTION: Are you sure you want to ${newMode ? "ACTIVATE" : "DEACTIVATE"} Maintenance Mode?\n\n${newMode ? "Public visitors will see the maintenance screen!" : "The website will become live for all visitors."}`)) {
+      return;
+    }
     setSavingMaintenance(true);
     try {
       const res = await fetch("/api/admin/maintenance", {
@@ -1152,6 +1182,9 @@ export default function AdminDashboardPage() {
 
   // Actions
   const handleApprovePayment = async (id: string, amount: number, user: string) => {
+    if (!window.confirm(`⚠️ Are you sure you want to APPROVE deposit of ₹${amount} for ${user}?\n\nThis will credit ₹${amount} to their wallet balance immediately.`)) {
+      return;
+    }
     setPayments(payments.map(p => p.id === id ? { ...p, status: "CONFIRMED" } : p));
     notify(`Approved ₹${amount} for ${user}! Wallet balance credited.`);
     try {
@@ -1164,6 +1197,9 @@ export default function AdminDashboardPage() {
   };
 
   const handleRejectPayment = async (id: string) => {
+    if (!window.confirm(`⚠️ Are you sure you want to REJECT this deposit payment?`)) {
+      return;
+    }
     setPayments(payments.map(p => p.id === id ? { ...p, status: "REJECTED" } : p));
     notify("Payment rejected.");
     try {
@@ -1176,6 +1212,9 @@ export default function AdminDashboardPage() {
   };
 
   const handleAdjustBalance = async (userId: string, amount: number) => {
+    if (!window.confirm(`Are you sure you want to ${amount > 0 ? "ADD" : "DEDUCT"} ₹${Math.abs(amount)} ${amount > 0 ? "to" : "from"} this user's wallet?`)) {
+      return;
+    }
     // Optimistic UI update
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, balance: Math.max(0, Number(u.balance || 0) + amount) } : u));
     if (editingUser && editingUser.id === userId) {
@@ -1203,6 +1242,9 @@ export default function AdminDashboardPage() {
   };
 
   const handleSetExactBalance = async (userId: string, exactAmount: number) => {
+    if (!window.confirm(`⚠️ Are you sure you want to set this user's balance to EXACTLY ₹${exactAmount}?`)) {
+      return;
+    }
     setSavingBalance(true);
     // Optimistic UI update
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, balance: exactAmount } : u));
@@ -1234,8 +1276,11 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleToggleUserChat = async (userId: string, currentCanChat: boolean) => {
+  const handleToggleUserChat = async (userId: string, currentCanChat: boolean, userEmail?: string) => {
     const nextVal = !currentCanChat;
+    if (!window.confirm(`Are you sure you want to ${nextVal ? "WHITELIST & ALLOW" : "LOCK & RESTRICT"} chat access for ${userEmail || "this user"}?`)) {
+      return;
+    }
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, canChat: nextVal } : u));
     try {
       const res = await fetch("/api/admin/chat/permissions", {
@@ -1256,8 +1301,11 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleToggleUserStatus = async (userId: string, currentStatus: string) => {
+  const handleToggleUserStatus = async (userId: string, currentStatus: string, userEmail?: string) => {
     const newStatus = currentStatus === "BANNED" ? "ACTIVE" : "BANNED";
+    if (!window.confirm(`⚠️ CAUTION: Are you sure you want to set status to ${newStatus} for ${userEmail || "this user"}?${newStatus === "BANNED" ? "\n\nBanned users will not be able to log in or place orders." : ""}`)) {
+      return;
+    }
     try {
       const res = await fetch("/api/admin/users", {
         method: "PUT",
@@ -1274,8 +1322,17 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleToggleUserRole = async (userId: string, currentRole: string) => {
+  const handleToggleUserRole = async (userId: string, currentRole: string, userEmail?: string) => {
     const newRole = currentRole === "ADMIN" ? "USER" : "ADMIN";
+    const confirmed = window.confirm(
+      `⚠️ CAUTION: Are you sure you want to change role for ${userEmail || "this user"} to ${newRole}?\n\n${
+        newRole === "ADMIN"
+          ? "Giving ADMIN grants FULL access to the admin dashboard, settings, and bypasses chat restrictions!"
+          : "Demoting to USER will remove admin privileges and lock chat access unless spend threshold (₹500) is met."
+      }`
+    );
+    if (!confirmed) return;
+
     try {
       const res = await fetch("/api/admin/users", {
         method: "PUT",
@@ -1292,7 +1349,84 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleToggleUserAffiliate = async (userId: string, currentStatus: boolean, userEmail?: string) => {
+    const nextStatus = !currentStatus;
+    const confirmed = window.confirm(
+      `⚠️ CAUTION: Are you sure you want to ${nextStatus ? "ENABLE" : "DISABLE"} Affiliate & Referral Partner access for ${userEmail || "this user"}?\n\n${
+        nextStatus
+          ? "Enabling unlocks their Affiliate Dashboard, allows them to refer users, and gives 10% profit commissions."
+          : "Disabling will lock their affiliate dashboard and halt new referral commission tracking."
+      }`
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, isPromoter: nextStatus })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(`Affiliate program ${nextStatus ? "ENABLED" : "DISABLED"} for ${userEmail || "user"}!`);
+        loadUsers();
+        if (editingUser && editingUser.id === userId) {
+          setEditingUser((prev: any) => prev ? { ...prev, isPromoter: nextStatus } : null);
+        }
+      } else {
+        notify(data.error || "Failed to update affiliate status", "error");
+      }
+    } catch {
+      notify("Error updating affiliate status", "error");
+    }
+  };
+
+  const handleSaveUserAffiliateCode = async (userId: string, referralCode: string, influencerChannel?: string, commissionRate?: string | number) => {
+    const cleanCode = referralCode.trim().toUpperCase();
+    if (!cleanCode) {
+      notify("Please enter a valid referral code", "error");
+      return;
+    }
+    const rateNum = Number(commissionRate !== undefined ? commissionRate : editUserAffiliateRate) || 5.0;
+    const confirmed = window.confirm(
+      `Are you sure you want to assign referral code "${cleanCode}" with ${rateNum}% deposit commission rate and ENABLE affiliate access for this user?`
+    );
+    if (!confirmed) return;
+
+    setSavingAffiliate(true);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          referralCode: cleanCode,
+          influencerChannel: influencerChannel?.trim(),
+          referralCommissionRate: rateNum,
+          isPromoter: true,
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(`Referral code "${cleanCode}" saved at ${rateNum}% & Affiliate ENABLED!`, "success");
+        loadUsers();
+        if (editingUser && editingUser.id === userId) {
+          setEditingUser((prev: any) => prev ? { ...prev, referralCode: cleanCode, referralCommissionRate: rateNum, isPromoter: true, influencerChannel } : null);
+        }
+      } else {
+        notify(data.error || "Failed to save referral code", "error");
+      }
+    } catch {
+      notify("Error saving referral code", "error");
+    } finally {
+      setSavingAffiliate(false);
+    }
+  };
+
   const handleImpersonate = async (userId: string, email: string) => {
+    if (!window.confirm(`⚠️ Are you sure you want to log in and IMPERSONATE "${email}"?\n\nYou will be switched to their user account session.`)) {
+      return;
+    }
     notify(`Logging into account ${email}...`);
     try {
       const res = await fetch("/api/admin/impersonate", {
@@ -2605,6 +2739,98 @@ export default function AdminDashboardPage() {
                     </div>
                   </div>
 
+                  {/* Affiliate Partner & Referral Program */}
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider block">
+                          Affiliate & Referral Partner
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          Default is OFF. Unlocks affiliate tab & commission earnings.
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleUserAffiliate(editingUser.id, Boolean(editingUser.isPromoter), editingUser.email)}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          editingUser.isPromoter
+                            ? "bg-purple-600 text-white shadow-xs hover:bg-purple-700"
+                            : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-300"
+                        }`}
+                      >
+                        {editingUser.isPromoter ? "✓ ENABLED" : "✕ DISABLED"}
+                      </button>
+                    </div>
+
+                    {/* Commission Rate (Deposit % - Secret Admin Feature) */}
+                    <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-[11px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
+                          Commission % from Deposit (Admin Secret)
+                        </label>
+                        <span className="text-[10px] bg-purple-500/20 text-purple-600 dark:text-purple-300 font-bold px-2 py-0.5 rounded">
+                          🔒 Hidden from User
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          max="100"
+                          placeholder="5.0"
+                          value={editUserAffiliateRate}
+                          onChange={(e) => setEditUserAffiliateRate(e.target.value)}
+                          className="w-28 px-3 py-1.5 bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700/80 rounded-lg text-xs font-mono font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                        <span className="text-xs font-bold text-slate-500">%</span>
+                        <span className="text-[11px] text-slate-500 italic">
+                          (₹100 deposit = ₹{((Number(editUserAffiliateRate) || 0) * 1).toFixed(2)} to promoter)
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400">
+                        The promoter does NOT see formulas or platform profit margin. They only receive this percentage of each referred user&apos;s deposit.
+                      </p>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-bold text-slate-500 uppercase">
+                        Assign Custom Referral Code
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="e.g. VIPCREATOR10"
+                          value={editUserAffiliateCode}
+                          onChange={(e) => setEditUserAffiliateCode(e.target.value.toUpperCase())}
+                          className="flex-1 px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono uppercase text-slate-900 dark:text-white outline-none focus:border-purple-500"
+                        />
+                        <button
+                          type="button"
+                          disabled={savingAffiliate || !editUserAffiliateCode.trim()}
+                          onClick={() => handleSaveUserAffiliateCode(editingUser.id, editUserAffiliateCode, editUserAffiliateChannel, editUserAffiliateRate)}
+                          className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer"
+                        >
+                          {savingAffiliate ? "Saving..." : "Save Code & Rate"}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-bold text-slate-500 uppercase">
+                        Influencer Channel / Handle (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. @CreatorChannel or YouTube"
+                        value={editUserAffiliateChannel}
+                        onChange={(e) => setEditUserAffiliateChannel(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500"
+                      />
+                    </div>
+                  </div>
+
                   {/* 1-Click Login from Modal */}
                   <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
                     <button
@@ -2835,6 +3061,7 @@ export default function AdminDashboardPage() {
                       <th className="py-3 px-2">User / Email</th>
                       <th className="py-3 px-2">Role</th>
                       <th className="py-3 px-2">Status</th>
+                      <th className="py-3 px-2">Affiliate</th>
                       <th className="py-3 px-2">Chat Access</th>
                       <th className="py-3 px-2">Wallet Balance</th>
                       <th className="py-3 px-2">Total Deposited</th>
@@ -2884,7 +3111,7 @@ export default function AdminDashboardPage() {
                           {/* Role */}
                           <td className="py-3.5 px-2">
                             <button
-                              onClick={() => handleToggleUserRole(u.id, u.role)}
+                              onClick={() => handleToggleUserRole(u.id, u.role, u.email)}
                               title="Click to toggle Role (ADMIN / USER)"
                               className={`px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition-all ${
                                 u.role === "ADMIN"
@@ -2899,7 +3126,7 @@ export default function AdminDashboardPage() {
                           {/* Status */}
                           <td className="py-3.5 px-2">
                             <button
-                              onClick={() => handleToggleUserStatus(u.id, u.status)}
+                              onClick={() => handleToggleUserStatus(u.id, u.status, u.email)}
                               title="Click to toggle Status (ACTIVE / BANNED)"
                               className={`px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition-all ${
                                 u.status === "ACTIVE"
@@ -2911,10 +3138,25 @@ export default function AdminDashboardPage() {
                             </button>
                           </td>
 
+                          {/* Affiliate Program (Default OFF, Admin Controlled) */}
+                          <td className="py-3.5 px-2">
+                            <button
+                              onClick={() => handleToggleUserAffiliate(u.id, Boolean(u.isPromoter), u.email)}
+                              title={u.isPromoter ? `Affiliate is ENABLED (Code: ${u.referralCode || "ACTIVE"}) - Click to Toggle` : "Affiliate is DISABLED - Click to Toggle"}
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition-all flex items-center gap-1 ${
+                                u.isPromoter
+                                  ? "bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800 shadow-xs"
+                                  : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
+                              }`}
+                            >
+                              <span>{u.isPromoter ? `🟢 ${u.referralCode || "ON"}` : "⚪ OFF"}</span>
+                            </button>
+                          </td>
+
                           {/* Chat Box Whitelist Permission */}
                           <td className="py-3.5 px-2">
                             <button
-                              onClick={() => handleToggleUserChat(u.id, Boolean(u.canChat))}
+                              onClick={() => handleToggleUserChat(u.id, Boolean(u.canChat), u.email)}
                               title={u.role === "ADMIN" ? "Admin has default chat access" : "Click to toggle Admin Chat Whitelist (ALLOW / LOCK)"}
                               disabled={u.role === "ADMIN"}
                               className={`px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition-all flex items-center gap-1 ${
@@ -2980,6 +3222,9 @@ export default function AdminDashboardPage() {
                                 onClick={() => {
                                   setEditingUser(u);
                                   setCustomBalanceInput(String(u.balance));
+                                  setEditUserAffiliateCode(u.referralCode || "");
+                                  setEditUserAffiliateChannel(u.influencerChannel || "");
+                                  setEditUserAffiliateRate(String(u.referralCommissionRate ?? 5.0));
                                 }}
                                 className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs cursor-pointer flex items-center gap-1.5 transition-all shadow-xs"
                                 title="Edit User Balance & Permissions"

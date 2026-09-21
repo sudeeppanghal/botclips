@@ -98,6 +98,13 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Handle /register redirect to /signup
+  if (pathname === "/register") {
+    const signupUrl = new URL("/signup", request.url);
+    if (refCode) signupUrl.searchParams.set("ref", refCode);
+    return attachRefCookie(NextResponse.redirect(signupUrl), refCode);
+  }
+
   // 3. Bypass internal services, API routes & static assets:
   if (
     pathname.startsWith("/_next") ||

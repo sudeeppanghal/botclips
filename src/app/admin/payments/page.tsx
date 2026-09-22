@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { 
   CreditCard, 
   Check, 
@@ -104,10 +105,18 @@ export default function AdminPaymentsPage() {
   const [manualEmail, setManualEmail] = useState("");
   const [manualAmount, setManualAmount] = useState("");
   const [manualLoading, setManualLoading] = useState(false);
+  const [currentUpiId, setCurrentUpiId] = useState("Jaatdhillon@fam");
 
   const fetchPayments = useCallback(async () => {
     setLoading(true);
     try {
+      fetch("/api/settings")
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.success && d.settings?.upiId) setCurrentUpiId(d.settings.upiId);
+        })
+        .catch(() => {});
+
       const [upiRes, cryptoRes] = await Promise.all([
         fetch("/api/billing/upi").then(r => r.json()).catch(() => ({ payments: [] })),
         fetch("/api/billing/crypto").then(r => r.json()).catch(() => ({ payments: [] }))
@@ -303,6 +312,31 @@ export default function AdminPaymentsPage() {
           <span>{message.text}</span>
         </div>
       )}
+
+      {/* Active Platform Receiving UPI Banner */}
+      <div className="p-3.5 px-4 rounded-2xl bg-[#131b2e] border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center font-bold">
+            <QrCode className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xs font-bold text-white flex items-center gap-2">
+              <span>Platform Receiving UPI Address:</span>
+              <span className="font-mono text-emerald-400 font-black text-sm select-all">{currentUpiId}</span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Users generate dynamic QR codes and pay directly to this UPI address.
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/admin/settings#upi-settings"
+          className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs shrink-0 self-start sm:self-center"
+        >
+          <span>Change UPI & QR Code</span>
+          <ExternalLink className="w-3.5 h-3.5" />
+        </Link>
+      </div>
 
       {/* Metric Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

@@ -28,12 +28,25 @@ export default function AddFundsModal({
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [upiId, setUpiId] = useState("Jaatdhillon@fam");
+  const [siteName, setSiteName] = useState("BotClips");
+
+  React.useEffect(() => {
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.settings) {
+          if (data.settings.upiId) setUpiId(data.settings.upiId);
+          if (data.settings.siteName) setSiteName(data.settings.siteName);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   if (!isOpen) return null;
 
   const safeAmount = Math.max(200, Number(amount) || 200);
-  const upiId = "Jaatdhillon@fam";
-  const upiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=upi://pay?pa=${encodeURIComponent(upiId)}%26pn=DhillonSMM%26am=${safeAmount}%26cu=INR`;
+  const upiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=upi://pay?pa=${encodeURIComponent(upiId)}%26pn=${encodeURIComponent(siteName)}%26am=${safeAmount}%26cu=INR`;
 
   const copyUpi = () => {
     navigator.clipboard.writeText(upiId);

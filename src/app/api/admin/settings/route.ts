@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
         upiId: upiId || undefined,
         trc20Address: trc20Address || undefined,
         bep20Address: bep20Address || undefined,
-        minDeposit: minDeposit ? Number(minDeposit) : 100,
+        minDeposit: minDeposit ? Number(minDeposit) : 200,
       },
       update: {
         supportTelegram: tgEncoded !== undefined ? tgEncoded : undefined,
@@ -193,7 +193,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: credentialsChanged 
         ? "Admin credentials updated successfully! New login details are active."
-        : "Settings saved successfully! Telegram bot is active.",
+        : "Settings saved successfully! Platform parameters and UPI configuration are live.",
       settings: updated,
       credentialsChanged
     });

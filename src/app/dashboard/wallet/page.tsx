@@ -118,6 +118,12 @@ export default function WalletPage() {
 
   useEffect(() => {
     loadData();
+    window.addEventListener("focus", loadData);
+    const interval = setInterval(loadData, 30000);
+    return () => {
+      window.removeEventListener("focus", loadData);
+      clearInterval(interval);
+    };
   }, []);
 
   const upiId = siteSettings.upiId || "Jaatdhillon@fam";

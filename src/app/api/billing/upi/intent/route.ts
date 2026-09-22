@@ -5,13 +5,13 @@ import { prisma } from "@/lib/prisma";
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const rawAmount = searchParams.get("amount") || "100";
+    const rawAmount = searchParams.get("amount") || "200";
     const app = searchParams.get("app"); // "gpay" | "phonepe" | "paytm" | "cred" | undefined
     const shouldRedirect = searchParams.get("redirect") === "true";
 
     let amount = parseFloat(rawAmount);
-    if (isNaN(amount) || amount < 100) {
-      amount = 100;
+    if (isNaN(amount) || amount < 200) {
+      amount = 200;
     }
 
     let upiId = "Jaatdhillon@fam";

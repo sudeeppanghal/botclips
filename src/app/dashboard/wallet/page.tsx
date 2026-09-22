@@ -29,7 +29,7 @@ export default function WalletPage() {
   const [method, setMethod] = useState<"UPI" | "CRYPTO">("UPI");
   
   // UPI State
-  const [amount, setAmount] = useState(100);
+  const [amount, setAmount] = useState(200);
   const [customAmount, setCustomAmount] = useState("");
   const [utr, setUtr] = useState("");
 
@@ -63,7 +63,7 @@ export default function WalletPage() {
     upiId: "Jaatdhillon@fam",
     trc20Address: "TVTjQKqYuntgk6EfD6PqeFvezZnVCCimjz",
     bep20Address: "0x71C3Ba8921e10FdB89C40a12F8e312A7C3241410",
-    minDeposit: 100,
+    minDeposit: 200,
     usdToInrRate: 96
   });
 
@@ -123,11 +123,11 @@ export default function WalletPage() {
   const upiId = siteSettings.upiId || "Jaatdhillon@fam";
   const trc20 = siteSettings.trc20Address || "TVTjQKqYuntgk6EfD6PqeFvezZnVCCimjz";
   const bep20 = siteSettings.bep20Address || "0x71C3Ba8921e10FdB89C40a12F8e312A7C3241410";
-  const minDeposit = Math.max(100, siteSettings.minDeposit || 100);
+  const minDeposit = Math.max(200, siteSettings.minDeposit || 200);
   const activeCryptoAddress = cryptoNetwork === "TRC20" ? trc20 : bep20;
 
   const rawUpiAmount = customAmount ? Number(customAmount) : amount;
-  const activeUpiAmount = Math.max(100, Number(rawUpiAmount) || 100);
+  const activeUpiAmount = Math.max(200, Number(rawUpiAmount) || 200);
   const activeCryptoAmount = customCryptoUsdt ? Number(customCryptoUsdt) : cryptoUsdt;
   const activeCryptoInr = Math.round(activeCryptoAmount * (siteSettings.usdToInrRate || 96));
 
@@ -262,7 +262,7 @@ export default function WalletPage() {
     const depositAmount = customAmount ? Number(customAmount) : amount;
 
     if (depositAmount < minDeposit) {
-      setError(`Minimum deposit amount is strictly ₹${minDeposit} INR.`);
+      setError(`Minimum deposit is strictly ₹${minDeposit} INR due to huge order volume. ₹100 minimum deposit will be available again soon. Thank you guys for supporting our services!`);
       return;
     }
 
@@ -437,6 +437,35 @@ export default function WalletPage() {
       )}
 
       {/* Strict Policy & Ban Warning Banner */}
+      {/* High Order Volume Announcement Banner */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-blue-600/15 via-indigo-600/15 to-purple-600/15 border border-blue-500/30 text-xs font-semibold space-y-2 relative overflow-hidden shadow-lg shadow-blue-500/5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-blue-500 dark:text-blue-400 font-black uppercase tracking-wider">
+            <span className="flex h-2.5 w-2.5 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-blue-400" />
+              🔥 High Order Volume Announcement
+            </span>
+          </div>
+          <span className="px-2.5 py-0.5 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 font-bold text-[10px]">
+            Fast Server Delivery Active
+          </span>
+        </div>
+
+        <div className="text-slate-700 dark:text-slate-200 text-xs leading-relaxed space-y-1.5">
+          <p>
+            Due to a <strong>huge surge in orders</strong> across all services, minimum deposit is currently set to <strong>₹200 INR</strong> to maintain instant delivery speeds and prevent queue delays.
+          </p>
+          <p className="text-slate-600 dark:text-slate-400 text-[11px]">
+            ⚡ <strong>₹100 minimum deposit</strong> will be available again in the future. Thank you guys so much for your continuous love & massive support — our services are working at their <strong>absolute best</strong>! 🚀
+          </p>
+        </div>
+      </div>
+
+      {/* Mandatory Deposit Policy & Security Warnings */}
       <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-amber-500/15 border border-amber-500/30 text-xs font-semibold space-y-2">
         <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-black uppercase tracking-wide">
           <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0" />
@@ -446,7 +475,7 @@ export default function WalletPage() {
           <div className="flex items-start gap-2 p-2.5 rounded-xl bg-white/60 dark:bg-slate-900/40 border border-amber-500/20">
             <span className="text-rose-500 font-bold text-sm">❌</span>
             <div>
-              <strong className="text-slate-900 dark:text-white font-bold block">Below ₹100 = Strictly Non-Refundable</strong>
+              <strong className="text-slate-900 dark:text-white font-bold block">Below ₹200 = Strictly Non-Refundable</strong>
               <span className="text-[11px] text-slate-600 dark:text-slate-400">
                 Minimum deposit is strictly <strong>₹{minDeposit} INR (or 1 USDT)</strong>. Any amount sent below ₹{minDeposit} will NOT be credited and cannot be refunded.
               </span>
@@ -483,7 +512,7 @@ export default function WalletPage() {
                   : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100"
               )}
             >
-              UPI QR Code (Min ₹100)
+              UPI QR Code (Min ₹200)
             </button>
             <button
               onClick={() => {
@@ -508,12 +537,12 @@ export default function WalletPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                    Select Amount (Min ₹100)
+                    Select Amount (Min ₹200)
                   </label>
                   <span className="text-[11px] text-blue-600 font-bold">100% Zero Fees</span>
                 </div>
                 <div className="grid grid-cols-5 gap-2">
-                  {[100, 200, 500, 1000, 2000].map((amt) => (
+                  {[200, 500, 1000, 2000, 5000].map((amt) => (
                     <button
                       key={amt}
                       type="button"
@@ -535,24 +564,24 @@ export default function WalletPage() {
                 <div className="mt-2.5">
                   <input
                     type="number"
-                    min="100"
-                    placeholder="Or enter custom amount (Min ₹100, e.g. ₹150, ₹250)"
+                    min="200"
+                    placeholder="Or enter custom amount (Min ₹200, e.g. ₹250, ₹350)"
                     value={customAmount}
                     onChange={(e) => setCustomAmount(e.target.value)}
                     onBlur={() => {
-                      if (customAmount && Number(customAmount) < 100) {
-                        setCustomAmount("100");
+                      if (customAmount && Number(customAmount) < 200) {
+                        setCustomAmount("200");
                       }
                     }}
                     className={`w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-slate-800/70 border rounded-xl text-slate-900 dark:text-white outline-hidden ${
-                      customAmount && Number(customAmount) < 100
+                      customAmount && Number(customAmount) < 200
                         ? "border-rose-500 focus:border-rose-500"
                         : "border-slate-200 dark:border-slate-700 focus:border-blue-500"
                     }`}
                   />
-                  {customAmount && Number(customAmount) < 100 && (
+                  {customAmount && Number(customAmount) < 200 && (
                     <p className="text-[11px] text-rose-500 font-bold mt-1">
-                      ⚠️ Minimum deposit amount is ₹100 INR.
+                      ⚠️ Minimum deposit amount is strictly ₹200 INR. Due to high order volume, ₹100 deposit will be available in the future.
                     </p>
                   )}
                 </div>

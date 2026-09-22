@@ -18,7 +18,7 @@ export default function AddFundsModal({
   onFundsAdded
 }: AddFundsModalProps) {
   const [method, setMethod] = useState<"UPI" | "CRYPTO">("UPI");
-  const [amount, setAmount] = useState(100);
+  const [amount, setAmount] = useState(200);
   const [utr, setUtr] = useState("");
   const [copied, setCopied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -31,7 +31,7 @@ export default function AddFundsModal({
 
   if (!isOpen) return null;
 
-  const safeAmount = Math.max(100, Number(amount) || 100);
+  const safeAmount = Math.max(200, Number(amount) || 200);
   const upiId = "Jaatdhillon@fam";
   const upiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=upi://pay?pa=${encodeURIComponent(upiId)}%26pn=DhillonSMM%26am=${safeAmount}%26cu=INR`;
 
@@ -96,8 +96,8 @@ export default function AddFundsModal({
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    if (Number(amount) < 100) {
-      setErrorMsg("Minimum deposit amount is strictly ₹100 INR. Payments below ₹100 are rejected.");
+    if (Number(amount) < 200) {
+      setErrorMsg("Minimum deposit amount is strictly ₹200 INR due to huge order volume. ₹100 deposit will be available in the future. Thank you guys for supporting our services!");
       return;
     }
     if (!utr || utr.trim().length < 8) {
@@ -112,7 +112,7 @@ export default function AddFundsModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           utr: utr.trim(), 
-          amount: Math.max(100, Number(amount)),
+          amount: Math.max(200, Number(amount)),
           screenshot1: screenshot || undefined
         }),
       });
@@ -210,8 +210,30 @@ export default function AddFundsModal({
           </button>
         </div>
 
+        {/* High Order Volume Announcement Banner */}
+        <div className="mt-4 p-3.5 rounded-2xl bg-gradient-to-r from-blue-600/15 via-indigo-600/15 to-purple-600/15 border border-blue-500/30 text-xs space-y-1.5 shadow-xs">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-blue-500 dark:text-blue-400 font-black text-xs uppercase tracking-wide">
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+              </span>
+              <span>🔥 High Order Volume Announcement</span>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-bold">
+              Min ₹200 Active
+            </span>
+          </div>
+          <p className="text-[11px] text-slate-700 dark:text-slate-200 leading-relaxed font-medium">
+            Due to huge order volume across our services, minimum deposit is temporarily set to <strong>₹200 INR</strong> to keep processing instantaneous.
+          </p>
+          <p className="text-[10.5px] text-slate-600 dark:text-slate-400">
+            ⚡ <strong>₹100 minimum deposit</strong> will be available again soon. Thank you guys for your massive support — our services are working best! 🚀
+          </p>
+        </div>
+
         {/* Strict Deposit Rules & Security Warning Notice */}
-        <div className="mt-4 p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-amber-500/15 border border-amber-500/30 text-xs space-y-1.5">
+        <div className="mt-3 p-3 rounded-2xl bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-amber-500/15 border border-amber-500/30 text-xs space-y-1.5">
           <div className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-black text-xs uppercase tracking-wide">
             <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
             <span>⚠️ Strict Deposit Rules & Ban Warning</span>
@@ -219,11 +241,11 @@ export default function AddFundsModal({
           <ul className="text-[11px] space-y-1 text-slate-700 dark:text-slate-300 font-medium">
             <li className="flex items-start gap-1.5">
               <span className="text-rose-500 font-bold">•</span>
-              <span><strong>Below ₹100 = No Refund:</strong> Minimum deposit is strictly ₹100 INR (or 1 USDT). Deposits under ₹100 are strictly non-refundable and will NOT be credited.</span>
+              <span><strong>Below ₹200 = No Refund:</strong> Minimum deposit is strictly ₹200 INR (or 1 USDT). Deposits under ₹200 cannot be credited or refunded.</span>
             </li>
             <li className="flex items-start gap-1.5">
               <span className="text-rose-500 font-bold">•</span>
-              <span><strong>Fake Screenshot = Direct Ban:</strong> Submitting fake / manipulated receipts or invalid UTR will result in <strong>instant permanent account ban & wallet forfeiture</strong>.</span>
+              <span><strong>Fake Screenshot = Direct Ban:</strong> Submitting fake / manipulated receipts or invalid UTR results in <strong>instant permanent account ban</strong>.</span>
             </li>
           </ul>
         </div>
@@ -237,11 +259,11 @@ export default function AddFundsModal({
                   Deposit Amount ({currencySymbol})
                 </label>
                 <span className="text-[10px] font-black text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-md">
-                  Min ₹100
+                  Min ₹200
                 </span>
               </div>
               <div className="grid grid-cols-4 gap-2 mb-2">
-                {[100, 200, 500, 1000].map((amt) => (
+                {[200, 500, 1000, 2000].map((amt) => (
                   <button
                     key={amt}
                     type="button"
@@ -258,19 +280,19 @@ export default function AddFundsModal({
               </div>
               <input
                 type="number"
-                min="100"
+                min="200"
                 value={amount}
                 onChange={(e) => setAmount(Number(e.target.value))}
                 onBlur={() => {
-                  if (amount < 100) setAmount(100);
+                  if (amount < 200) setAmount(200);
                 }}
                 className={`w-full px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-800/70 border rounded-xl text-slate-900 dark:text-white outline-hidden ${
-                  amount < 100 ? "border-rose-500 focus:border-rose-500" : "border-slate-200/80 dark:border-slate-700 focus:border-blue-500"
+                  amount < 200 ? "border-rose-500 focus:border-rose-500" : "border-slate-200/80 dark:border-slate-700 focus:border-blue-500"
                 }`}
               />
-              {amount < 100 && (
+              {amount < 200 && (
                 <p className="text-[11px] text-rose-500 font-bold mt-1">
-                  ⚠️ Minimum deposit amount is ₹100 INR.
+                  ⚠️ Minimum deposit amount is ₹200 INR. Due to high orders, ₹100 deposit will be back in the future.
                 </p>
               )}
             </div>

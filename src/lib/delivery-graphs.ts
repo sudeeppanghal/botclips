@@ -1272,6 +1272,15 @@ export interface JitterBatch {
   saves: number;
   comments: number;
   batchPercent: number;
+  scheduledAt?: string;
+  status?: "PENDING" | "DISPATCHED" | "COMPLETED" | "FAILED";
+  upstreamOrderId?: string;
+  dispatchedAt?: string;
+  likeOrderId?: string;
+  shareOrderId?: string;
+  saveOrderId?: string;
+  commentOrderId?: string;
+  lastError?: string;
 }
 
 export function generateJitterSchedule(params: {
@@ -1292,19 +1301,36 @@ export function generateJitterSchedule(params: {
     durationHours = 24,
   } = params;
 
-  // Choose batch count between 8 and 14 based on duration
-  const numBatches = params.batchesCount || Math.min(14, Math.max(8, Math.round(durationHours * 0.75)));
+  // Determine organic micro-batch count:
+  // For algorithmic discovery (e.g. 10,000 views), avoid large 1,000-view drops.
+  // Instead, break into realistic micro-pulses (100 to 300 views each) to mimic FYP explore pacing.
+  let numBatches = params.batchesCount;
+  if (!numBatches) {
+    if (totalViews >= 2000) {
+      const targetMicroAvg = Math.min(280, Math.max(130, Math.round(Math.sqrt(totalViews) * 2.2)));
+      const calculated = Math.round(totalViews / targetMicroAvg);
+      numBatches = Math.min(60, Math.max(12, calculated));
+    } else {
+      numBatches = Math.min(16, Math.max(8, Math.round(durationHours * 0.75)));
+    }
+  }
+
   const totalMinutes = durationHours * 60;
+  const startTime = Date.now();
   
-  // Weights array with natural organic bell/growth curve + random pseudo-jitter
+  // Mathematical Sigmoid Logistic S-Curve Weights with Non-Linear Jitter:
+  // 1. Seed phase (0-20%): slow, steady testing pool
+  // 2. Viral breakout (20-70%): high-velocity algorithmic acceleration
+  // 3. Retention tail (70-100%): natural tapering decay
   const rawWeights: number[] = [];
   for (let i = 0; i < numBatches; i++) {
-    const x = (i + 1) / numBatches;
-    // Base organic shape (Gaussian + slight exponential)
-    const baseWeight = Math.sin(x * Math.PI) * 0.7 + Math.pow(x, 1.4) * 0.5 + 0.3;
-    // Jitter: random factor between 0.75 and 1.25
-    const pseudoRandom = 0.78 + ((Math.sin(i * 3.7 + 1.2) + 1) / 2) * 0.44;
-    rawWeights.push(baseWeight * pseudoRandom);
+    const progress = (i + 0.5) / numBatches; // 0.0 to 1.0
+    // Sigmoid derivative density: f'(x) where f(x) = 1 / (1 + e^(-7.5 * (x - 0.42)))
+    const sigmoid = 1 / (1 + Math.exp(-7.5 * (progress - 0.42)));
+    const sigmoidDensity = 7.5 * sigmoid * (1 - sigmoid);
+    // Add organic pseudo-random human variance (+-15%)
+    const pseudoRandom = 0.85 + ((Math.sin(i * 3.7 + 1.2) + 1) / 2) * 0.30;
+    rawWeights.push(Math.max(0.2, sigmoidDensity * pseudoRandom));
   }
 
   const sumWeights = rawWeights.reduce((a, b) => a + b, 0);
@@ -1323,9 +1349,17 @@ export function generateJitterSchedule(params: {
   for (let i = 0; i < numBatches; i++) {
     const isLast = i === numBatches - 1;
     const w = normalizedWeights[i];
+    const progress = i / Math.max(1, numBatches - 1);
 
-    // Calculate quantities with non-linear realistic numbers (e.g. 72, 63, 99, 101)
-    const v = isLast ? Math.max(0, totalViews - allocatedViews) : Math.max(1, Math.round(totalViews * w));
+    // Calculate micro-quantities with non-linear realistic counts
+    let v = isLast ? Math.max(0, totalViews - allocatedViews) : Math.max(1, Math.round(totalViews * w));
+    
+    // Add odd-number human variance to prevent artificial round numbers (e.g., 203 instead of 200)
+    if (!isLast && v > 20) {
+      const oddOffset = [-7, -5, -3, -1, 1, 3, 5, 7][Math.floor(Math.random() * 8)];
+      v = Math.max(10, v + oddOffset);
+    }
+
     const l = isLast ? Math.max(0, totalLikes - allocatedLikes) : (totalLikes > 0 ? Math.max(0, Math.round(totalLikes * w)) : 0);
     const s = isLast ? Math.max(0, totalShares - allocatedShares) : (totalShares > 0 ? Math.max(0, Math.round(totalShares * w)) : 0);
     const sv = isLast ? Math.max(0, totalSaves - allocatedSaves) : (totalSaves > 0 ? Math.max(0, Math.round(totalSaves * w)) : 0);
@@ -1337,15 +1371,29 @@ export function generateJitterSchedule(params: {
     allocatedSaves += sv;
     allocatedComments += c;
 
-    // Time jitter: interval * (0.65 to 1.35)
-    const intervalJitter = 0.7 + ((Math.cos(i * 4.3 + 2.1) + 1) / 2) * 0.6;
-    const stepInterval = Math.max(4, Math.round(avgInterval * intervalJitter));
-    currentMinutes += (i === 0 ? Math.max(4, Math.round(stepInterval * 0.45)) : stepInterval);
+    // S-Curve Time Jitter Pacing:
+    // Slower intervals during seed phase -> tighter intervals during viral breakout -> relaxed intervals in tail
+    let speedFactor = 1.0;
+    if (progress < 0.20) {
+      speedFactor = 1.35; // Seed phase: slightly longer gaps between micro-drops
+    } else if (progress < 0.70) {
+      speedFactor = 0.75; // Viral surge: rapid successive micro-drops
+    } else {
+      speedFactor = 1.40; // Tail decay: natural slowing down
+    }
+
+    const intervalJitter = 0.80 + ((Math.cos(i * 4.3 + 2.1) + 1) / 2) * 0.40;
+    const stepInterval = Math.max(2, Math.round(avgInterval * speedFactor * intervalJitter));
+    
+    // Batch 0 is immediate (0 min offset)
+    if (i > 0) {
+      currentMinutes += stepInterval;
+    }
     if (isLast && currentMinutes > totalMinutes) currentMinutes = totalMinutes;
 
     const hrs = Math.floor(currentMinutes / 60);
     const mins = currentMinutes % 60;
-    const timeFormatted = hrs > 0 ? `+${hrs}h ${mins.toString().padStart(2, "0")}m` : `+${mins}m`;
+    const timeFormatted = i === 0 ? "Immediate (+0m)" : (hrs > 0 ? `+${hrs}h ${mins.toString().padStart(2, "0")}m` : `+${mins}m`);
 
     batches.push({
       batchNumber: i + 1,
@@ -1357,6 +1405,8 @@ export function generateJitterSchedule(params: {
       saves: sv,
       comments: c,
       batchPercent: Math.round(w * 100),
+      scheduledAt: new Date(startTime + Math.round(currentMinutes * 60 * 1000)).toISOString(),
+      status: "PENDING",
     });
   }
 
@@ -1405,7 +1455,7 @@ export function generateOrganicPacedBatches(params: {
     startTime = new Date(),
     serviceMin = 50,
     withEngagement = false,
-    curveType = "STANDARD_ORGANIC_JITTER",
+    curveType = "TIKTOK_REELS_S_CURVE",
   } = params;
 
   const cleanGoal = Math.max(1, Math.floor(goal));
@@ -1421,9 +1471,9 @@ export function generateOrganicPacedBatches(params: {
     return [{
       batchNumber: 1,
       views: cleanGoal,
-      likes: withEngagement ? Math.max(2, Math.round(cleanGoal * 0.038)) : 0,
-      saves: withEngagement ? Math.max(1, Math.round(cleanGoal * 0.012)) : 0,
-      shares: withEngagement ? Math.max(1, Math.round(cleanGoal * 0.008)) : 0,
+      likes: withEngagement ? Math.max(2, Math.round(cleanGoal * 0.052)) : 0,
+      saves: withEngagement ? Math.max(1, Math.round(cleanGoal * 0.014)) : 0,
+      shares: withEngagement ? Math.max(1, Math.round(cleanGoal * 0.016)) : 0,
       comments: withEngagement ? Math.max(1, Math.round(cleanGoal * 0.004)) : 0,
       timeOffsetMinutes: 0,
       timeFormatted: "Immediate (+0m)",
@@ -1433,7 +1483,7 @@ export function generateOrganicPacedBatches(params: {
   }
 
   // 1. Generate Organic Non-Linear Distribution Across Batches
-  // Mathematical Sigmoid / Parabolic / Poisson distribution based on curveType
+  // Mathematical Sigmoid Logistic S-Curve: Seed -> Acceleration -> Viral Peak -> Natural Plateau
   const viewCounts: number[] = [];
   let remainingViews = cleanGoal;
 
@@ -1450,15 +1500,13 @@ export function generateOrganicPacedBatches(params: {
     // Mathematical curve shaping multiplier
     let curveMultiplier = 1.0;
     if (curveType === "TIKTOK_REELS_S_CURVE") {
-      // Sigmoid Logistic Acceleration: 1 / (1 + e^(-6*(x - 0.45)))
-      // Low initial seeding (0-15%) -> Steep viral climb (15-75%) -> Natural plateau (75-100%)
-      if (progress < 0.20) {
-        curveMultiplier = 0.78 + Math.random() * 0.15; // Seeding phase
-      } else if (progress < 0.75) {
-        curveMultiplier = 1.18 + Math.random() * 0.22; // FYP viral breakout
-      } else {
-        curveMultiplier = 0.88 + Math.random() * 0.14; // Organic retention tail
-      }
+      // Pure Sigmoid Logistic Density: f'(x) where f(x) = 1 / (1 + e^(-7.5 * (x - 0.42)))
+      // Low seed phase (0-18%) -> Steep breakout acceleration (18-68%) -> Smooth retention tail (68-100%)
+      const sigmoid = 1 / (1 + Math.exp(-7.5 * (progress - 0.42)));
+      const sigmoidDensity = 7.5 * sigmoid * (1 - sigmoid); // peaks at progress = 0.42 (density ~1.87)
+      // Map density to multiplier range: 0.65 (seed/tail) up to 1.45 (peak surge)
+      const normalizedDensity = Math.min(1.0, sigmoidDensity / 1.875);
+      curveMultiplier = 0.65 + normalizedDensity * 0.75 + (Math.random() * 0.10 - 0.05);
     } else if (curveType === "YOUTUBE_SHORTS_DRIP") {
       // Steady Poisson Micro-Drip: evenly distributed with small natural fluctuation (+-12%)
       curveMultiplier = 0.94 + Math.random() * 0.16;
@@ -1542,38 +1590,32 @@ export function generateOrganicPacedBatches(params: {
     }
   }
 
-  // 4. Assemble 4-Signal Batches with Dynamic Time Jitter
+  // 4. Assemble S-Curve Batches with Dynamic Time Jitter & Proportional Multi-Signal Engagement
   const batches: OrganicJitterBatch[] = [];
   let currentMinutes = 0;
 
-  // 4-Signal Algorithm Micro-Engagement Matrices:
-  // Natural human ratios: Likes (~3.8%), Saves (~1.2%), Shares (~0.8%)
-  const microLikesSequence = [3, 5, 2, 8, 4, 7, 3, 6, 9, 2, 4, 6];
-  const microSavesSequence = [1, 2, 0, 3, 1, 2, 1, 3, 2, 1, 2, 0];
-  const microSharesSequence = [1, 0, 2, 1, 0, 2, 1, 0, 2, 1, 1, 0];
-
   for (let i = 0; i < viewCounts.length; i++) {
+    const progress = i / Math.max(1, viewCounts.length - 1);
     if (i > 0) {
-      const progress = i / (viewCounts.length - 1);
       let baseInterval = avgIntervalMinutes;
 
-      // Curve-adjusted pacing
+      // S-Curve adjusted pacing: slow seed -> high-velocity breakout -> smooth retention tail
       if (curveType === "TIKTOK_REELS_S_CURVE") {
         if (progress < 0.20) {
-          baseInterval = avgIntervalMinutes * 1.6; // Slow warm-up
-        } else if (progress < 0.75) {
-          baseInterval = avgIntervalMinutes * 0.75; // Fast viral acceleration
+          baseInterval = avgIntervalMinutes * 1.5; // Natural warm-up delay
+        } else if (progress < 0.70) {
+          baseInterval = avgIntervalMinutes * 0.70; // Viral acceleration burst
         } else {
-          baseInterval = avgIntervalMinutes * 1.8; // Extended tail
+          baseInterval = avgIntervalMinutes * 1.6; // Extended retention tail
         }
       } else if (curveType === "YOUTUBE_SHORTS_DRIP") {
-        baseInterval = Math.max(5.0, avgIntervalMinutes * 2.2); // Spread evenly over hours
+        baseInterval = Math.max(5.0, avgIntervalMinutes * 2.2);
       } else if (curveType === "WHOP_PAYOUT_BLITZ") {
-        baseInterval = Math.max(1.1, Math.min(2.2, avgIntervalMinutes)); // Rapid blitz
+        baseInterval = Math.max(1.1, Math.min(2.2, avgIntervalMinutes));
       }
 
-      // True stochastic non-linear interval with dynamic fractional jitter
-      const timeJitterFactor = 0.70 + Math.random() * 0.60;
+      // True stochastic non-linear interval with dynamic fractional jitter (+-30%)
+      const timeJitterFactor = 0.75 + Math.random() * 0.50;
       const step = Number((baseInterval * timeJitterFactor).toFixed(1));
       currentMinutes = Number((currentMinutes + Math.max(0.6, step)).toFixed(1));
     }
@@ -1593,17 +1635,24 @@ export function generateOrganicPacedBatches(params: {
       timeFormatted = `+${currentMinutes}m`;
     }
 
-    const microLikes = withEngagement ? microLikesSequence[i % microLikesSequence.length] : 0;
-    const microSaves = withEngagement ? microSavesSequence[i % microSavesSequence.length] : 0;
-    const microShares = withEngagement ? microSharesSequence[i % microSharesSequence.length] : 0;
+    // Dynamic Multi-Signal Engagement Ratios matching viral reels profile:
+    // Likes: ~5.0% (peak breakout), Shares: ~1.6% (Reels algorithm #1 signal), Saves: ~1.2%
+    const currentBatchViews = viewCounts[i];
+    const likeRatio = progress < 0.20 ? 0.055 : (progress < 0.70 ? 0.050 : 0.038);
+    const shareRatio = progress < 0.20 ? 0.018 : (progress < 0.70 ? 0.015 : 0.009);
+    const saveRatio = progress < 0.20 ? 0.016 : (progress < 0.70 ? 0.012 : 0.008);
+
+    const microLikes = withEngagement ? Math.max(1, Math.round(currentBatchViews * likeRatio)) : 0;
+    const microSaves = withEngagement ? Math.max(0, Math.round(currentBatchViews * saveRatio)) : 0;
+    const microShares = withEngagement ? Math.max(0, Math.round(currentBatchViews * shareRatio)) : 0;
 
     batches.push({
       batchNumber: i + 1,
-      views: viewCounts[i],
+      views: currentBatchViews,
       likes: microLikes,
       saves: microSaves,
       shares: microShares,
-      comments: withEngagement ? (i % 5 === 0 ? 1 : 0) : 0,
+      comments: withEngagement ? (i % 6 === 0 ? 1 : 0) : 0,
       timeOffsetMinutes: currentMinutes,
       timeFormatted,
       scheduledAt: new Date(startTime.getTime() + Math.round(currentMinutes * 60 * 1000)).toISOString(),

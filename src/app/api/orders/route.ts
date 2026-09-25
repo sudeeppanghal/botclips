@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { SmmPanelClient } from "@/lib/delivery/panel-client";
-import { generateOrganicPacedBatches } from "@/lib/delivery-graphs";
+import { generateOrganicPacedBatches, generateJitterSchedule } from "@/lib/delivery-graphs";
 import { sendNewOrderAlert } from "@/lib/telegram";
 
 export async function GET(request: NextRequest) {
@@ -304,10 +304,61 @@ export async function POST(request: NextRequest) {
         },
       })) || (await prisma.adminService.findFirst());
 
-      const numBatches = Number(comboData?.batches || runs || 12);
       const windowHours = Number(durationHours || 24);
+      let calculatedBatches = Array.isArray(jitterSchedule) && jitterSchedule.length > 0 
+        ? jitterSchedule 
+        : generateJitterSchedule({
+            totalViews: Number(comboData?.views || quantity),
+            totalLikes: Number(comboData?.likes || 0),
+            totalShares: Number(comboData?.shares || 0),
+            totalSaves: Number(comboData?.saves || 0),
+            totalComments: Number(comboData?.comments || 0),
+            durationHours: windowHours,
+          });
 
-      // Record combo order in database with non-linear jitter schedule
+      const nowMs = Date.now();
+      const finalComboBatches = calculatedBatches.map((b: any, idx: number) => ({
+        ...b,
+        batchNumber: b.batchNumber || idx + 1,
+        status: "PENDING",
+        scheduledAt: b.scheduledAt || new Date(nowMs + Math.round((b.timeOffsetMinutes || 0) * 60 * 1000)).toISOString(),
+      }));
+
+      // Look up like and share services in DB for engagement pulsing
+      const likeService = await prisma.adminService.findFirst({
+        where: {
+          platform: (platform as any) || "INSTAGRAM",
+          category: { contains: "Like", mode: "insensitive" },
+          isActive: true,
+        },
+        select: { serviceId: true, minQuantity: true },
+      });
+      const shareService = await prisma.adminService.findFirst({
+        where: {
+          platform: (platform as any) || "INSTAGRAM",
+          name: { contains: "Share", mode: "insensitive" },
+          isActive: true,
+        },
+        select: { serviceId: true, minQuantity: true },
+      });
+
+      const comboEnginePayload = {
+        ...comboData,
+        isJitterEngine: true,
+        upstreamServiceId: defaultService?.serviceId || "5245",
+        likeServiceId: likeService?.serviceId || "4897",
+        likeServiceMin: likeService?.minQuantity || 10,
+        shareServiceId: shareService?.serviceId || "7452",
+        shareServiceMin: shareService?.minQuantity || 10,
+        panelId: panel?.id || null,
+        totalGoal: Number(quantity),
+        totalBatches: finalComboBatches.length,
+        batches: finalComboBatches,
+        lastDispatchedBatch: 0,
+        durationHours: windowHours,
+      };
+
+      // Record combo order in database with S-curve micro-jitter engine
       const order = await prisma.order.create({
         data: {
           userId: dbUser.id,
@@ -316,20 +367,17 @@ export async function POST(request: NextRequest) {
           link,
           quantity: Number(quantity),
           charge: totalCost,
-          runs: numBatches,
-          intervalMinutes: Math.max(5, Math.round((windowHours * 60) / numBatches)),
+          runs: finalComboBatches.length,
+          intervalMinutes: Math.max(2, Math.round((windowHours * 60) / finalComboBatches.length)),
           curveStyle: deliveryGraphName ? `${deliveryGraphName} (${deliveryGraphId || "whop_clipper_organic_signature"})` : (deliveryGraphId || "WHOP_COMBO"),
           isCombo: true,
-          comboData: JSON.stringify({
-            ...comboData,
-            jitterSchedulePreview: jitterSchedule ? jitterSchedule.slice(0, 15) : [],
-          }),
+          comboData: JSON.stringify(comboEnginePayload),
           status: "PROCESSING",
         },
       });
 
-      // Dispatch primary engagement service immediately to upstream provider
-      dispatchOrderToUpstreamAsync(order.id, Number(quantity), defaultService?.serviceId || "5245").catch(() => {});
+      // Dispatch ONLY Batch #1 micro-pulse to upstream provider (subsequent batches fire via S-curve schedule)
+      dispatchOrderToUpstreamAsync(order.id, finalComboBatches[0]?.views || Number(quantity), defaultService?.serviceId || "5245").catch(() => {});
 
       return NextResponse.json({
         success: true,
@@ -606,9 +654,8 @@ async function dispatchOrderToUpstreamAsync(orderId: string, initialQuantity: nu
     }
     const candidateServiceIds = [primaryServiceId, ...fallbackList];
 
-    // CRITICAL: Always dispatch the FULL order quantity to ensure 100% complete delivery upstream!
-    const dispatchQty = Math.max(1, order.quantity);
     let comboObj: any = null;
+    let isJitterEngine = false;
 
     if (order.comboData) {
       try {
@@ -616,8 +663,19 @@ async function dispatchOrderToUpstreamAsync(orderId: string, initialQuantity: nu
         if (comboObj?.upstreamServiceId) {
           candidateServiceIds[0] = comboObj.upstreamServiceId;
         }
+        if (comboObj?.isJitterEngine && Array.isArray(comboObj.batches) && comboObj.batches.length > 0) {
+          isJitterEngine = true;
+        }
       } catch {}
     }
+
+    // Micro-batch S-Curve Pacing: If Jitter Engine active, dispatch ONLY Batch #1 (e.g. 100-250 views)!
+    // Future batches (Batch #2, #3, ...) will be automatically dispatched along the S-curve by auto-sync and pulse.
+    // For standard non-jitter orders, dispatch the full order quantity.
+    const initialBatch = isJitterEngine && comboObj?.batches ? comboObj.batches[0] : null;
+    const dispatchQty = initialBatch 
+      ? Math.max(1, Number(initialBatch.views || initialBatch.quantity || order.quantity))
+      : Math.max(1, order.quantity);
 
     const client = new SmmPanelClient(targetPanel.apiUrl, targetPanel.apiKeyEncrypted);
     let result: any = null;
@@ -625,26 +683,35 @@ async function dispatchOrderToUpstreamAsync(orderId: string, initialQuantity: nu
 
     for (const sid of candidateServiceIds) {
       try {
-        // Attempt native provider dripfeed if runs > 1, otherwise standard bulk delivery
-        result = await client.addOrder({
-          serviceId: sid,
-          link: order.link,
-          quantity: dispatchQty,
-          runs: order.runs && order.runs > 1 ? order.runs : undefined,
-          interval: order.intervalMinutes && order.intervalMinutes > 0 ? order.intervalMinutes : undefined,
-        });
-
-        // Automatic fallback: if provider rejects dripfeed parameters, retry as a clean single bulk order
-        if (result && result.error && (
-          result.error.toLowerCase().includes("drip") || 
-          result.error.toLowerCase().includes("runs") || 
-          result.error.toLowerCase().includes("interval")
-        )) {
+        // For jitter engines, send pure single micro-pulses
+        if (isJitterEngine) {
           result = await client.addOrder({
             serviceId: sid,
             link: order.link,
             quantity: dispatchQty,
           });
+        } else {
+          // Attempt native provider dripfeed if runs > 1, otherwise standard bulk delivery
+          result = await client.addOrder({
+            serviceId: sid,
+            link: order.link,
+            quantity: dispatchQty,
+            runs: order.runs && order.runs > 1 ? order.runs : undefined,
+            interval: order.intervalMinutes && order.intervalMinutes > 0 ? order.intervalMinutes : undefined,
+          });
+
+          // Automatic fallback: if provider rejects dripfeed parameters, retry as a clean single bulk order
+          if (result && result.error && (
+            result.error.toLowerCase().includes("drip") || 
+            result.error.toLowerCase().includes("runs") || 
+            result.error.toLowerCase().includes("interval")
+          )) {
+            result = await client.addOrder({
+              serviceId: sid,
+              link: order.link,
+              quantity: dispatchQty,
+            });
+          }
         }
 
         if (result && result.order) {
@@ -660,18 +727,17 @@ async function dispatchOrderToUpstreamAsync(orderId: string, initialQuantity: nu
       const updateData: any = {
         providerOrderId: String(result.order),
         status: "IN_PROGRESS",
-        remains: dispatchQty,
+        remains: order.quantity, // Preserve total remains for the order
       };
 
-      if (comboObj && comboObj.batches && Array.isArray(comboObj.batches)) {
-        for (const b of comboObj.batches) {
-          b.status = "DISPATCHED";
-          b.upstreamOrderId = String(result.order);
-          b.dispatchedAt = new Date().toISOString();
-          b.usedServiceId = usedServiceId;
-        }
-        comboObj.allBatchesDispatched = true;
-        comboObj.lastDispatchedBatch = comboObj.batches.length;
+      if (isJitterEngine && comboObj && comboObj.batches && Array.isArray(comboObj.batches)) {
+        // Mark ONLY Batch #1 as dispatched. Subsequent batches remain PENDING on their scheduled timeline!
+        comboObj.batches[0].status = "DISPATCHED";
+        comboObj.batches[0].upstreamOrderId = String(result.order);
+        comboObj.batches[0].dispatchedAt = new Date().toISOString();
+        comboObj.batches[0].usedServiceId = usedServiceId;
+        comboObj.lastDispatchedBatch = 1;
+        comboObj.allBatchesDispatched = comboObj.batches.length <= 1;
         updateData.comboData = JSON.stringify(comboObj);
       }
 

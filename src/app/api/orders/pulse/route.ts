@@ -62,10 +62,11 @@ async function handlePulseDispatch() {
         const data = JSON.parse(jOrder.comboData);
         if (!data.batches || !Array.isArray(data.batches)) continue;
 
-        // Check each batch
-        for (let i = 0; i < data.batches.length; i++) {
-          const batch = data.batches[i];
-          if (batch.status === "PENDING" && batch.scheduledAt) {
+        // Strict Sequential S-Curve: Always process strictly the FIRST pending batch in sequence
+        const firstPendingIndex = data.batches.findIndex((b: any) => b.status === "PENDING");
+        if (firstPendingIndex !== -1) {
+          const batch = data.batches[firstPendingIndex];
+          if (batch.scheduledAt) {
             const batchTime = new Date(batch.scheduledAt).getTime();
             if (batchTime <= nowTime) {
               // This batch is due! Dispatch to upstream SMM panel

@@ -456,8 +456,16 @@ export default function EngagementTaskLauncher({
       return;
     }
 
+    const isViewService = selectedService?.name?.toLowerCase().includes("view") || selectedService?.category?.toLowerCase().includes("view");
+    const requiredMinGoal = isViewService ? 100 : (selectedService?.min || 50);
+
+    if (cleanGoal < requiredMinGoal) {
+      setError(`The minimum campaign goal accepted for this service is ${requiredMinGoal.toLocaleString()}${isViewService ? " views" : ""}. Please enter a goal of ${requiredMinGoal.toLocaleString()} or more to proceed.`);
+      return;
+    }
+
     if (minQty <= 0 || maxQty < minQty || cleanGoal < maxQty) {
-      setError("Check quantities: Min Qty must be ≤ Max Qty, and Goal must be ≥ Max Qty.");
+      setError("Check quantities: Min Batch must be ≤ Max Batch, and Goal must be ≥ Max Batch.");
       return;
     }
 
@@ -813,7 +821,7 @@ export default function EngagementTaskLauncher({
                 </label>
                 <input
                   type="number"
-                  min="10"
+                  min={selectedService?.name?.toLowerCase().includes("view") || selectedService?.category?.toLowerCase().includes("view") ? 100 : (selectedService?.min || 50)}
                   value={goal}
                   onChange={(e) => setGoal(Number(e.target.value))}
                   className="w-full h-11 px-3.5 rounded-xl bg-[#120808] border border-red-900/50 focus:border-red-500 text-neutral-200 text-sm font-mono outline-none"

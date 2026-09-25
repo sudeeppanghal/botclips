@@ -451,12 +451,12 @@ export async function GET(request: NextRequest) {
             const data = JSON.parse(jOrder.comboData);
             if (!data.batches || !Array.isArray(data.batches)) continue;
 
-            const dueBatchIndex = data.batches.findIndex(
-              (b: any) => b.status === "PENDING" && b.scheduledAt && new Date(b.scheduledAt).getTime() <= nowTime
-            );
-
-            if (dueBatchIndex !== -1) {
-              dueOrders.push({ order: jOrder, batchIndex: dueBatchIndex, data });
+            const firstPendingIndex = data.batches.findIndex((b: any) => b.status === "PENDING");
+            if (firstPendingIndex !== -1) {
+              const b = data.batches[firstPendingIndex];
+              if (b.scheduledAt && new Date(b.scheduledAt).getTime() <= nowTime) {
+                dueOrders.push({ order: jOrder, batchIndex: firstPendingIndex, data });
+              }
             }
           } catch {}
         }

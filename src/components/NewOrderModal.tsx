@@ -199,23 +199,23 @@ export default function NewOrderModal({
 
     if (orderMode === "COMBO") {
       if (includeViews && viewsCount < 100) {
-        setError("Minimum views quantity is 100.");
+        setError("The minimum views quantity accepted for multi-signal campaigns is 100 views.");
         return;
       }
-      if (includeLikes && likesCount < 50) {
-        setError("Minimum likes quantity is 50.");
+      if (includeLikes && likesCount < 10) {
+        setError("The minimum likes quantity accepted is 10 likes.");
         return;
       }
-      if (includeShares && sharesCount < 50) {
-        setError("Minimum shares quantity is 50.");
+      if (includeShares && sharesCount < 10) {
+        setError("The minimum shares quantity accepted is 10 shares.");
         return;
       }
-      if (includeSaves && savesCount < 50) {
-        setError("Minimum saves quantity is 50.");
+      if (includeSaves && savesCount < 10) {
+        setError("The minimum saves quantity accepted is 10 saves.");
         return;
       }
       if (includeComments && commentsCount < 10) {
-        setError("Minimum comments quantity is 10.");
+        setError("The minimum comments quantity accepted is 10 comments.");
         return;
       }
       if (!includeViews && !includeLikes && !includeShares && !includeSaves && !includeComments) {
@@ -223,8 +223,11 @@ export default function NewOrderModal({
         return;
       }
     } else {
-      if (quantity < 50) {
-        setError("Minimum quantity is 50.");
+      const activeServiceObj = availableServices.find(s => s.name === service);
+      const isView = activeServiceObj?.name?.toLowerCase().includes("view") || activeServiceObj?.cat?.toLowerCase().includes("view");
+      const serviceMin = Math.max(activeServiceObj?.min || (isView ? 100 : 50), isView ? 100 : 10);
+      if (quantity < serviceMin) {
+        setError(`The minimum order quantity accepted for this service is ${serviceMin.toLocaleString()}${isView ? " views" : ""}. Please enter ${serviceMin.toLocaleString()} or more to proceed.`);
         return;
       }
     }
@@ -841,22 +844,30 @@ export default function NewOrderModal({
               </div>
 
               {/* Quantity */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    Quantity
-                  </label>
-                  <span className="text-[11px] text-slate-400">Min: 50 • Max: 500,000</span>
-                </div>
-                <input
-                  type="number"
-                  min={50}
-                  step={50}
-                  value={quantity}
-                  onChange={(e) => setQuantity(Number(e.target.value))}
-                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
-                />
-              </div>
+              {(() => {
+                const activeServiceObj = availableServices.find(s => s.name === service);
+                const isView = activeServiceObj?.name?.toLowerCase().includes("view") || activeServiceObj?.cat?.toLowerCase().includes("view");
+                const currentMinQty = Math.max(activeServiceObj?.min || (isView ? 100 : 50), isView ? 100 : 10);
+                const currentMaxQty = activeServiceObj?.max || 1000000;
+                return (
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        Quantity
+                      </label>
+                      <span className="text-[11px] text-slate-400">Min: {currentMinQty.toLocaleString()} • Max: {currentMaxQty.toLocaleString()}</span>
+                    </div>
+                    <input
+                      type="number"
+                      min={currentMinQty}
+                      step={currentMinQty >= 100 ? 50 : 10}
+                      value={quantity}
+                      onChange={(e) => setQuantity(Number(e.target.value))}
+                      className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
+                    />
+                  </div>
+                );
+              })()}
 
               {/* Drip Feed Toggle */}
               <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700">

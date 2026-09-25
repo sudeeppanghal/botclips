@@ -217,13 +217,13 @@ export async function POST(request: NextRequest) {
           providerOrderId = String(result.order);
         } else if (result && result.error) {
           return NextResponse.json(
-            { error: `Your connected SMM panel returned an error: ${result.error}. Please check your panel balance and service ID.` },
+            { error: `Your connected automation system returned an error: ${result.error}. Please check your balance and service ID.` },
             { status: 400 }
           );
         }
       } catch (err: any) {
         return NextResponse.json(
-          { error: `Failed to dispatch order to your connected SMM panel: ${err.message}` },
+          { error: `Failed to dispatch order to your connected automation system: ${err.message}` },
           { status: 500 }
         );
       }
@@ -248,7 +248,7 @@ export async function POST(request: NextRequest) {
           serviceId: dbService?.id || String(serviceId),
           link,
           quantity: Number(quantity),
-          charge: 0, // Funded directly from subscriber's SMM panel balance
+          charge: 0, // Funded directly from subscriber's panel balance
           runs: Number(runs),
           intervalMinutes: Number(intervalMinutes),
           curveStyle: deliveryGraphName ? `${deliveryGraphName} (${deliveryGraphId || "custom"})` : (deliveryGraphId || "CUSTOM_API"),
@@ -262,7 +262,7 @@ export async function POST(request: NextRequest) {
         mode: "CUSTOM_API",
         order,
         balance: dbUser.balance,
-        message: "Order dispatched directly via your connected SMM Panel API!",
+        message: "Order dispatched directly via your connected automation API!",
       });
     }
 
@@ -273,6 +273,14 @@ export async function POST(request: NextRequest) {
       if (totalCost <= 0 || isNaN(totalCost)) {
         return NextResponse.json(
           { error: "Invalid combo package price. Please select a valid combo package." },
+          { status: 400 }
+        );
+      }
+
+      const comboViews = Number(comboData?.views || 0);
+      if (comboData?.views !== undefined && comboViews > 0 && comboViews < 100) {
+        return NextResponse.json(
+          { error: "The minimum views quantity accepted for multi-signal campaigns is 100 views." },
           { status: 400 }
         );
       }
@@ -492,16 +500,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Enforce min and max quantity limits
-    if (adminServiceRecord.minQuantity && cleanQuantity < adminServiceRecord.minQuantity) {
+    // Enforce min and max quantity limits with custom pricing
+    const isViewService = (
+      adminServiceRecord.category?.toLowerCase().includes("view") ||
+      adminServiceRecord.name?.toLowerCase().includes("view") ||
+      String(adminServiceRecord.serviceId) === "5245" ||
+      String(adminServiceRecord.serviceId) === "13578"
+    );
+    const effectiveMin = Math.max(
+      adminServiceRecord.minQuantity || 1,
+      isViewService ? 100 : 1
+    );
+
+    if (cleanQuantity < effectiveMin) {
       return NextResponse.json(
-        { error: `Minimum quantity for this service is ${adminServiceRecord.minQuantity.toLocaleString()}` },
+        { error: `The minimum order quantity accepted for this campaign is ${effectiveMin.toLocaleString()}${isViewService ? " views" : ""}. Please enter ${effectiveMin.toLocaleString()} or more to proceed.` },
         { status: 400 }
       );
     }
     if (adminServiceRecord.maxQuantity && cleanQuantity > adminServiceRecord.maxQuantity) {
       return NextResponse.json(
-        { error: `Maximum quantity for this service is ${adminServiceRecord.maxQuantity.toLocaleString()}` },
+        { error: `Maximum quantity accepted for this campaign is ${adminServiceRecord.maxQuantity.toLocaleString()}` },
         { status: 400 }
       );
     }

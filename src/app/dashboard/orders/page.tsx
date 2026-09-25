@@ -310,8 +310,9 @@ export default function OrdersPage() {
               
               const qty = Number(o.quantity || 1);
               const remains = o.remains !== undefined && o.remains !== null ? Number(o.remains) : (statusUpper === "COMPLETED" ? 0 : qty);
-              const delivered = Math.max(0, qty - remains);
-              const progressPct = statusUpper === "COMPLETED" ? 100 : Math.max(0, Math.min(100, Math.round((delivered / qty) * 100)));
+              const delivered = statusUpper === "COMPLETED" ? qty : Math.min(Math.max(0, qty - 1), Math.max(0, qty - remains));
+              const rawPct = Math.round((delivered / qty) * 100);
+              const progressPct = statusUpper === "COMPLETED" ? 100 : Math.max(0, Math.min(95, rawPct));
 
               return (
                 <div key={o.id} className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-800/30 space-y-3">
@@ -480,8 +481,9 @@ export default function OrdersPage() {
                   // Calculate progress percentage
                   const qty = Number(o.quantity || 1);
                   const remains = o.remains !== undefined && o.remains !== null ? Number(o.remains) : (statusUpper === "COMPLETED" ? 0 : qty);
-                  const delivered = Math.max(0, qty - remains);
-                  const progressPct = statusUpper === "COMPLETED" ? 100 : Math.max(0, Math.min(100, Math.round((delivered / qty) * 100)));
+                  const delivered = statusUpper === "COMPLETED" ? qty : Math.min(Math.max(0, qty - 1), Math.max(0, qty - remains));
+                  const rawPct = Math.round((delivered / qty) * 100);
+                  const progressPct = statusUpper === "COMPLETED" ? 100 : Math.max(0, Math.min(95, rawPct));
 
                   return (
                     <tr key={o.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">

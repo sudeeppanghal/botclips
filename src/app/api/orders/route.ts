@@ -328,6 +328,9 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      // Dispatch primary engagement service immediately to upstream provider
+      dispatchOrderToUpstreamAsync(order.id, Number(quantity), defaultService?.serviceId || "5245").catch(() => {});
+
       return NextResponse.json({
         success: true,
         mode: "WHOP_COMBO",
@@ -542,7 +545,7 @@ export async function POST(request: NextRequest) {
     ]);
 
     // Fast-path background dispatch (non-blocking, fire-and-forget)
-    dispatchOrderToUpstreamAsync(order.id, initialPulseQuantity, mappedUpstreamServiceId).catch(() => {});
+    dispatchOrderToUpstreamAsync(order.id, Number(quantity), mappedUpstreamServiceId).catch(() => {});
 
     // Instant Telegram alert for Admin
     sendNewOrderAlert({
@@ -603,15 +606,15 @@ async function dispatchOrderToUpstreamAsync(orderId: string, initialQuantity: nu
     }
     const candidateServiceIds = [primaryServiceId, ...fallbackList];
 
-    let dispatchQty = initialQuantity || order.quantity;
+    // CRITICAL: Always dispatch the FULL order quantity to ensure 100% complete delivery upstream!
+    const dispatchQty = Math.max(1, order.quantity);
     let comboObj: any = null;
 
     if (order.comboData) {
       try {
         comboObj = JSON.parse(order.comboData);
-        if (comboObj?.isJitterEngine && Array.isArray(comboObj.batches) && comboObj.batches.length > 0) {
-          candidateServiceIds[0] = comboObj.upstreamServiceId || candidateServiceIds[0];
-          dispatchQty = comboObj.batches[0].views || dispatchQty;
+        if (comboObj?.upstreamServiceId) {
+          candidateServiceIds[0] = comboObj.upstreamServiceId;
         }
       } catch {}
     }
@@ -622,11 +625,28 @@ async function dispatchOrderToUpstreamAsync(orderId: string, initialQuantity: nu
 
     for (const sid of candidateServiceIds) {
       try {
+        // Attempt native provider dripfeed if runs > 1, otherwise standard bulk delivery
         result = await client.addOrder({
           serviceId: sid,
           link: order.link,
           quantity: dispatchQty,
+          runs: order.runs && order.runs > 1 ? order.runs : undefined,
+          interval: order.intervalMinutes && order.intervalMinutes > 0 ? order.intervalMinutes : undefined,
         });
+
+        // Automatic fallback: if provider rejects dripfeed parameters, retry as a clean single bulk order
+        if (result && result.error && (
+          result.error.toLowerCase().includes("drip") || 
+          result.error.toLowerCase().includes("runs") || 
+          result.error.toLowerCase().includes("interval")
+        )) {
+          result = await client.addOrder({
+            serviceId: sid,
+            link: order.link,
+            quantity: dispatchQty,
+          });
+        }
+
         if (result && result.order) {
           usedServiceId = sid;
           break;
@@ -640,14 +660,18 @@ async function dispatchOrderToUpstreamAsync(orderId: string, initialQuantity: nu
       const updateData: any = {
         providerOrderId: String(result.order),
         status: "IN_PROGRESS",
+        remains: dispatchQty,
       };
 
-      if (comboObj && comboObj.batches && comboObj.batches[0]) {
-        comboObj.batches[0].status = "DISPATCHED";
-        comboObj.batches[0].upstreamOrderId = String(result.order);
-        comboObj.batches[0].dispatchedAt = new Date().toISOString();
-        comboObj.batches[0].usedServiceId = usedServiceId;
-        comboObj.lastDispatchedBatch = 1;
+      if (comboObj && comboObj.batches && Array.isArray(comboObj.batches)) {
+        for (const b of comboObj.batches) {
+          b.status = "DISPATCHED";
+          b.upstreamOrderId = String(result.order);
+          b.dispatchedAt = new Date().toISOString();
+          b.usedServiceId = usedServiceId;
+        }
+        comboObj.allBatchesDispatched = true;
+        comboObj.lastDispatchedBatch = comboObj.batches.length;
         updateData.comboData = JSON.stringify(comboObj);
       }
 

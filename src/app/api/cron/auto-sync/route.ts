@@ -297,8 +297,8 @@ export async function GET(request: NextRequest) {
             let newStatus = order.status;
 
             let updatedComboData = order.comboData;
+            let isBatchedJitter = false;
             if (upstream === "completed") {
-              let isBatchedJitter = false;
               let allBatchesComplete = true;
 
               if (order.comboData) {
@@ -371,13 +371,29 @@ export async function GET(request: NextRequest) {
               }
             }
 
+            let computedRemains = statusRes.remains !== undefined && statusRes.remains !== null ? Number(statusRes.remains) : order.remains;
+            if (isBatchedJitter) {
+              try {
+                const combo = JSON.parse(updatedComboData || order.comboData || "{}");
+                if (Array.isArray(combo.batches)) {
+                  let pendingQty = 0;
+                  for (const b of combo.batches) {
+                    if (b.status === "PENDING" || !b.upstreamOrderId) {
+                      pendingQty += Number(b.views || b.quantity || 0);
+                    }
+                  }
+                  computedRemains = pendingQty + (computedRemains || 0);
+                }
+              } catch {}
+            }
+
             await prisma.order.update({
               where: { id: order.id },
               data: {
                 status: newStatus,
                 comboData: updatedComboData,
                 startCount: statusRes.start_count ? Number(statusRes.start_count) : order.startCount,
-                remains: statusRes.remains ? Number(statusRes.remains) : order.remains,
+                remains: computedRemains,
               },
             });
             updatedOrdersCount++;

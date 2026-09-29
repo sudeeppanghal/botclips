@@ -34,7 +34,7 @@ export async function GET() {
         upiId: settings.upiId || "Jaatdhillon@fam",
         trc20Address: settings.trc20Address || "TVTjQKqYuntgk6EfD6PqeFvezZnVCCimjz",
         bep20Address: settings.bep20Address || "0x71C3Ba8921e10FdB89C40a12F8e312A7C3241410",
-        minDeposit: Math.max(200, Number(settings.minDeposit) || 200),
+        minDeposit: (settings.minDeposit !== null && settings.minDeposit !== undefined && !isNaN(Number(settings.minDeposit))) ? Number(settings.minDeposit) : 50,
         supportEmail: settings.supportEmail || "support@botclips.online",
         supportTelegram: settings.supportTelegram?.startsWith("tg_config_") 
           ? "@botclipscn_bot" 
@@ -55,7 +55,7 @@ export async function GET() {
         upiId: "Jaatdhillon@fam",
         trc20Address: "TVTjQKqYuntgk6EfD6PqeFvezZnVCCimjz",
         bep20Address: "0x71C3Ba8921e10FdB89C40a12F8e312A7C3241410",
-        minDeposit: 200,
+        minDeposit: 100,
         supportEmail: "support@botclips.online",
         supportTelegram: "@botclipscn_bot",
         supportWhatsapp: "+919999999999",

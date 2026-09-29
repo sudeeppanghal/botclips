@@ -35,8 +35,8 @@ export default function AdminSettingsPage() {
   // UPI Gateway & QR State
   const [upiId, setUpiId] = useState("Jaatdhillon@fam");
   const [savedUpiId, setSavedUpiId] = useState("Jaatdhillon@fam");
-  const [minDeposit, setMinDeposit] = useState(200);
-  const [savedMinDeposit, setSavedMinDeposit] = useState(200);
+  const [minDeposit, setMinDeposit] = useState(100);
+  const [savedMinDeposit, setSavedMinDeposit] = useState(100);
   const [savingUpi, setSavingUpi] = useState(false);
   const [showUpiConfirmModal, setShowUpiConfirmModal] = useState(false);
   const [copiedUpi, setCopiedUpi] = useState(false);
@@ -54,7 +54,7 @@ export default function AdminSettingsPage() {
           setBotToken(data.settings.telegramBotToken || "");
           setChatId(data.settings.telegramChatId || "");
           const currentUpi = data.settings.upiId || "Jaatdhillon@fam";
-          const currentMin = Number(data.settings.minDeposit) || 200;
+          const currentMin = Number(data.settings.minDeposit) || 100;
           setUpiId(currentUpi);
           setSavedUpiId(currentUpi);
           setMinDeposit(currentMin);
@@ -67,7 +67,7 @@ export default function AdminSettingsPage() {
 
   // UPI Live Preview QR calculation
   const activePreviewUpi = upiId.trim() || "Jaatdhillon@fam";
-  const previewAmount = Math.max(200, Number(minDeposit) || 200);
+  const previewAmount = Math.max(1, Number(minDeposit) || 100);
   const previewUpiUri = `upi://pay?pa=${encodeURIComponent(activePreviewUpi)}&pn=BotClips&am=${previewAmount}&cu=INR&tn=${encodeURIComponent(`BotClips Deposit ₹${previewAmount}`)}`;
   const previewQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(previewUpiUri)}`;
 
@@ -89,12 +89,13 @@ export default function AdminSettingsPage() {
     setNotification(null);
 
     try {
+      const cleanMin = Math.max(1, Number(minDeposit) || 50);
       const res = await fetch("/api/admin/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           upiId: upiId.trim(),
-          minDeposit: Number(minDeposit) || 200
+          minDeposit: cleanMin
         })
       });
 
@@ -102,9 +103,9 @@ export default function AdminSettingsPage() {
       if (!res.ok) throw new Error(data.error || "Failed to update UPI settings");
 
       setSavedUpiId(upiId.trim());
-      setSavedMinDeposit(Number(minDeposit) || 200);
+      setSavedMinDeposit(cleanMin);
       setShowUpiConfirmModal(false);
-      setNotification(`🎉 SUCCESS: Receiving UPI Address updated to "${upiId.trim()}"! The QR code has been auto-generated and is now active for ALL users across the platform immediately.`);
+      setNotification(`🎉 SUCCESS: Payment settings saved! Receiving UPI set to "${upiId.trim()}" and Minimum Deposit set to ₹${cleanMin} INR. Active platform-wide.`);
     } catch (err: any) {
       setError(err.message || "Failed to update UPI address");
     } finally {
@@ -331,19 +332,28 @@ export default function AdminSettingsPage() {
                 className="w-full px-4 py-3 text-sm font-bold bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-900 dark:text-white outline-none focus:border-blue-500 transition-colors"
               />
               <span className="text-[11px] text-slate-400 mt-1.5 block">
-                Currently set to ₹200 due to high order volumes. Users cannot deposit below this threshold.
+                Currently set to ₹{savedMinDeposit} INR. Users across the platform cannot deposit below this threshold.
               </span>
             </div>
 
             {/* Change Status Indicator */}
-            {upiId !== savedUpiId && (
+            {(upiId !== savedUpiId || Number(minDeposit) !== Number(savedMinDeposit)) && (
               <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2.5">
                 <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold block">Unsaved UPI Address Change Detected:</span>
-                  <span>
-                    You changed the UPI address to <strong className="font-mono">{upiId}</strong>. Click below to confirm and activate this change platform-wide.
-                  </span>
+                  <span className="font-bold block">Unsaved Payment Configuration Changes:</span>
+                  <ul className="list-disc pl-4 mt-1 space-y-0.5">
+                    {upiId !== savedUpiId && (
+                      <li>
+                        Receiving UPI: <strong className="font-mono">{savedUpiId}</strong> → <strong className="font-mono">{upiId}</strong>
+                      </li>
+                    )}
+                    {Number(minDeposit) !== Number(savedMinDeposit) && (
+                      <li>
+                        Minimum Deposit: <strong>₹{savedMinDeposit} INR</strong> → <strong>₹{minDeposit} INR</strong>
+                      </li>
+                    )}
+                  </ul>
                 </div>
               </div>
             )}
@@ -354,7 +364,7 @@ export default function AdminSettingsPage() {
               className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white font-black text-xs shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>Save UPI Address & Regenerate QR Code</span>
+              <span>Save Deposit & UPI Configuration</span>
             </button>
           </div>
 
@@ -569,6 +579,10 @@ export default function AdminSettingsPage() {
                 <div className="flex items-center justify-between p-2.5 rounded-xl bg-blue-950/40 border border-blue-500/30">
                   <span className="text-blue-300 font-bold">New UPI Address:</span>
                   <span className="font-mono font-black text-emerald-400 text-sm select-all">{upiId.trim()}</span>
+                </div>
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+                  <span className="text-slate-400 font-medium">Enforced Minimum Deposit:</span>
+                  <span className="font-bold text-amber-400 text-sm">₹{minDeposit} INR</span>
                 </div>
               </div>
 

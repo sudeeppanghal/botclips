@@ -52,6 +52,7 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile, brandName =
     { label: "Home", href: "/dashboard", icon: Home },
     { label: "Chat Box ( Wins )", href: "/dashboard/chat", icon: MessageSquare, badge: "WINS" },
     { label: "Automation", href: "/dashboard/automation", icon: Zap },
+    { label: "Hybrid Automation", href: "/dashboard/hybrid", icon: Sparkles, badge: "VIP" },
     { label: "M-Automation", href: "/dashboard/m-automation", icon: Cpu, badge: "PRO" },
     { label: "Wallet", href: "/dashboard/wallet", icon: Wallet },
     ...(isPromoter ? [{ label: "Affiliates", href: "/dashboard/affiliates", icon: Share2, badge: "VIP" }] : []),

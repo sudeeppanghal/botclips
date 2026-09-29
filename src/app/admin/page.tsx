@@ -4014,9 +4014,9 @@ export default function AdminDashboardPage() {
               <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Minimum Deposit (INR)</label>
               <input
                 type="number"
-                min="10"
+                min="1"
                 value={settings.minDeposit}
-                onChange={(e) => setSettings({ ...settings, minDeposit: Number(e.target.value) })}
+                onChange={(e) => setSettings({ ...settings, minDeposit: Math.max(1, Number(e.target.value)) })}
                 className="w-full px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
               />
               <span className="text-[10px] text-slate-400">Strictly enforced across Wallet checkout and backend APIs.</span>

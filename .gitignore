@@ -11,11 +11,13 @@ botclips-mobile/.expo/
 # build binaries
 *.apk
 *.zip
+*.tar.gz
 apk_out/
 botclips-mobile/
-scripts/
 frontend/
 vidoes/
+backups/
+scratch/
 
 # testing
 /coverage
@@ -45,6 +47,7 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
-
 .vercel
+scripts/
+*.bat
+*.vbs

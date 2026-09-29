@@ -32,6 +32,10 @@ model User {
   planExpiresAt   DateTime?     @map("plan_expires_at")
   defaultServices String?       @map("default_services") // JSON string of default service IDs
 
+  // Hybrid Automation VIP Subscription ($50/mo)
+  hybridPlanActive Boolean      @default(false) @map("hybrid_plan_active")
+  hybridExpiresAt  DateTime?    @map("hybrid_expires_at")
+
   canChat         Boolean       @default(false) @map("can_chat")
   isChatMuted     Boolean       @default(false) @map("is_chat_muted")
   isChatBanned    Boolean       @default(false) @map("is_chat_banned")
@@ -62,6 +66,7 @@ model User {
   chatMessages    ChatMessage[]
   storePurchases  StorePurchase[]
   auditLogs       AuditLog[]
+  hybridCampaigns HybridCampaign[]
 
   @@map("users")
 }
@@ -308,6 +313,16 @@ model AdminSettings {
   maintenanceMode Boolean       @default(false) @map("maintenance_mode")
   maintenanceMessage String?    @map("maintenance_message")
   comboDefaults   String?       @map("combo_defaults") @db.Text
+
+  // Hybrid Automation Engine ($50/mo VIP) Settings
+  hybridSubscriptionPriceUsd Float @default(50.0) @map("hybrid_subscription_price_usd")
+  hybridEnabled              Boolean @default(true) @map("hybrid_enabled")
+  hybridDefaultPanelId       String? @map("hybrid_default_panel_id")
+  hybridMetricPanels         String? @map("hybrid_metric_panels") @db.Text
+  hybridMinDelay             Int     @default(2) @map("hybrid_min_delay")
+  hybridMaxDelay             Int     @default(6) @map("hybrid_max_delay")
+  hybridHumanMode            Boolean @default(true) @map("hybrid_human_mode")
+
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
   @@map("admin_settings")
@@ -460,5 +475,65 @@ model StorePurchase {
   @@index([userId])
   @@index([productId])
   @@map("store_purchases")
+}
+
+// ──────────────── HYBRID AUTOMATION CAMPAIGN ────────────────
+model HybridCampaign {
+  id              String        @id @default(cuid())
+  userId          String        @map("user_id")
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  videoUrl        String        @map("video_url")
+  mode            String        @default("auto") // "auto" | "bimodal_curve" | "scheduled"
+  status          String        @default("active") // "active" | "completed" | "paused" | "failed"
+  panelId         String?       @map("panel_id")
+  intervalMinutes Int           @default(72) @map("interval_minutes")
+  multiplier      Float         @default(1.0)
+  totalSlots      Int           @default(0) @map("total_slots")
+  completedSlots  Int           @default(0) @map("completed_slots")
+  totalViews      Int?          @map("total_views")
+  deliveredViews  Int           @default(0) @map("delivered_views")
+  totalCharge     Float         @default(0.0) @map("total_charge")
+  ratios          String?       @db.Text // JSON string of ratios
+  nextOrderAt     DateTime?     @map("next_order_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  slots           HybridSlot[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("hybrid_campaigns")
+}
+
+// ──────────────── HYBRID INJECTION SLOT ────────────────
+model HybridSlot {
+  id              String         @id @default(cuid())
+  campaignId      String         @map("campaign_id")
+  campaign        HybridCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  slotIndex       Int            @map("slot_index")
+  scheduledAt     DateTime       @map("scheduled_at")
+  offsetMinutes   Int?           @map("offset_minutes")
+  status          String         @default("pending") // "pending" | "processing" | "completed" | "failed"
+  
+  views           Int?           @default(0)
+  likes           Int?           @default(0)
+  comments        Int?           @default(0)
+  reposts         Int?           @default(0)
+  shares          Int?           @default(0)
+  saves           Int?           @default(0)
+
+  panelId         String?        @map("panel_id")
+  metricPanelIds  String?        @map("metric_panel_ids") @db.Text // JSON: { views: panelId, likes: panelId... }
+  commentLines    String?        @map("comment_lines") @db.Text // JSON string array of comment lines
+  panelOrderId    String?        @map("panel_order_id") @db.Text // JSON result of dispatched order IDs / errors
+  charge          Float          @default(0.0)
+
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  @@index([campaignId])
+  @@index([status, scheduledAt])
+  @@map("hybrid_slots")
 }
 

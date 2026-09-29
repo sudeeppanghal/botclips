@@ -599,6 +599,150 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // ── STAGE 4: HYBRID AUTOMATION DISPERSION SLOTS ENGINE ──
+    let hybridSlotsFired = 0;
+    if (!isBudgetExhausted()) {
+      try {
+        const dueSlots = await (prisma as any).hybridSlot.findMany({
+          where: {
+            status: "pending",
+            scheduledAt: { lte: new Date() },
+            campaign: { status: "active" },
+          },
+          include: {
+            campaign: true,
+          },
+          take: 6,
+        });
+
+        if (dueSlots.length > 0) {
+          const settings = await prisma.adminSettings.findUnique({ where: { id: "global" } });
+          const allPanels = await prisma.panel.findMany({ where: { isActive: true } });
+          const allServices = await prisma.adminService.findMany({ where: { isActive: true } });
+
+          let globalMetricConfig: any = {};
+          if (settings?.hybridMetricPanels) {
+            try { globalMetricConfig = JSON.parse(settings.hybridMetricPanels); } catch {}
+          }
+
+          for (const slot of dueSlots) {
+            if (isBudgetExhausted()) break;
+
+            await (prisma as any).hybridSlot.update({
+              where: { id: slot.id },
+              data: { status: "processing" },
+            });
+
+            const results: Record<string, string> = {};
+            const errors: Record<string, string> = {};
+            const metrics = ["views", "likes", "comments", "shares", "saves", "reposts"] as const;
+
+            let slotMetricPanels: any = {};
+            if (slot.metricPanelIds) {
+              try { slotMetricPanels = JSON.parse(slot.metricPanelIds); } catch {}
+            }
+
+            let commentLines: string[] = [];
+            if (slot.commentLines) {
+              try { commentLines = JSON.parse(slot.commentLines); } catch {}
+            }
+
+            for (const metric of metrics) {
+              const qty = slot[metric];
+              if (!qty || qty <= 0) continue;
+
+              const configured = slotMetricPanels[metric] || globalMetricConfig[metric];
+              let targetPanel = allPanels.find(p => p.id === configured?.panelId);
+              let targetServiceId = configured?.serviceId;
+
+              if (!targetServiceId || !targetPanel) {
+                const keyword = metric === "views" ? "view" : metric === "likes" ? "like" : metric === "comments" ? "comment" : "share";
+                const svcMatch = allServices.find(s => s.name.toLowerCase().includes(keyword) || s.category.toLowerCase().includes(keyword));
+                if (svcMatch) {
+                  targetServiceId = svcMatch.serviceId;
+                  targetPanel = allPanels.find(p => p.id === svcMatch.panelId);
+                }
+              }
+
+              if (!targetPanel || !targetServiceId) {
+                errors[metric] = "No provider configured for metric";
+                continue;
+              }
+
+              try {
+                const client = new SmmPanelClient(targetPanel.apiUrl, targetPanel.apiKeyEncrypted);
+                const orderParams: any = {
+                  serviceId: targetServiceId,
+                  link: slot.campaign.videoUrl,
+                  quantity: qty,
+                };
+
+                if (metric === "comments" && commentLines.length > 0) {
+                  orderParams.comments = commentLines.join("\n");
+                }
+
+                const resp = await client.addOrder(orderParams);
+                if (resp && resp.order) {
+                  results[metric] = String(resp.order);
+                } else if (resp && resp.error) {
+                  errors[metric] = String(resp.error);
+                }
+              } catch (err: any) {
+                errors[metric] = err.message || "Dispatch error";
+              }
+            }
+
+            // Check if upstream reported that a previous order on this video is still delivering
+            const isLinkBusy = Object.values(errors).some(e => /active order|wait until order|busy|already in progress/i.test(String(e)));
+            if (isLinkBusy && Object.keys(results).length === 0) {
+              await (prisma as any).hybridSlot.update({
+                where: { id: slot.id },
+                data: {
+                  status: "pending",
+                  scheduledAt: new Date(Date.now() + 120 * 1000),
+                  panelOrderId: JSON.stringify({ orders: results, errors, note: "Upstream link busy - safely rescheduled +2m" }),
+                },
+              });
+              continue;
+            }
+
+            const isSuccess = Object.keys(results).length > 0 || Object.keys(errors).length === 0;
+            const newStatus = isSuccess ? "completed" : "failed";
+
+            await (prisma as any).hybridSlot.update({
+              where: { id: slot.id },
+              data: {
+                status: newStatus,
+                panelOrderId: JSON.stringify({ orders: results, errors }),
+              },
+            });
+
+            if (isSuccess) {
+              hybridSlotsFired++;
+              const delivered = Number(slot.views || 0);
+              const campaignSlots = await (prisma as any).hybridSlot.findMany({
+                where: { campaignId: slot.campaignId },
+                select: { status: true },
+              });
+
+              const allDone = campaignSlots.every((s: any) => s.status === "completed" || s.status === "failed");
+
+              await (prisma as any).hybridCampaign.update({
+                where: { id: slot.campaignId },
+                data: {
+                  deliveredViews: { increment: delivered },
+                  completedSlots: { increment: 1 },
+                  ...(allDone ? { status: "completed" } : {}),
+                },
+              });
+            }
+          }
+        }
+      } catch (hybridErr) {
+        console.error("Hybrid dispersion engine execution error:", hybridErr);
+      }
+    }
+
     const durationMs = Date.now() - startTime;
 
     return NextResponse.json({
@@ -609,6 +753,7 @@ export async function GET(request: NextRequest) {
       queuedOrdersDispatched,
       ordersSynced: updatedOrdersCount,
       jitterBatchesFired,
+      hybridSlotsFired,
       activeOrdersChecked: activeOrders.length,
       expiredPlansReset: expiredUsers.count,
       message: `Cron auto-sync completed in ${durationMs}ms with safe resource usage.`,

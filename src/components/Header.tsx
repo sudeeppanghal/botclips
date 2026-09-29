@@ -155,7 +155,7 @@ export default function Header({
           className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           title="Toggle Dark/Light Mode"
         >
-          {theme === "dark" ? <Sun className="w-4.5 h-4.5 text-amber-400" /> : <Sun className="w-4.5 h-4.5 text-slate-600" />}
+          {theme === "dark" ? <Sun className="w-4.5 h-4.5 text-amber-400" /> : <Moon className="w-4.5 h-4.5 text-slate-600" />}
         </button>
 
         {/* Notifications */}

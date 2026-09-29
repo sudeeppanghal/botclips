@@ -64,7 +64,11 @@ export async function POST(request: NextRequest) {
       bep20Address,
       minDeposit,
       newAdminEmail,
-      newAdminPassword
+      newAdminPassword,
+      whatsapp,
+      supportWhatsapp,
+      usdToInr,
+      usdToInrRate
     } = body;
 
     // Handle Admin Master Credentials Change
@@ -178,14 +182,18 @@ export async function POST(request: NextRequest) {
         upiId: upiId || undefined,
         trc20Address: trc20Address || undefined,
         bep20Address: bep20Address || undefined,
-        minDeposit: minDeposit ? Number(minDeposit) : 200,
+        minDeposit: minDeposit !== undefined && !isNaN(Number(minDeposit)) ? Math.max(1, Number(minDeposit)) : 50,
+        supportWhatsapp: supportWhatsapp || whatsapp || undefined,
+        usdToInrRate: (usdToInrRate || usdToInr) !== undefined && !isNaN(Number(usdToInrRate || usdToInr)) ? Number(usdToInrRate || usdToInr) : 96.0,
       },
       update: {
         supportTelegram: tgEncoded !== undefined ? tgEncoded : undefined,
         upiId: upiId !== undefined ? upiId : undefined,
         trc20Address: trc20Address !== undefined ? trc20Address : undefined,
         bep20Address: bep20Address !== undefined ? bep20Address : undefined,
-        minDeposit: minDeposit !== undefined ? Number(minDeposit) : undefined,
+        minDeposit: minDeposit !== undefined && !isNaN(Number(minDeposit)) ? Math.max(1, Number(minDeposit)) : undefined,
+        supportWhatsapp: (supportWhatsapp || whatsapp) !== undefined ? (supportWhatsapp || whatsapp) : undefined,
+        usdToInrRate: (usdToInrRate || usdToInr) !== undefined && !isNaN(Number(usdToInrRate || usdToInr)) ? Number(usdToInrRate || usdToInr) : undefined,
       }
     });
 

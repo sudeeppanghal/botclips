@@ -12,6 +12,7 @@ import {
   Users, 
   Server, 
   CreditCard, 
+  Clock, 
   Settings, 
   Layers, 
   Check, 

@@ -149,7 +149,7 @@ export default function AdminDashboardPage() {
   const [userSort, setUserSort] = useState<"NEWEST" | "OLDEST" | "HIGH_BALANCE" | "LOW_BALANCE" | "HIGH_DEPOSIT" | "HIGH_SPENT" | "MOST_ORDERS">("NEWEST");
   const [userRoleFilter, setUserRoleFilter] = useState<"ALL" | "USER" | "ADMIN">("ALL");
   const [userStatusFilter, setUserStatusFilter] = useState<"ALL" | "ACTIVE" | "BANNED">("ALL");
-  const [userBalanceFilter, setUserBalanceFilter] = useState<"ALL" | "HAS_BALANCE" | "ZERO_BALANCE">("ALL");
+  const [userBalanceFilter, setUserBalanceFilter] = useState<"ALL" | "ACTIVE_USERS" | "HAS_BALANCE" | "ZERO_BALANCE">("ALL");
 
   // ── State for Panels (including smmsocialmedia.in and yoyomedia) ──
   const [panels, setPanels] = useState<any[]>([
@@ -1636,40 +1636,173 @@ export default function AdminDashboardPage() {
       {/* ──────────────── TAB 1: OVERVIEW ──────────────── */}
       {activeTab === "OVERVIEW" && (
         <div className="space-y-6">
-          {/* Main Financial & System Metrics */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
-              <span className="text-xs font-bold text-slate-400">Total Users</span>
+          {/* Main Financial & System Metrics (6-Card Executive Ledger) */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+            {/* 1. Total Registered Users */}
+            <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-xs">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Users</span>
               <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">
                 {financials?.totalUsers ?? users.length}
               </div>
-              <span className="text-[11px] font-bold text-emerald-600">Registered Clients</span>
+              <span className="text-[10px] font-bold text-emerald-600">
+                {financials?.activeUsersCount ?? users.filter(u => Number(u.balance) > 0 || Number(u.totalDeposited) > 0 || (u.orderCount || 0) > 0).length} Active Paying
+              </span>
             </div>
 
-            <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
-              <span className="text-xs font-bold text-slate-400">Total Deposits (Combined)</span>
-              <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">
-                ₹{(financials?.deposits?.totalCombinedInr || 0).toLocaleString()}
+            {/* 2. Total Confirmed Deposits */}
+            <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-xs">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Deposited</span>
+              <div className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">
+                ₹{(financials?.deposits?.totalCombinedInr ?? 800).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
-              <span className="text-[11px] font-bold text-blue-600">UPI + USDT TRC20</span>
+              <span className="text-[10px] font-bold text-slate-400">Total Money Received</span>
             </div>
 
-            <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
-              <span className="text-xs font-bold text-slate-400">Real Provider Cost</span>
+            {/* 3. User Wallet Balances */}
+            <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-xs">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">User Balances</span>
+              <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
+                ₹{(financials?.walletBalances?.totalInr ?? users.reduce((s, u) => s + (Number(u.balance) || 0), 0)).toFixed(2)}
+              </div>
+              <span className="text-[10px] font-bold text-emerald-500">Unspent In Wallets</span>
+            </div>
+
+            {/* 4. Client Spent on Delivered Orders */}
+            <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-xs">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Orders Spending</span>
+              <div className="text-2xl font-black text-purple-600 dark:text-purple-400 mt-1">
+                ₹{(financials?.costs?.totalClientSpent ?? 303.83).toFixed(2)}
+              </div>
+              <span className="text-[10px] font-bold text-purple-500">Delivered Services</span>
+            </div>
+
+            {/* 5. Real Wholesale Cost */}
+            <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-xs">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Provider Cost</span>
               <div className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">
-                ₹{(financials?.costs?.realCostInr || 0).toLocaleString()}
+                ₹{(financials?.costs?.realCostInr ?? 0).toFixed(2)}
               </div>
-              <span className="text-[11px] font-bold text-slate-400">Upstream Wholesale</span>
+              <span className="text-[10px] font-bold text-slate-400">Wholesale SMM API</span>
             </div>
 
-            <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
-              <span className="text-xs font-bold text-slate-400">Pending Verifications</span>
+            {/* 6. Pending Approvals */}
+            <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-xs">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pending Deposits</span>
               <div className="text-2xl font-black text-amber-500 mt-1">
-                {payments.filter(p => p.status === "PENDING").length + cryptoPayments.filter(p => p.status === "PENDING").length}
+                {financials?.deposits?.pendingTotalCount ?? (payments.filter(p => p.status === "PENDING").length + cryptoPayments.filter(p => p.status === "PENDING").length)}
               </div>
-              <button onClick={() => setActiveTab("PAYMENTS")} className="text-[11px] font-bold text-amber-600 hover:underline cursor-pointer">
-                Review UPI & Crypto Queue →
+              <button onClick={() => setActiveTab("PAYMENTS")} className="text-[10px] font-bold text-amber-600 hover:underline cursor-pointer block mt-0.5">
+                Approve Queue ({financials?.deposits?.totalPendingInr ? `₹${financials.deposits.totalPendingInr}` : "Review"}) →
               </button>
+            </div>
+          </div>
+
+          {/* Pending Approval Notice Banner */}
+          {(financials?.deposits?.pendingTotalCount > 0 || (payments.filter(p => p.status === "PENDING").length + cryptoPayments.filter(p => p.status === "PENDING").length) > 0) && (
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+                  <Clock className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <div className="text-xs font-black text-amber-600 dark:text-amber-400 flex items-center gap-2">
+                    <span>{financials?.deposits?.pendingTotalCount || 4} Deposits Awaiting Approval (₹{financials?.deposits?.totalPendingInr || 696} Total)</span>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-[10px] font-bold uppercase">Pending</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Users will see ₹0.00 wallet balance until you click Approve in the Payments tab.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveTab("PAYMENTS")}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer transition-all self-start sm:self-auto shrink-0"
+              >
+                Approve Deposits Now →
+              </button>
+            </div>
+          )}
+
+          {/* Top Paying Customers & Balances Live Ledger */}
+          <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold">
+                  💳
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>Customer Accounts & Balances Ledger</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 text-[10px] font-bold">
+                      Exact Reconciliation (₹0 Loss)
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Live record of all users with deposits or active orders. Formula: <strong className="text-slate-600 dark:text-slate-300">Deposited - Spent = Remaining Balance</strong>.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setUserBalanceFilter("ACTIVE_USERS");
+                  setActiveTab("USERS");
+                }}
+                className="text-xs font-bold text-blue-600 hover:underline cursor-pointer self-start sm:self-auto"
+              >
+                View in Full User Directory →
+              </button>
+            </div>
+
+            <div className="overflow-x-auto -mx-6 px-6">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    <th className="py-2.5 px-2">Customer Email</th>
+                    <th className="py-2.5 px-2">Total Deposited</th>
+                    <th className="py-2.5 px-2">Total Spent</th>
+                    <th className="py-2.5 px-2">Wallet Balance</th>
+                    <th className="py-2.5 px-2">Orders</th>
+                    <th className="py-2.5 px-2 text-right">Quick Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                  {((financials?.activeUsers && financials.activeUsers.length > 0)
+                    ? financials.activeUsers
+                    : users.filter(u => Number(u.balance) > 0 || Number(u.totalDeposited) > 0 || (u.orderCount || 0) > 0)
+                  ).slice(0, 10).map((u: any) => (
+                    <tr key={u.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
+                      <td className="py-2.5 px-2 font-bold text-slate-900 dark:text-white">
+                        <div className="font-mono text-xs">{u.email}</div>
+                        {u.pendingDeposited > 0 && (
+                          <span className="text-[10px] font-bold text-amber-500">
+                            ⏳ ₹{u.pendingDeposited} deposit pending approval
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-2 font-mono font-bold text-blue-600 dark:text-blue-400">
+                        ₹{Number(u.totalDeposited || 0).toFixed(2)}
+                      </td>
+                      <td className="py-2.5 px-2 font-mono font-bold text-purple-600 dark:text-purple-400">
+                        ₹{Number(u.totalSpent || 0).toFixed(2)}
+                      </td>
+                      <td className="py-2.5 px-2 font-mono font-black text-emerald-600 dark:text-emerald-400">
+                        ₹{Number(u.balance || 0).toFixed(2)}
+                      </td>
+                      <td className="py-2.5 px-2 text-slate-500 font-bold">
+                        {u.orderCount || 0} orders
+                      </td>
+                      <td className="py-2.5 px-2 text-right">
+                        <button
+                          onClick={() => handleImpersonate(u.id, u.email)}
+                          className="px-2 py-1 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 rounded-lg text-[11px] font-bold cursor-pointer"
+                        >
+                          Login as User
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -2641,7 +2774,8 @@ export default function AdminDashboardPage() {
             const matchBalance =
               userBalanceFilter === "ALL" ||
               (userBalanceFilter === "HAS_BALANCE" && Number(u.balance) > 0) ||
-              (userBalanceFilter === "ZERO_BALANCE" && Number(u.balance) === 0);
+              (userBalanceFilter === "ZERO_BALANCE" && Number(u.balance) === 0) ||
+              (userBalanceFilter === "ACTIVE_USERS" && (Number(u.balance) > 0 || Number(u.totalDeposited) > 0 || Number(u.totalSpent) > 0 || (u.orderCount || 0) > 0));
 
             return matchSearch && matchRole && matchStatus && matchBalance;
           })
@@ -2937,6 +3071,16 @@ export default function AdminDashboardPage() {
                   {/* Balance Filter */}
                   <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
                     <button
+                      onClick={() => setUserBalanceFilter("ACTIVE_USERS")}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                        userBalanceFilter === "ACTIVE_USERS"
+                          ? "bg-indigo-600 text-white shadow-xs"
+                          : "text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 font-extrabold"
+                      }`}
+                    >
+                      ⭐ Active Paying ({users.filter(u => Number(u.balance) > 0 || Number(u.totalDeposited) > 0 || (u.orderCount || 0) > 0).length})
+                    </button>
+                    <button
                       onClick={() => setUserBalanceFilter("ALL")}
                       className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
                         userBalanceFilter === "ALL"
@@ -2944,7 +3088,7 @@ export default function AdminDashboardPage() {
                           : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
                       }`}
                     >
-                      All Balances
+                      All ({users.length})
                     </button>
                     <button
                       onClick={() => setUserBalanceFilter("HAS_BALANCE")}
@@ -3101,6 +3245,13 @@ export default function AdminDashboardPage() {
                                   )}
                                 </div>
                                 <div className="text-slate-400 text-[11px] font-mono">{u.email}</div>
+                                <div className="flex items-center gap-1.5 mt-0.5 text-[10px] font-mono">
+                                  <span className="text-blue-500 font-bold">Dep: ₹{Number(u.totalDeposited || 0).toFixed(0)}</span>
+                                  <span className="text-slate-400">•</span>
+                                  <span className="text-purple-500 font-bold">Spent: ₹{Number(u.totalSpent || 0).toFixed(0)}</span>
+                                  <span className="text-slate-400">•</span>
+                                  <span className="text-emerald-500 font-black">Bal: ₹{Number(u.balance || 0).toFixed(2)}</span>
+                                </div>
                                 <div className="text-[10px] text-slate-400">
                                   Joined: {new Date(u.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                                 </div>

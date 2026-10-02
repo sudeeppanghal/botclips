@@ -37,8 +37,9 @@ export async function GET(request: NextRequest) {
     }
 
     const usdRate = settings?.usdToInrRate || 96.0;
-    const priceUsd = settings?.hybridSubscriptionPriceUsd || 50.0;
-    const priceInr = Math.round(priceUsd * usdRate);
+    // Hybrid VIP starting promotional price: ₹50 / month
+    const priceInr = 50.0;
+    const priceUsd = Number((priceInr / usdRate).toFixed(2));
 
     const isAdmin = user.role === "ADMIN";
     let isPlanActive = user.hybridPlanActive;
@@ -101,8 +102,9 @@ export async function POST(request: NextRequest) {
     });
 
     const usdRate = settings?.usdToInrRate || 96.0;
-    const priceUsd = settings?.hybridSubscriptionPriceUsd || 50.0;
-    const priceInr = Math.round(priceUsd * usdRate);
+    // Hybrid VIP starting promotional price: ₹50 / month
+    const priceInr = 50.0;
+    const priceUsd = Number((priceInr / usdRate).toFixed(2));
 
     // If user is Admin, instant grant without fee
     if (user.role === "ADMIN") {

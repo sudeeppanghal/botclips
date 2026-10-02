@@ -332,32 +332,60 @@ export async function POST(request: NextRequest) {
         scheduledAt: b.scheduledAt || new Date(nowMs + Math.round((b.timeOffsetMinutes || 0) * 60 * 1000)).toISOString(),
       }));
 
-      // Look up like and share services in DB for engagement pulsing
-      const likeService = await prisma.adminService.findFirst({
-        where: {
-          platform: (platform as any) || "INSTAGRAM",
-          category: { contains: "Like", mode: "insensitive" },
-          isActive: true,
-        },
-        select: { serviceId: true, minQuantity: true },
-      });
-      const shareService = await prisma.adminService.findFirst({
-        where: {
-          platform: (platform as any) || "INSTAGRAM",
-          name: { contains: "Share", mode: "insensitive" },
-          isActive: true,
-        },
-        select: { serviceId: true, minQuantity: true },
-      });
+      // Look up admin configured combo mappings for exact upstream services
+      const settings = await prisma.adminSettings.findUnique({ where: { id: "global" } });
+      let comboDefaults: any = null;
+      if (settings?.comboDefaults) {
+        try { comboDefaults = JSON.parse(settings.comboDefaults); } catch {}
+      }
+      const platKey = String(platform || "INSTAGRAM").toUpperCase();
+      const platConfig = comboDefaults?.[platKey];
+
+      const findMappedSvc = async (idOrSvcId?: string, fallbackKw?: string) => {
+        if (idOrSvcId) {
+          const match = await prisma.adminService.findFirst({
+            where: {
+              OR: [{ id: idOrSvcId }, { serviceId: idOrSvcId }],
+              isActive: true,
+            },
+            select: { serviceId: true, minQuantity: true },
+          });
+          if (match) return match;
+        }
+        if (fallbackKw) {
+          return await prisma.adminService.findFirst({
+            where: {
+              platform: (platform as any) || "INSTAGRAM",
+              OR: [
+                { category: { contains: fallbackKw, mode: "insensitive" } },
+                { name: { contains: fallbackKw, mode: "insensitive" } },
+              ],
+              isActive: true,
+            },
+            select: { serviceId: true, minQuantity: true },
+          });
+        }
+        return null;
+      };
+
+      const viewsService = await findMappedSvc(platConfig?.viewsServiceId, "view");
+      const likeService = await findMappedSvc(platConfig?.likesServiceId, "like");
+      const shareService = await findMappedSvc(platConfig?.sharesServiceId, "share");
+      const saveService = await findMappedSvc(platConfig?.savesServiceId, "save");
+      const commentService = await findMappedSvc(platConfig?.commentsServiceId, "comment");
 
       const comboEnginePayload = {
         ...comboData,
         isJitterEngine: true,
-        upstreamServiceId: defaultService?.serviceId || "5245",
+        upstreamServiceId: viewsService?.serviceId || defaultService?.serviceId || "5245",
         likeServiceId: likeService?.serviceId || "4897",
         likeServiceMin: likeService?.minQuantity || 10,
         shareServiceId: shareService?.serviceId || "7452",
         shareServiceMin: shareService?.minQuantity || 10,
+        saveServiceId: saveService?.serviceId || "1167",
+        saveServiceMin: saveService?.minQuantity || 10,
+        commentServiceId: commentService?.serviceId || "19148",
+        commentServiceMin: commentService?.minQuantity || 1,
         panelId: panel?.id || null,
         totalGoal: Number(quantity),
         totalBatches: finalComboBatches.length,

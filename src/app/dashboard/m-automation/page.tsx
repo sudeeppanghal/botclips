@@ -321,7 +321,7 @@ export default function MAutomationPage() {
                 className="w-full sm:w-auto px-5 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30 transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5"
               >
                 <span>{planLoading ? "Processing..." : "Weekly Access Pass"}</span>
-                <span className="text-[10px] text-purple-200 font-mono">$10 / ₹960</span>
+                <span className="text-[10px] text-purple-200 font-mono">₹199 / 7 Days</span>
               </button>
               <button
                 onClick={() => handleSubscribe("MONTHLY")}
@@ -329,7 +329,7 @@ export default function MAutomationPage() {
                 className="w-full sm:w-auto px-6 py-3 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-xs shadow-lg transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5"
               >
                 <span>{planLoading ? "Processing..." : "Monthly Pro Pass"}</span>
-                <span className="text-[10px] text-slate-500 font-mono">$25 / ₹2,400</span>
+                <span className="text-[10px] text-purple-700 font-mono font-bold">₹499 / Month</span>
               </button>
             </div>
           </div>

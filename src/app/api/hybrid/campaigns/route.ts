@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     const isPlanActive = user.hybridPlanActive && user.hybridExpiresAt && user.hybridExpiresAt > new Date();
     if (user.role !== "ADMIN" && !isPlanActive) {
       return NextResponse.json(
-        { error: "Hybrid Automation requires an active VIP Subscription ($50/mo). Please subscribe first." },
+        { error: "Hybrid Automation requires an active VIP Subscription (₹50/mo). Please subscribe first." },
         { status: 403 }
       );
     }
@@ -179,6 +179,9 @@ export async function POST(request: NextRequest) {
 
         const scheduledTime = new Date(now.getTime() + offsetMs);
 
+        const pulseViews = Number(s.views || 0);
+        const safeViews = pulseViews > 0 ? Math.max(100, pulseViews) : 0;
+
         return tx.hybridSlot.create({
           data: {
             campaignId: campaign.id,
@@ -186,7 +189,7 @@ export async function POST(request: NextRequest) {
             scheduledAt: scheduledTime,
             offsetMinutes: s.offsetMinutes != null ? Number(s.offsetMinutes) : idx * interval,
             status: "pending",
-            views: Number(s.views || 0),
+            views: safeViews,
             likes: Number(s.likes || 0),
             comments: Number(s.comments || 0),
             shares: Number(s.shares || 0),

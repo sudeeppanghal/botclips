@@ -25,8 +25,8 @@ export default function UpgradePlanModal({
 
   if (!isOpen) return null;
 
-  const planCost = selectedPlan === "WEEKLY" ? 960 : 2400; // $10 = ₹960, $25 = ₹2,400
-  const planUsd = selectedPlan === "WEEKLY" ? "$10" : "$25";
+  const planCost = selectedPlan === "WEEKLY" ? 199 : 499; // Weekly = ₹199, Monthly = ₹499
+  const planUsd = selectedPlan === "WEEKLY" ? "₹199" : "₹499";
   const hasEnoughBalance = walletBalance >= planCost;
   const shortfall = Math.max(0, planCost - walletBalance);
 
@@ -120,7 +120,7 @@ export default function UpgradePlanModal({
                   Weekly Pass
                 </div>
                 <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">
-                  $10 <span className="text-xs font-bold text-slate-400">/ ₹960</span>
+                  ₹199 <span className="text-xs font-bold text-slate-400">/ 7 Days</span>
                 </div>
                 <div className="text-[11px] text-slate-500 mt-0.5">Valid for 7 days</div>
               </div>
@@ -140,14 +140,14 @@ export default function UpgradePlanModal({
               }`}
             >
               <div className="absolute -top-2.5 right-3 px-2 py-0.5 rounded-full bg-amber-500 text-white text-[9px] font-black uppercase tracking-wider shadow-xs">
-                Save 17%
+                Popular
               </div>
               <div>
                 <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   Monthly Pass
                 </div>
                 <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">
-                  $25 <span className="text-xs font-bold text-slate-400">/ ₹2,400</span>
+                  ₹499 <span className="text-xs font-bold text-slate-400">/ Month</span>
                 </div>
                 <div className="text-[11px] text-slate-500 mt-0.5">Valid for 30 days</div>
               </div>

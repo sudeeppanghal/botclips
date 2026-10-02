@@ -560,6 +560,28 @@ export async function GET(request: NextRequest) {
                     }
                   }
 
+                  // 4. Handle Micro-Comments Accumulator
+                  if (batch.comments && batch.comments > 0 && data.commentServiceId) {
+                    data.accumulatedComments = (data.accumulatedComments || 0) + batch.comments;
+                    const commentThreshold = data.commentServiceMin || 1;
+                    if (data.accumulatedComments >= commentThreshold) {
+                      try {
+                        const commParams: any = {
+                          serviceId: data.commentServiceId,
+                          link: jOrder.link,
+                          quantity: data.accumulatedComments,
+                        };
+                        const commRes = await client.addOrder(commParams);
+                        if (commRes && commRes.order) {
+                          batch.commentOrderId = String(commRes.order);
+                          data.accumulatedComments = 0;
+                        }
+                      } catch (commErr) {
+                        console.error(`Comment pulse error for order #${jOrder.id}:`, commErr);
+                      }
+                    }
+                  }
+
                   const allDone = data.batches.every((b: any) => b.status === "DISPATCHED" || b.status === "COMPLETED");
                   if (allDone) {
                     data.allBatchesDispatched = true;

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -55,14 +54,13 @@ export async function GET() {
       where: { id: "global" }
     });
 
-    let comboSettings = DEFAULT_COMBO_MAPPINGS;
+    let comboSettings: any = DEFAULT_COMBO_MAPPINGS;
     if (settings?.comboDefaults) {
       try {
         comboSettings = JSON.parse(settings.comboDefaults);
       } catch {}
     }
 
-    // Also fetch available services for dropdowns
     const services = await prisma.adminService.findMany({
       where: { isActive: true },
       select: {
@@ -89,7 +87,7 @@ export async function GET() {
 
     const resolvedRates: Record<string, any> = {};
     for (const plat of ["INSTAGRAM", "TIKTOK", "YOUTUBE"]) {
-      const cfg = (comboSettings as any)[plat] || (DEFAULT_COMBO_MAPPINGS as any)[plat];
+      const cfg = comboSettings[plat] || (DEFAULT_COMBO_MAPPINGS as any)[plat];
       const vSvc = findSvc(cfg?.viewsServiceId, plat);
       const lSvc = findSvc(cfg?.likesServiceId, plat);
       const shSvc = findSvc(cfg?.sharesServiceId, plat);
@@ -120,42 +118,8 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       comboSettings: DEFAULT_COMBO_MAPPINGS,
+      resolvedRates: {},
       availableServices: []
     });
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getSessionUser(request);
-    if (!session || session.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized. Admin access required." }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const { comboSettings } = body;
-
-    if (!comboSettings) {
-      return NextResponse.json({ error: "Missing comboSettings payload" }, { status: 400 });
-    }
-
-    await prisma.adminSettings.upsert({
-      where: { id: "global" },
-      create: {
-        id: "global",
-        comboDefaults: JSON.stringify(comboSettings)
-      },
-      update: {
-        comboDefaults: JSON.stringify(comboSettings)
-      }
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: "Whop & Combo settings saved successfully!",
-      comboSettings
-    });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to update combo settings" }, { status: 500 });
   }
 }

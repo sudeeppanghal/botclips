@@ -89,31 +89,54 @@ export default function NewOrderModal({
   const [commentsCount, setCommentsCount] = useState(25);
   const [durationHours, setDurationHours] = useState(24);
   const [showJitterDrawer, setShowJitterDrawer] = useState(false);
+  const [dynamicComboRates, setDynamicComboRates] = useState<Record<string, any>>({});
 
-  // Catalog loading
+  // Dynamic Combo Settings & Catalog loading
   useEffect(() => {
-    async function loadCatalog() {
+    async function loadComboData() {
       try {
-        const res = await fetch(`/api/services?platform=${platform}`);
-        const data = await res.json();
-        if (data.success && Array.isArray(data.services) && data.services.length > 0) {
-          setAvailableServices(data.services);
-          const first = data.services[0];
+        const [catRes, comboRes] = await Promise.all([
+          fetch(`/api/services?platform=${platform}`).then(r => r.json()).catch(() => ({})),
+          fetch("/api/combo-settings").then(r => r.json()).catch(() => ({}))
+        ]);
+
+        if (catRes.success && Array.isArray(catRes.services) && catRes.services.length > 0) {
+          setAvailableServices(catRes.services);
+          const first = catRes.services[0];
           setService(first.name);
           setRatePer1k(Number(first.rate || 120));
           if (first.cat) setCategory(first.cat);
         }
+
+        if (comboRes.success && comboRes.resolvedRates) {
+          setDynamicComboRates(comboRes.resolvedRates);
+        }
       } catch (e) {
-        console.error("Failed to load services", e);
+        console.error("Failed to load services or combo rates", e);
       }
     }
     if (isOpen) {
-      loadCatalog();
+      loadComboData();
     }
   }, [platform, isOpen]);
 
-  // Rates for combo items (based on 3x wholesale node)
+  // Rates for combo items dynamically resolved from Admin mapped services
   const comboRates = useMemo(() => {
+    const platRates = dynamicComboRates[platform];
+    if (platRates) {
+      return {
+        viewsRate: Number(platRates.viewsRate ?? 15.0),
+        likesRate: Number(platRates.likesRate ?? 45.0),
+        sharesRate: Number(platRates.sharesRate ?? 36.0),
+        savesRate: Number(platRates.savesRate ?? 36.0),
+        commentsRate: Number(platRates.commentsRate ?? 360.0),
+        viewsService: platRates.viewsService,
+        likesService: platRates.likesService,
+        sharesService: platRates.sharesService,
+        savesService: platRates.savesService,
+        commentsService: platRates.commentsService,
+      };
+    }
     switch (platform) {
       case "TIKTOK":
         return { viewsRate: 18.0, likesRate: 90.0, sharesRate: 60.0, savesRate: 60.0, commentsRate: 250.0 };
@@ -122,9 +145,9 @@ export default function NewOrderModal({
       default: // INSTAGRAM
         return { viewsRate: 15.0, likesRate: 45.0, sharesRate: 36.0, savesRate: 36.0, commentsRate: 360.0 };
     }
-  }, [platform]);
+  }, [platform, dynamicComboRates]);
 
-  // Total calculation for Combo
+  // Total calculation for Combo based on live admin configured rates
   const totalComboCost = useMemo(() => {
     let sum = 0;
     if (includeViews) sum += (viewsCount / 1000) * comboRates.viewsRate;

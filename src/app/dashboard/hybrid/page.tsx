@@ -45,6 +45,9 @@ import {
   distributeBimodalOrganic,
   generateMultiplierSequence,
   VIRAL_RATIO_PRESETS,
+  generateAiViralStrategy,
+  AiViralStrategy,
+  NICHE_COMMENT_BANKS,
 } from "@/lib/hybrid-algorithms";
 
 // Safe ratio thresholds inspired by authentic platform algorithmic discovery
@@ -151,6 +154,17 @@ export default function HybridAutomationPage() {
   const [ratioPreset, setRatioPreset] = useState<"BALANCED" | "HIGH_ENGAGEMENT" | "STEALTH_LOW" | "CUSTOM">("BALANCED");
   const [customCommentText, setCustomCommentText] = useState("");
 
+  // Min Pulse Views (Provider Minimum Threshold Enforcement)
+  const [minPulseViews, setMinPulseViews] = useState(100);
+
+  // AI Viral Growth Strategist State
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [aiPlatformGoal, setAiPlatformGoal] = useState<"TIKTOK_FYP" | "INSTAGRAM_REELS" | "WHOP_FUNNEL" | "YOUTUBE_SHORTS" | "STEALTH_ORGANIC">("TIKTOK_FYP");
+  const [aiNiche, setAiNiche] = useState("trading");
+  const [activeAiStrategy, setActiveAiStrategy] = useState<AiViralStrategy | null>(null);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiSuccessMessage, setAiSuccessMessage] = useState<string | null>(null);
+
   // Custom Ratio Sliders (Percentages)
   const [customLikesPct, setCustomLikesPct] = useState(4.0);
   const [customCommentsPct, setCustomCommentsPct] = useState(0.5);
@@ -254,7 +268,7 @@ export default function HybridAutomationPage() {
   };
 
   // Top Action Button Handlers
-  const handleTopButton = (btn: "creator" | "campaigns" | "scheduled" | "multi_panel" | "auto" | "ratio" | "custom") => {
+  const handleTopButton = (btn: "creator" | "campaigns" | "scheduled" | "multi_panel" | "auto" | "ratio" | "custom" | "ai") => {
     if (btn === "campaigns") {
       setActiveTab("campaigns");
       setActiveSubMode("default");
@@ -264,7 +278,10 @@ export default function HybridAutomationPage() {
 
     setActiveTab("creator");
 
-    if (btn === "creator") {
+    if (btn === "ai") {
+      setActiveSubMode("default");
+      setAiPanelOpen(true);
+    } else if (btn === "creator") {
       setActiveSubMode("default");
       setMode("bimodal_curve");
       setCustomManualSlots(null);
@@ -289,6 +306,34 @@ export default function HybridAutomationPage() {
 
     if (sectionRef.current) {
       sectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  // Run AI Viral Growth Strategist Engine
+  const handleRunAiStrategist = (targetGoal = aiPlatformGoal, targetNiche = aiNiche) => {
+    setAiGenerating(true);
+    setAiSuccessMessage(null);
+    try {
+      const strat = generateAiViralStrategy(targetGoal, targetNiche);
+      setActiveAiStrategy(strat);
+      setMode("bimodal_curve");
+      setTotalViews(strat.totalViews);
+      setSlotsCount(strat.slotsCount);
+      setIntervalMinutes(strat.intervalMinutes);
+      setMinPulseViews(strat.minPulseViews);
+      setRatioPreset("CUSTOM");
+      setCustomLikesPct(strat.likesPct);
+      setCustomCommentsPct(strat.commentsPct);
+      setCustomSharesPct(strat.sharesPct);
+      setCustomSavesPct(strat.savesPct);
+      setCustomRepostsPct(strat.repostsPct);
+      setCustomCommentText(strat.comments.join("\n"));
+      setCustomManualSlots(null);
+      setAiSuccessMessage(`⚡ AI Plan Generated: ${strat.name}! Optimal curves and ${strat.comments.length} authentic niche comments configured.`);
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setAiGenerating(false);
     }
   };
 
@@ -356,7 +401,10 @@ export default function HybridAutomationPage() {
   // Generate Slots dynamically based on selected Mode or Custom Slots
   const generatedSlots: HybridSlotPoint[] = useMemo(() => {
     if (customManualSlots && customManualSlots.length > 0) {
-      return customManualSlots;
+      return customManualSlots.map(s => ({
+        ...s,
+        views: Math.max(minPulseViews, Number(s.views || 0))
+      }));
     }
 
     const commentsPool = customCommentText
@@ -365,7 +413,7 @@ export default function HybridAutomationPage() {
       .filter(Boolean);
 
     if (mode === "bimodal_curve") {
-      const viewDist = distributeBimodalOrganic(totalViews, slotsCount);
+      const viewDist = distributeBimodalOrganic(totalViews, slotsCount, minPulseViews);
       const ratios = ratioPreset === "CUSTOM" 
         ? {
             likesRatio: customLikesPct / 100,
@@ -376,7 +424,8 @@ export default function HybridAutomationPage() {
           }
         : VIRAL_RATIO_PRESETS[ratioPreset];
 
-      return viewDist.map((views, idx) => {
+      return viewDist.map((rawViews, idx) => {
+        const views = Math.max(minPulseViews, rawViews);
         const likes = Math.max(0, Math.round(views * ratios.likesRatio));
         const comments = Math.max(0, Math.round(views * ratios.commentsRatio));
         const shares = Math.max(0, Math.round(views * ratios.sharesRatio));
@@ -409,30 +458,35 @@ export default function HybridAutomationPage() {
     }
 
     if (mode === "multiplier_auto") {
-      const seq = generateMultiplierSequence(baseMetrics, slotsCount, multiplier);
+      const seq = generateMultiplierSequence(baseMetrics, slotsCount, multiplier, minPulseViews);
       return seq.map((s, idx) => ({
         ...s,
+        views: Math.max(minPulseViews, s.views),
         offsetMinutes: idx * intervalMinutes,
       }));
     }
 
     // Custom Slots default / Multi-Node
-    return Array.from({ length: slotsCount }, (_, idx) => ({
-      slotIndex: idx,
-      views: Math.round(totalViews / slotsCount),
-      likes: Math.round((totalViews / slotsCount) * (customLikesPct / 100)),
-      comments: Math.max(1, Math.round((totalViews / slotsCount) * (customCommentsPct / 100))),
-      shares: Math.round((totalViews / slotsCount) * (customSharesPct / 100)),
-      saves: Math.round((totalViews / slotsCount) * (customSavesPct / 100)),
-      reposts: Math.round((totalViews / slotsCount) * (customRepostsPct / 100)),
-      offsetMinutes: idx * intervalMinutes,
-    }));
+    return Array.from({ length: slotsCount }, (_, idx) => {
+      const views = Math.max(minPulseViews, Math.round(totalViews / slotsCount));
+      return {
+        slotIndex: idx,
+        views,
+        likes: Math.round(views * (customLikesPct / 100)),
+        comments: Math.max(1, Math.round(views * (customCommentsPct / 100))),
+        shares: Math.round(views * (customSharesPct / 100)),
+        saves: Math.round(views * (customSavesPct / 100)),
+        reposts: Math.round(views * (customRepostsPct / 100)),
+        offsetMinutes: idx * intervalMinutes,
+      };
+    });
   }, [
     customManualSlots,
     mode, 
     totalViews, 
     slotsCount, 
     intervalMinutes, 
+    minPulseViews,
     ratioPreset, 
     customLikesPct, 
     customCommentsPct, 
@@ -648,7 +702,7 @@ export default function HybridAutomationPage() {
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Subscription</span>
                 <span className="text-xl sm:text-2xl font-black text-blue-600 dark:text-blue-400 font-mono">
-                  {pricing?.formattedPrice || "₹4,800"}
+                  {pricing?.formattedPrice || "₹50"}
                 </span>
                 <span className="text-[10px] text-slate-400 block">/ 30 Days</span>
               </div>
@@ -775,6 +829,19 @@ export default function HybridAutomationPage() {
               <Share2 className="w-3.5 h-3.5 text-blue-500" />
               <span>CUSTOM</span>
             </button>
+
+            {/* 8. AI STRATEGIST Button */}
+            <button
+              onClick={() => handleTopButton("ai")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer uppercase tracking-wider ${
+                aiPanelOpen
+                  ? "bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-500 text-white shadow-md shadow-purple-500/25 ring-2 ring-purple-400/40"
+                  : "bg-white dark:bg-[#111827] text-purple-600 dark:text-purple-400 hover:border-purple-400 border border-purple-200 dark:border-purple-900/50"
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-purple-500 animate-pulse" />
+              <span>AI STRATEGIST</span>
+            </button>
           </div>
 
           {activeTab === "creator" && (
@@ -796,6 +863,126 @@ export default function HybridAutomationPage() {
                     <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-500/20">
                       {mode === "bimodal_curve" ? "Viral Wave" : mode === "multiplier_auto" ? "Autonomous 2.0x" : "Multi-Node"}
                     </span>
+                  </div>
+
+                  {/* ── AI VIRAL GROWTH STRATEGIST (AUTONOMOUS ENGINE) ── */}
+                  <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-indigo-500/5 to-pink-500/10 p-4 space-y-3 relative overflow-hidden">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <span className="p-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-sm shadow-purple-500/20">
+                          <Sparkles className="w-4 h-4" />
+                        </span>
+                        <div>
+                          <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
+                            <span>AI Viral Growth Strategist</span>
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                              SMART ALGO
+                            </span>
+                          </h3>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Auto-calculate optimal curve, golden ratios & 15+ authentic niche comments.
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setAiPanelOpen(!aiPanelOpen)}
+                        className="text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>{aiPanelOpen ? "Close AI" : "Open AI"}</span>
+                        {aiPanelOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+
+                    {aiPanelOpen && (
+                      <div className="pt-3 border-t border-purple-500/20 space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1">
+                              Target Platform & Algorithmic Goal
+                            </label>
+                            <select
+                              value={aiPlatformGoal}
+                              onChange={(e) => setAiPlatformGoal(e.target.value as any)}
+                              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+                            >
+                              <option value="TIKTOK_FYP">🚀 TikTok FYP (High Shares & Saves)</option>
+                              <option value="INSTAGRAM_REELS">📸 Instagram Explore (Saves Heavy)</option>
+                              <option value="WHOP_FUNNEL">💼 Whop High-Ticket (Authority Comments)</option>
+                              <option value="YOUTUBE_SHORTS">▶️ YouTube Shorts Shelf Breakout</option>
+                              <option value="STEALTH_ORGANIC">🛡️ Ultra-Stealth Anti-Drop Organic Drift</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1">
+                              Target Content Niche
+                            </label>
+                            <select
+                              value={aiNiche}
+                              onChange={(e) => setAiNiche(e.target.value)}
+                              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+                            >
+                              <option value="trading">📈 Trading, Forex & Crypto</option>
+                              <option value="ecommerce">🛍️ E-commerce & Dropshipping</option>
+                              <option value="fitness">💪 Fitness & Bodybuilding</option>
+                              <option value="motivation">🧠 Mindset & Wealth Motivation</option>
+                              <option value="ai_saas">🤖 AI Tools & Software</option>
+                              <option value="general_viral">🔥 General Viral Entertainment</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1">
+                          <button
+                            type="button"
+                            onClick={() => handleRunAiStrategist(aiPlatformGoal, aiNiche)}
+                            disabled={aiGenerating}
+                            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 text-white text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-md shadow-purple-500/25 hover:opacity-95 cursor-pointer disabled:opacity-50 transition-all"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>{aiGenerating ? "Generating..." : "⚡ Generate AI Optimized Campaign"}</span>
+                          </button>
+
+                          {activeAiStrategy && (
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>AI Active ({activeAiStrategy.platform})</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {aiSuccessMessage && (
+                          <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+                            <span>{aiSuccessMessage}</span>
+                          </div>
+                        )}
+
+                        {activeAiStrategy && (
+                          <div className="p-3 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-purple-500/20 text-xs space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                                <ShieldCheck className="w-3.5 h-3.5 text-purple-500" />
+                                <span>{activeAiStrategy.rationale.targetAlgorithm}</span>
+                              </span>
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 dark:bg-purple-950/50 text-purple-600 border border-purple-500/20">
+                                Safety: {activeAiStrategy.rationale.safetyRating}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                              <strong className="text-purple-600 dark:text-purple-400">Viral Trigger: </strong>
+                              {activeAiStrategy.rationale.viralTrigger}
+                            </p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                              <strong>Retention & Anti-Ban: </strong>
+                              {activeAiStrategy.rationale.predictedRetention}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Mode Selector */}
@@ -973,7 +1160,7 @@ export default function HybridAutomationPage() {
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                           <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider block mb-1">
                             Injection Slots
@@ -1005,9 +1192,26 @@ export default function HybridAutomationPage() {
                           >
                             <option value="30">Every 30 Minutes (Rapid)</option>
                             <option value="60">Every 60 Minutes (Hourly)</option>
-                            <option value="72">Every 72 Minutes (Algorithmic Default)</option>
+                            <option value="72">Every 72 Minutes (Default)</option>
                             <option value="120">Every 2 Hours (Steady Climb)</option>
                             <option value="180">Every 3 Hours (Deep Stealth)</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider block mb-1 flex items-center justify-between">
+                            <span>Min Views / Pulse</span>
+                            <span className="text-[9px] text-blue-500 font-normal">Provider Guard</span>
+                          </label>
+                          <select
+                            value={minPulseViews}
+                            onChange={(e) => setMinPulseViews(Number(e.target.value))}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white"
+                          >
+                            <option value="100">100 Views (Provider Min)</option>
+                            <option value="150">150 Views (Safe Velocity)</option>
+                            <option value="250">250 Views (High Traffic)</option>
+                            <option value="500">500 Views (Aggressive Wave)</option>
                           </select>
                         </div>
                       </div>

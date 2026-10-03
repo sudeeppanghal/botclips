@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
 
     // Server Overheated Check: If upstream provider panels are exhausted or have no balance
     const activePanels = await prisma.panel.findMany({ where: { isActive: true } });
-    const hasFundedPanel = activePanels.some(p => (p.balance === null || p.balance > 0.05) && p.status !== "LOW_BALANCE");
+    const hasFundedPanel = activePanels.some(p => (p.balance === null || p.balance > 0.05) && (p.status as any) !== "ERROR");
     if (!hasFundedPanel && activePanels.length > 0) {
       return NextResponse.json(
         {

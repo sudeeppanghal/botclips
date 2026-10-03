@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
               const balRes = await client.getBalance();
               if (balRes && balRes.balance !== undefined && !balRes.error) {
                 const numericBal = parseFloat(String(balRes.balance)) || 0;
-                const panelStatus = numericBal <= 0.05 ? "LOW_BALANCE" : "ONLINE";
+                const panelStatus: "ONLINE" | "ERROR" = numericBal <= 0.05 ? "ERROR" : "ONLINE";
                 const updated = await prisma.panel.update({
                   where: { id: panel.id },
                   data: {
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
                   where: { id: panel.id },
                   data: {
                     lastCheckedAt: new Date(),
-                    status: isAuthErr ? "AUTH_ERROR" : "LOW_BALANCE",
+                    status: "ERROR",
                   },
                 });
                 return { ...panel, status: updated.status, lastCheckedAt: updated.lastCheckedAt, lastError: balRes.error };

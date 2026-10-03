@@ -18,7 +18,9 @@ import {
   QrCode,
   DollarSign,
   PlusCircle,
-  Send
+  Send,
+  Zap,
+  CheckCircle2
 } from "lucide-react";
 
 interface PaymentItem {
@@ -35,8 +37,11 @@ interface PaymentItem {
   network?: string;
   screenshot1?: string;
   screenshot2?: string;
-  status: "PENDING" | "CONFIRMED" | "REJECTED";
+  status: "PENDING" | "VERIFYING" | "CONFIRMED" | "MANUAL_REVIEW" | "REJECTED";
   rejectReason?: string;
+  verificationReason?: string;
+  verifiedAt?: string;
+  matchedPayment?: any;
   createdAt: string;
 }
 
@@ -95,7 +100,7 @@ export default function AdminPaymentsPage() {
   const [payments, setPayments] = useState<PaymentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<"ALL" | "UPI" | "CRYPTO">("ALL");
-  const [filterStatus, setFilterStatus] = useState<"ALL" | "PENDING" | "CONFIRMED" | "REJECTED">("ALL");
+  const [filterStatus, setFilterStatus] = useState<"ALL" | "PENDING" | "VERIFYING" | "CONFIRMED" | "MANUAL_REVIEW" | "REJECTED">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
@@ -106,6 +111,8 @@ export default function AdminPaymentsPage() {
   const [manualAmount, setManualAmount] = useState("");
   const [manualLoading, setManualLoading] = useState(false);
   const [currentUpiId, setCurrentUpiId] = useState("Jaatdhillon@fam");
+  const [fampayAutoApprove, setFampayAutoApprove] = useState(false);
+  const [togglingAutoApprove, setTogglingAutoApprove] = useState(false);
 
   const fetchPayments = useCallback(async () => {
     setLoading(true);
@@ -114,6 +121,9 @@ export default function AdminPaymentsPage() {
         .then((r) => r.json())
         .then((d) => {
           if (d.success && d.settings?.upiId) setCurrentUpiId(d.settings.upiId);
+          if (d.success && d.settings?.fampayAutoApprove !== undefined) {
+            setFampayAutoApprove(Boolean(d.settings.fampayAutoApprove));
+          }
         })
         .catch(() => {});
 
@@ -132,6 +142,9 @@ export default function AdminPaymentsPage() {
         screenshot2: p.screenshot2,
         status: p.status,
         rejectReason: p.rejectReason,
+        verificationReason: p.verificationReason,
+        verifiedAt: p.verifiedAt,
+        matchedPayment: p.matchedPayment,
         createdAt: p.createdAt
       }));
 
@@ -226,6 +239,34 @@ export default function AdminPaymentsPage() {
     }
   };
 
+  const handleToggleAutoApprove = async () => {
+    const nextVal = !fampayAutoApprove;
+    setTogglingAutoApprove(true);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fampayAutoApprove: nextVal })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFampayAutoApprove(nextVal);
+        showToast(
+          nextVal 
+            ? "FamPay Auto-Approval ENABLED: Valid UTRs from Gmail will instantly credit user wallets!" 
+            : "FamPay Auto-Approval DISABLED: Payments will match and await admin 1-click confirmation.",
+          "success"
+        );
+      } else {
+        showToast(data.error || "Failed to update auto-approval setting", "error");
+      }
+    } catch {
+      showToast("Network error updating auto-approval", "error");
+    } finally {
+      setTogglingAutoApprove(false);
+    }
+  };
+
   const handleManualCredit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualEmail.trim() || !manualAmount || Number(manualAmount) <= 0) {
@@ -274,7 +315,9 @@ export default function AdminPaymentsPage() {
   });
 
   const pendingCount = payments.filter(p => p.status === "PENDING").length;
-  const pendingTotal = payments.filter(p => p.status === "PENDING").reduce((sum, p) => sum + p.amount, 0);
+  const verifyingCount = payments.filter(p => p.status === "VERIFYING").length;
+  const manualReviewCount = payments.filter(p => p.status === "MANUAL_REVIEW").length;
+  const pendingTotal = payments.filter(p => p.status === "PENDING" || p.status === "VERIFYING" || p.status === "MANUAL_REVIEW").reduce((sum, p) => sum + p.amount, 0);
   const confirmedTotal = payments.filter(p => p.status === "CONFIRMED").reduce((sum, p) => sum + p.amount, 0);
 
   return (
@@ -287,7 +330,7 @@ export default function AdminPaymentsPage() {
             Payment Verification & Deposit Queue
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Review manual UPI QR & USDT payments, verify bank screenshots, and approve funds directly into user wallets.
+            Automated FamPay Gmail UTR verification, manual UPI QR & USDT review, and direct wallet crediting.
           </p>
         </div>
 
@@ -313,58 +356,105 @@ export default function AdminPaymentsPage() {
         </div>
       )}
 
-      {/* Active Platform Receiving UPI Banner */}
-      <div className="p-3.5 px-4 rounded-2xl bg-[#131b2e] border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center font-bold">
-            <QrCode className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-xs font-bold text-white flex items-center gap-2">
-              <span>Platform Receiving UPI Address:</span>
-              <span className="font-mono text-emerald-400 font-black text-sm select-all">{currentUpiId}</span>
+      {/* FamPay Automated Verification Control Banner */}
+      <div className="p-5 rounded-2xl bg-gradient-to-r from-purple-950/40 via-[#131b2e] to-slate-900 border border-purple-500/30 shadow-lg relative overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 text-purple-400 flex items-center justify-center font-bold shrink-0 mt-0.5">
+              <Zap className="w-5 h-5" />
             </div>
-            <p className="text-[11px] text-slate-400">
-              Users generate dynamic QR codes and pay directly to this UPI address.
-            </p>
+            <div>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <span className="text-sm font-black text-white tracking-wide">
+                  FamPay Gmail UTR Auto-Verification
+                </span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                  fampayAutoApprove
+                    ? "bg-emerald-500/20 border border-emerald-500/40 text-emerald-400"
+                    : "bg-amber-500/20 border border-amber-500/40 text-amber-400"
+                }`}>
+                  {fampayAutoApprove ? "⚡ Auto-Approve ON" : "🛡️ Manual Review Mode"}
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                {fampayAutoApprove 
+                  ? "Incoming payment notifications sent from Google Apps Script automatically match user UTR & amount, instantly crediting wallets with atomic ledger verification." 
+                  : "Payments sent from Google Apps Script are ingested and matched with user UTRs, then placed in queue for quick 1-click admin approval."}
+              </p>
+              <div className="flex items-center gap-3 mt-2 flex-wrap text-[11px] text-slate-400 font-mono">
+                <span>Webhook: <code className="text-purple-300 select-all">/api/payments/fampay/webhook</code></span>
+                <span>•</span>
+                <span>UPI: <code className="text-emerald-400 font-bold select-all">{currentUpiId}</code></span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0 self-start lg:self-center">
+            <button
+              onClick={handleToggleAutoApprove}
+              disabled={togglingAutoApprove}
+              className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-md cursor-pointer disabled:opacity-50 ${
+                fampayAutoApprove
+                  ? "bg-amber-600 hover:bg-amber-500 text-white"
+                  : "bg-purple-600 hover:bg-purple-500 text-white"
+              }`}
+            >
+              {togglingAutoApprove ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : fampayAutoApprove ? (
+                <ShieldCheck className="w-4 h-4" />
+              ) : (
+                <Zap className="w-4 h-4" />
+              )}
+              <span>{fampayAutoApprove ? "Switch to Manual Mode" : "Enable Auto-Approval"}</span>
+            </button>
+            <Link
+              href="/admin/settings"
+              className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs flex items-center gap-1.5 transition-colors"
+            >
+              <span>Secret Settings</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </Link>
           </div>
         </div>
-        <Link
-          href="/admin/settings#upi-settings"
-          className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs shrink-0 self-start sm:self-center"
-        >
-          <span>Change UPI & QR Code</span>
-          <ExternalLink className="w-3.5 h-3.5" />
-        </Link>
       </div>
 
       {/* Metric Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Pending Verifications</p>
+            <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Pending Deposits</p>
             <p className="text-2xl font-black text-amber-600 dark:text-amber-300 mt-0.5">{pendingCount} <span className="text-xs font-semibold text-slate-500">payments</span></p>
-            <p className="text-xs font-bold text-amber-700 dark:text-amber-400 mt-1">₹{pendingTotal.toLocaleString("en-IN")} awaiting credit</p>
+            <p className="text-xs font-bold text-amber-700 dark:text-amber-400 mt-1">₹{pendingTotal.toLocaleString("en-IN")} total</p>
           </div>
           <Clock className="w-9 h-9 text-amber-500 opacity-60" />
         </div>
 
-        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
+        <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Total Approved Deposits</p>
-            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-300 mt-0.5">₹{confirmedTotal.toLocaleString("en-IN")}</p>
-            <p className="text-xs font-semibold text-slate-500 mt-1">Successfully credited to users</p>
+            <p className="text-[11px] font-bold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider">Verifying (Awaiting Bank)</p>
+            <p className="text-2xl font-black text-cyan-600 dark:text-cyan-300 mt-0.5">{verifyingCount}</p>
+            <p className="text-xs font-semibold text-slate-500 mt-1">Syncing with Gmail</p>
           </div>
-          <ShieldCheck className="w-9 h-9 text-emerald-500 opacity-60" />
+          <RefreshCw className="w-9 h-9 text-cyan-500 opacity-60" />
         </div>
 
-        <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-between">
+        <div className="p-4 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Total Submissions</p>
-            <p className="text-2xl font-black text-blue-600 dark:text-blue-300 mt-0.5">{payments.length}</p>
-            <p className="text-xs font-semibold text-slate-500 mt-1">All time recorded transactions</p>
+            <p className="text-[11px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider">Manual Review</p>
+            <p className="text-2xl font-black text-orange-600 dark:text-orange-300 mt-0.5">{manualReviewCount}</p>
+            <p className="text-xs font-semibold text-slate-500 mt-1">Needs verification</p>
           </div>
-          <Coins className="w-9 h-9 text-blue-500 opacity-60" />
+          <AlertCircle className="w-9 h-9 text-orange-500 opacity-60" />
+        </div>
+
+        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Total Approved</p>
+            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-300 mt-0.5">₹{confirmedTotal.toLocaleString("en-IN")}</p>
+            <p className="text-xs font-semibold text-slate-500 mt-1">Credited to users</p>
+          </div>
+          <ShieldCheck className="w-9 h-9 text-emerald-500 opacity-60" />
         </div>
       </div>
 
@@ -448,7 +538,7 @@ export default function AdminPaymentsPage() {
           </div>
 
           {/* Status Filter */}
-          <div className="inline-flex p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl text-xs font-bold">
+          <div className="inline-flex p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl text-xs font-bold flex-wrap gap-1">
             <button
               onClick={() => setFilterStatus("ALL")}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
@@ -464,6 +554,22 @@ export default function AdminPaymentsPage() {
               }`}
             >
               Pending ({pendingCount})
+            </button>
+            <button
+              onClick={() => setFilterStatus("VERIFYING")}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                filterStatus === "VERIFYING" ? "bg-cyan-600 text-white shadow-xs" : "text-slate-500"
+              }`}
+            >
+              Verifying ({verifyingCount})
+            </button>
+            <button
+              onClick={() => setFilterStatus("MANUAL_REVIEW")}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                filterStatus === "MANUAL_REVIEW" ? "bg-orange-600 text-white shadow-xs" : "text-slate-500"
+              }`}
+            >
+              Manual Review ({manualReviewCount})
             </button>
             <button
               onClick={() => setFilterStatus("CONFIRMED")}
@@ -608,30 +714,51 @@ export default function AdminPaymentsPage() {
 
                       {/* Status */}
                       <td className="py-4 px-2">
-                        <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                          p.status === "CONFIRMED"
-                            ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400"
-                            : p.status === "PENDING"
-                            ? "bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 animate-pulse"
-                            : "bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400"
-                        }`}>
-                          {p.status}
-                        </span>
-                        {p.rejectReason && (
-                          <div className="text-[10px] text-rose-500 italic mt-0.5">
-                            {p.rejectReason}
-                          </div>
-                        )}
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                            p.status === "CONFIRMED"
+                              ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400"
+                              : p.status === "VERIFYING"
+                              ? "bg-cyan-50 dark:bg-cyan-950/50 text-cyan-600 dark:text-cyan-400 animate-pulse border border-cyan-500/30"
+                              : p.status === "MANUAL_REVIEW"
+                              ? "bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 border border-orange-500/30"
+                              : p.status === "PENDING"
+                              ? "bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400"
+                              : "bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400"
+                          }`}>
+                            {p.status === "VERIFYING" ? "⏳ VERIFYING" : p.status === "MANUAL_REVIEW" ? "⚠️ MANUAL REVIEW" : p.status}
+                          </span>
+
+                          {p.matchedPayment && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[9px] font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">
+                              <Zap className="w-2.5 h-2.5 text-purple-400" />
+                              Auto-Matched ₹{(p.matchedPayment.amountPaise / 100).toFixed(0)}
+                            </span>
+                          )}
+
+                          {p.verificationReason && (
+                            <div className="text-[10px] text-amber-500/90 font-medium">
+                              {p.verificationReason}
+                            </div>
+                          )}
+
+                          {p.rejectReason && (
+                            <div className="text-[10px] text-rose-500 italic">
+                              {p.rejectReason}
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                       {/* Action Buttons */}
                       <td className="py-4 px-2 text-right">
-                        {isPending ? (
+                        {p.status === "PENDING" || p.status === "VERIFYING" || p.status === "MANUAL_REVIEW" ? (
                           <div className="inline-flex items-center gap-1.5">
                             <button
                               disabled={isActing}
                               onClick={() => handleApprove(p)}
                               className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors shadow-xs disabled:opacity-50"
+                              title="Approve and credit wallet immediately"
                             >
                               {isActing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                               <span>Approve & Credit</span>

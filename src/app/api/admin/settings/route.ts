@@ -68,7 +68,9 @@ export async function POST(request: NextRequest) {
       whatsapp,
       supportWhatsapp,
       usdToInr,
-      usdToInrRate
+      usdToInrRate,
+      fampayAutoApprove,
+      fampayWebhookSecret,
     } = body;
 
     // Handle Admin Master Credentials Change
@@ -185,6 +187,8 @@ export async function POST(request: NextRequest) {
         minDeposit: minDeposit !== undefined && !isNaN(Number(minDeposit)) ? Math.max(1, Number(minDeposit)) : 50,
         supportWhatsapp: supportWhatsapp || whatsapp || undefined,
         usdToInrRate: (usdToInrRate || usdToInr) !== undefined && !isNaN(Number(usdToInrRate || usdToInr)) ? Number(usdToInrRate || usdToInr) : 96.0,
+        fampayAutoApprove: fampayAutoApprove !== undefined ? Boolean(fampayAutoApprove) : false,
+        fampayWebhookSecret: fampayWebhookSecret ? String(fampayWebhookSecret).trim() : undefined,
       },
       update: {
         supportTelegram: tgEncoded !== undefined ? tgEncoded : undefined,
@@ -194,6 +198,8 @@ export async function POST(request: NextRequest) {
         minDeposit: minDeposit !== undefined && !isNaN(Number(minDeposit)) ? Math.max(1, Number(minDeposit)) : undefined,
         supportWhatsapp: (supportWhatsapp || whatsapp) !== undefined ? (supportWhatsapp || whatsapp) : undefined,
         usdToInrRate: (usdToInrRate || usdToInr) !== undefined && !isNaN(Number(usdToInrRate || usdToInr)) ? Number(usdToInrRate || usdToInr) : undefined,
+        fampayAutoApprove: fampayAutoApprove !== undefined ? Boolean(fampayAutoApprove) : undefined,
+        fampayWebhookSecret: fampayWebhookSecret !== undefined ? String(fampayWebhookSecret).trim() : undefined,
       }
     });
 

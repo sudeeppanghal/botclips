@@ -146,7 +146,8 @@ export default function AddFundsModal({
         return;
       }
 
-      setSuccessMsg("UTR submitted successfully! Pending verification. Your balance will be credited once confirmed.");
+      const isConfirmed = data.payment?.status === "CONFIRMED";
+      setSuccessMsg(data.message || (isConfirmed ? "Payment verified instantly! Your balance has been credited." : "UTR submitted! Verifying with FamPay notification..."));
 
       setTimeout(() => {
         setSuccessMsg(null);
@@ -154,9 +155,9 @@ export default function AddFundsModal({
         setUtr("");
         setScreenshot(null);
         onClose();
-        if (onFundsAdded) onFundsAdded(Math.max(100, Number(amount)));
+        if (onFundsAdded) onFundsAdded(Math.max(minDeposit, Number(amount)));
         window.dispatchEvent(new Event("balance_updated"));
-      }, 2000);
+      }, isConfirmed ? 2500 : 3000);
     } catch (err: any) {
       setErrorMsg("Error submitting deposit. Please check your internet connection.");
     } finally {

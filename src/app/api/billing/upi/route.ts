@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { sendUpiDepositAlert } from "@/lib/telegram";
+import { normalizeUtr } from "@/lib/payments/verification";
 
 // GET /api/billing/upi - Fetch all UPI payments (Admin only or user's own)
 export async function GET(request: NextRequest) {
@@ -19,7 +20,8 @@ export async function GET(request: NextRequest) {
         include: {
           user: {
             select: { id: true, email: true, name: true }
-          }
+          },
+          matchedPayment: true,
         },
         take: 100,
       });
@@ -97,7 +99,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "12-digit UTR and deposit amount are required" }, { status: 400 });
     }
 
-    const cleanUtr = String(utr).trim();
+    const cleanUtr = normalizeUtr(utr);
     const depositAmount = Number(amount);
 
     let minDepositLimit = 50;
@@ -131,7 +133,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Record payment into database with screenshots
+    // Record payment into database with screenshots in VERIFYING state
     const payment = await prisma.upiPayment.create({
       data: {
         userId,
@@ -139,12 +141,33 @@ export async function POST(request: NextRequest) {
         amount: depositAmount,
         screenshot1: s1,
         screenshot2: s2,
-        status: "PENDING",
+        status: "VERIFYING",
       },
       include: {
         user: { select: { email: true, name: true } }
       }
     });
+
+    // Attempt instant reconciliation against already ingested FamPay notifications
+    let reconcileMessage = "Payment submitted. Verifying transaction with FamPay...";
+    let finalStatus: any = "VERIFYING";
+
+    try {
+      const { reconcileDepositRequest } = await import("@/lib/payments/verification");
+      const recResult = await reconcileDepositRequest(payment.id);
+      if (recResult.status === "MATCHED_AND_CREDITED") {
+        reconcileMessage = `Payment verified instantly! ₹${depositAmount} has been credited to your wallet balance.`;
+        finalStatus = "CONFIRMED";
+      } else if (recResult.status === "MATCHED_PENDING_APPROVAL") {
+        reconcileMessage = `Payment verified with FamPay (₹${depositAmount}). Awaiting final confirmation.`;
+        finalStatus = "VERIFYING";
+      } else if (recResult.status === "FLAGGED_MISMATCH") {
+        reconcileMessage = `Payment flagged for manual review: ${recResult.reason}`;
+        finalStatus = "MANUAL_REVIEW";
+      }
+    } catch (recErr) {
+      console.error("Instant reconciliation error:", recErr);
+    }
 
     // Trigger Telegram channel alert with 1-click inline approval buttons asynchronously
     sendUpiDepositAlert({
@@ -159,8 +182,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      payment,
-      message: "Payment submitted successfully. Admin will verify screenshots and credit balance." 
+      payment: { ...payment, status: finalStatus },
+      message: reconcileMessage
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Failed to submit payment" }, { status: 500 });
@@ -186,6 +209,7 @@ export async function PUT(request: NextRequest) {
 
     const payment = await prisma.upiPayment.findUnique({
       where: { id: paymentId },
+      include: { user: true }
     });
 
     if (!payment) {
@@ -197,17 +221,67 @@ export async function PUT(request: NextRequest) {
     }
 
     if (action === "APPROVE") {
-      // Credit user's wallet balance
-      await prisma.$transaction([
-        prisma.upiPayment.update({
-          where: { id: paymentId },
-          data: { status: "CONFIRMED" },
-        }),
-        prisma.user.update({
+      // Concurrency-safe atomic transaction with wallet ledger
+      await prisma.$transaction(async (tx) => {
+        const user = await tx.user.findUnique({ where: { id: payment.userId } });
+        const balanceBefore = Number(user?.balance || 0);
+        const balanceAfter = Number((balanceBefore + payment.amount).toFixed(2));
+
+        // Credit user balance
+        await tx.user.update({
           where: { id: payment.userId },
           data: { balance: { increment: payment.amount } },
-        }),
-      ]);
+        });
+
+        // Insert wallet ledger record
+        await tx.walletLedger.create({
+          data: {
+            userId: payment.userId,
+            amount: payment.amount,
+            balanceBefore,
+            balanceAfter,
+            type: "DEPOSIT_UPI",
+            referenceId: payment.id,
+            description: `Manual admin approval of UPI payment (UTR: ${payment.utr})`,
+          },
+        });
+
+        // Link matching received payment if exists
+        const matchingReceived = await tx.receivedPayment.findUnique({
+          where: { utr: payment.utr }
+        });
+
+        if (matchingReceived && matchingReceived.status !== "matched") {
+          await tx.receivedPayment.update({
+            where: { id: matchingReceived.id },
+            data: { status: "matched" }
+          });
+        }
+
+        // Update UPI payment
+        await tx.upiPayment.update({
+          where: { id: paymentId },
+          data: { 
+            status: "CONFIRMED",
+            matchedPaymentId: matchingReceived?.id || undefined,
+            verifiedAt: new Date(),
+            verificationReason: "Manual admin approval",
+          },
+        });
+
+        // Log audit event
+        await tx.paymentProcessingEvent.create({
+          data: {
+            eventType: "ADMIN_ACTION",
+            utr: payment.utr,
+            amount: payment.amount,
+            upiPaymentId: payment.id,
+            receivedPaymentId: matchingReceived?.id || null,
+            result: "SUCCESS",
+            details: `Approved by admin ${session.email}. Balance credited ₹${payment.amount} (₹${balanceBefore} -> ₹${balanceAfter})`,
+          }
+        });
+      });
 
       // Record referral commission if user was referred (10% of nominal 30% profit)
       try {
@@ -231,8 +305,20 @@ export async function PUT(request: NextRequest) {
         where: { id: paymentId },
         data: { 
           status: "REJECTED",
-          rejectReason: rejectReason || "Invalid UTR or screenshots mismatch"
+          rejectReason: rejectReason || "Invalid UTR or screenshots mismatch",
+          verificationReason: `Rejected by admin: ${rejectReason || "Invalid details"}`,
         },
+      });
+
+      await prisma.paymentProcessingEvent.create({
+        data: {
+          eventType: "ADMIN_ACTION",
+          utr: payment.utr,
+          amount: payment.amount,
+          upiPaymentId: payment.id,
+          result: "FAILED",
+          details: `Rejected by admin ${session.email}: ${rejectReason || "Invalid details"}`,
+        }
       });
 
       return NextResponse.json({ 

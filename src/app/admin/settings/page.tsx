@@ -41,6 +41,14 @@ export default function AdminSettingsPage() {
   const [showUpiConfirmModal, setShowUpiConfirmModal] = useState(false);
   const [copiedUpi, setCopiedUpi] = useState(false);
 
+  // FamPay Automation State
+  const [fampayWebhookSecret, setFampayWebhookSecret] = useState("");
+  const [fampayAutoApprove, setFampayAutoApprove] = useState(false);
+  const [fampayWindowHours, setFampayWindowHours] = useState(24);
+  const [savingFampay, setSavingFampay] = useState(false);
+  const [copiedWebhook, setCopiedWebhook] = useState(false);
+  const [copiedSecret, setCopiedSecret] = useState(false);
+
   // Master Admin Credentials State
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -59,6 +67,9 @@ export default function AdminSettingsPage() {
           setSavedUpiId(currentUpi);
           setMinDeposit(currentMin);
           setSavedMinDeposit(currentMin);
+          setFampayWebhookSecret(data.settings.fampayWebhookSecret || "");
+          setFampayAutoApprove(Boolean(data.settings.fampayAutoApprove));
+          setFampayWindowHours(Number(data.settings.fampayVerificationWindowHours) || 24);
         }
       })
       .catch(() => setError("Failed to load platform settings"))
@@ -206,6 +217,34 @@ export default function AdminSettingsPage() {
       setError(err.message || "Failed to send test message");
     } finally {
       setTestingTelegram(false);
+    }
+  };
+
+  const handleSaveFampay = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingFampay(true);
+    setError(null);
+    setNotification(null);
+
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fampayWebhookSecret: fampayWebhookSecret.trim(),
+          fampayAutoApprove,
+          fampayVerificationWindowHours: Number(fampayWindowHours) || 24
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save FamPay settings");
+
+      setNotification("⚡ FamPay automation configuration saved successfully!");
+    } catch (err: any) {
+      setError(err.message || "Failed to update FamPay settings");
+    } finally {
+      setSavingFampay(false);
     }
   };
 
@@ -481,7 +520,170 @@ export default function AdminSettingsPage() {
       </form>
 
       {/* ─────────────────────────────────────────────────────────────────── */}
-      {/* 3. MASTER ADMIN CREDENTIALS & SECURITY                              */}
+      {/* 3. FAMPAY GMAIL AUTOMATION & WEBHOOK SETTINGS                       */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      <form onSubmit={handleSaveFampay} className="bg-white dark:bg-[#131b2e] border border-purple-500/30 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold">
+              <Zap className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-black text-slate-900 dark:text-white">
+                  FamPay Gmail UTR Auto-Verification
+                </h2>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                  fampayAutoApprove
+                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                    : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                }`}>
+                  {fampayAutoApprove ? "⚡ Auto-Approve Active" : "🛡️ Manual Review Mode"}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Automatically verify user deposits against real FamPay transaction emails sent via Google Apps Script
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-5">
+          {/* Webhook Endpoint Display */}
+          <div>
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">
+              Webhook Endpoint URL (Target for Google Apps Script)
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                readOnly
+                value="https://botclips.online/api/payments/fampay/webhook"
+                className="w-full px-4 py-3 text-xs font-mono font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-purple-400 outline-none select-all pr-24"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText("https://botclips.online/api/payments/fampay/webhook");
+                  setCopiedWebhook(true);
+                  setTimeout(() => setCopiedWebhook(false), 2000);
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                {copiedWebhook ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedWebhook ? "Copied" : "Copy"}</span>
+              </button>
+            </div>
+            <span className="text-[11px] text-slate-400 mt-1.5 block">
+              Configure this exact URL as the <code className="text-purple-300">WEBHOOK_URL</code> in your Google Apps Script project.
+            </span>
+          </div>
+
+          {/* Webhook Secret */}
+          <div>
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">
+              Webhook Secret Header (x-webhook-secret)
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                value={fampayWebhookSecret}
+                onChange={(e) => setFampayWebhookSecret(e.target.value)}
+                placeholder="Enter or generate a strong shared secret token"
+                className="w-full px-4 py-3 text-xs font-mono bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-900 dark:text-white outline-none focus:border-purple-500 transition-colors pr-44"
+              />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const rand = "sec_fam_" + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+                    setFampayWebhookSecret(rand);
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold transition-colors cursor-pointer"
+                  title="Generate random secret"
+                >
+                  Generate
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(fampayWebhookSecret);
+                    setCopiedSecret(true);
+                    setTimeout(() => setCopiedSecret(false), 2000);
+                  }}
+                  disabled={!fampayWebhookSecret}
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
+                  title="Copy secret"
+                >
+                  {copiedSecret ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>Copy</span>
+                </button>
+              </div>
+            </div>
+            <span className="text-[11px] text-slate-400 mt-1.5 block">
+              Set the same token as <code className="text-purple-300">WEBHOOK_SECRET</code> in Google Apps Script Script Properties.
+            </span>
+          </div>
+
+          {/* Auto-Approval Toggle & Window */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                  Instant Auto-Approval Mode
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  {fampayAutoApprove 
+                    ? "Credit wallet immediately upon 100% UTR & amount match" 
+                    : "Match payments in database, but wait for admin 1-click confirmation"}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFampayAutoApprove(!fampayAutoApprove)}
+                className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${
+                  fampayAutoApprove ? "bg-emerald-600" : "bg-slate-700"
+                }`}
+              >
+                <span className={`w-5 h-5 rounded-full bg-white absolute top-0.5 transition-transform ${
+                  fampayAutoApprove ? "left-6.5" : "left-0.5"
+                }`} />
+              </button>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                Verification Window (Hours)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="168"
+                value={fampayWindowHours}
+                onChange={(e) => setFampayWindowHours(Number(e.target.value))}
+                className="w-full px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none"
+              />
+              <span className="text-[10px] text-slate-400 mt-1 block">
+                Maximum age difference allowed between email notification and deposit claim (default: 24h).
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-2">
+          <button
+            type="submit"
+            disabled={savingFampay}
+            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-500/20 transition-all cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            <Zap className="w-4 h-4" />
+            <span>{savingFampay ? "Saving..." : "Save FamPay Automation Settings"}</span>
+          </button>
+        </div>
+      </form>
+
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 4. MASTER ADMIN CREDENTIALS & SECURITY                              */}
       {/* ─────────────────────────────────────────────────────────────────── */}
       <div className="bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
         <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">

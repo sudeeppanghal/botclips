@@ -776,6 +776,44 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // ── STAGE 4: FAMPAY AUTOMATED UTR RECONCILIATION ──
+    let fampayReconciledCount = 0;
+    if (!isBudgetExhausted()) {
+      try {
+        // 1. Reconcile eligible unconsumed received payments against pending/verifying deposits
+        const unconsumedPayments = await prisma.receivedPayment.findMany({
+          where: { status: "received" },
+          take: 5,
+          orderBy: { createdAt: "asc" }
+        });
+
+        for (const payment of unconsumedPayments) {
+          if (isBudgetExhausted()) break;
+          const { reconcileIncomingPayment } = await import("@/lib/payments/verification");
+          const res = await reconcileIncomingPayment(payment.id);
+          if (res.status === "MATCHED_AND_CREDITED" || res.status === "MATCHED_PENDING_APPROVAL") {
+            fampayReconciledCount++;
+          }
+        }
+
+        // 2. Timeout check: If user submitted UTR > 30 minutes ago and no Gmail notification arrived, mark MANUAL_REVIEW
+        const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
+        await prisma.upiPayment.updateMany({
+          where: {
+            status: "VERIFYING",
+            matchedPaymentId: null,
+            createdAt: { lt: thirtyMinsAgo }
+          },
+          data: {
+            status: "MANUAL_REVIEW",
+            verificationReason: "FamPay notification pending: No matching Gmail notification received within 30 minutes."
+          }
+        });
+      } catch (fampayErr) {
+        console.error("FamPay background reconciliation error:", fampayErr);
+      }
+    }
+
     const durationMs = Date.now() - startTime;
 
     return NextResponse.json({

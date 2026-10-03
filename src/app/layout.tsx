@@ -22,11 +22,16 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://botclips.online"),
   icons: {
     icon: [
-      { url: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/branding/botclips-icon.png", type: "image/png" },
-      { url: "/favicon.ico" },
+      { url: "/favicon.ico?v=3" },
+      { url: "/favicon-32x32.png?v=3", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png?v=3", sizes: "16x16", type: "image/png" },
+      { url: "/logo-icon.png?v=3", sizes: "512x512", type: "image/png" },
     ],
-    shortcut: "/favicon.ico",
-    apple: "https://kixjzeptylzlgnmnihwv.supabase.co/storage/v1/object/public/media/branding/botclips-icon.png",
+    shortcut: "/favicon.ico?v=3",
+    apple: [
+      { url: "/apple-icon.png?v=3", sizes: "180x180", type: "image/png" },
+      { url: "/logo-icon.png?v=3", sizes: "512x512", type: "image/png" },
+    ],
   },
   title: {
     default: "BotClips - #1 AI-Powered SMM Panel & Whop Clippers Automation",
@@ -68,7 +73,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "https://botclips.online/logo.png",
+        url: "https://botclips.online/logo.png?v=3",
         width: 1200,
         height: 630,
         alt: "BotClips - Social Media Marketing Automation & Whop Clippers Engine",
@@ -79,7 +84,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "BotClips - #1 AI-Powered SMM Panel & Whop Clippers Automation",
     description: "Organic non-linear jitter delivery, Whop clippers multi-signal combos, 0% fee TRC20 USDT & UPI deposits.",
-    images: ["https://botclips.online/logo.png"],
+    images: ["https://botclips.online/logo.png?v=3"],
     creator: "@botclips_online",
   },
   robots: {
@@ -104,7 +109,7 @@ const organizationJsonLd = {
   "name": "BotClips",
   "alternateName": "BotClips Automation",
   "url": "https://botclips.online",
-  "logo": "https://botclips.online/logo.png",
+  "logo": "https://botclips.online/logo.png?v=3",
   "description": "BotClips is the premier AI-powered social media marketing and algorithmic growth platform, engineered specifically for Whop clippers, digital creators, and growth agencies.",
   "foundingDate": "2026-01-01",
   "founders": [

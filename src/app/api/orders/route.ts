@@ -162,11 +162,34 @@ export async function POST(request: NextRequest) {
         customApiUrl: true,
         customApiKey: true,
         defaultServices: true,
+        role: true,
       },
     });
 
     if (!dbUser) {
       return NextResponse.json({ error: "User account not found" }, { status: 404 });
+    }
+
+    // Platform locking: Only INSTAGRAM is currently live for regular users
+    const requestedPlat = String(platform || "").toUpperCase();
+    if (requestedPlat && requestedPlat !== "INSTAGRAM" && dbUser.role !== "ADMIN") {
+      return NextResponse.json(
+        { error: "Only Instagram services are currently live. TikTok, YouTube, and other platforms are rolling out soon!" },
+        { status: 400 }
+      );
+    }
+
+    // Server Overheated Check: If upstream provider panels are exhausted or have no balance
+    const activePanels = await prisma.panel.findMany({ where: { isActive: true } });
+    const hasFundedPanel = activePanels.some(p => (p.balance === null || p.balance > 0.05) && p.status !== "LOW_BALANCE");
+    if (!hasFundedPanel && activePanels.length > 0) {
+      return NextResponse.json(
+        {
+          error: "SERVER_OVERHEATED",
+          message: "Server is overheated because of too many incoming orders! Please contact support or raise a support ticket so our engineers can prioritize your queue."
+        },
+        { status: 503 }
+      );
     }
 
     // 2. Determine Execution Mode
@@ -291,11 +314,97 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (comboViews > 0 && comboViews < 100) {
-        return NextResponse.json(
-          { error: "The minimum views quantity accepted for multi-signal campaigns is 100 views." },
-          { status: 400 }
-        );
+      // Look up admin configured combo mappings for exact upstream services and dynamic minimums
+      const settings = await prisma.adminSettings.findUnique({ where: { id: "global" } });
+      let comboDefaults: any = null;
+      if (settings?.comboDefaults) {
+        try { comboDefaults = JSON.parse(settings.comboDefaults); } catch {}
+      }
+      const platKey = String(platform || "INSTAGRAM").toUpperCase();
+      const platConfig = comboDefaults?.[platKey];
+
+      const findMappedSvc = async (idOrSvcId?: string, fallbackKw?: string) => {
+        if (idOrSvcId) {
+          const match = await prisma.adminService.findFirst({
+            where: {
+              OR: [{ id: idOrSvcId }, { serviceId: idOrSvcId }],
+              isActive: true,
+            },
+            select: { serviceId: true, minQuantity: true, panelId: true },
+          });
+          if (match) return match;
+        }
+        if (fallbackKw) {
+          return await prisma.adminService.findFirst({
+            where: {
+              platform: (platform as any) || "INSTAGRAM",
+              OR: [
+                { category: { contains: fallbackKw, mode: "insensitive" } },
+                { name: { contains: fallbackKw, mode: "insensitive" } },
+              ],
+              isActive: true,
+            },
+            select: { serviceId: true, minQuantity: true, panelId: true },
+          });
+        }
+        return null;
+      };
+
+      const viewsService = await findMappedSvc(platConfig?.viewsServiceId, "view");
+      const likeService = await findMappedSvc(platConfig?.likesServiceId, "like");
+      const shareService = await findMappedSvc(platConfig?.sharesServiceId, "share");
+      const saveService = await findMappedSvc(platConfig?.savesServiceId, "save");
+      const commentService = await findMappedSvc(platConfig?.commentsServiceId, "comment");
+
+      // Dynamic minimum validation according to exact admin-configured services
+      if (comboViews > 0) {
+        const vMin = viewsService?.minQuantity ?? 100;
+        if (comboViews < vMin) {
+          return NextResponse.json(
+            { error: `The minimum views quantity accepted for this service is ${vMin} views.` },
+            { status: 400 }
+          );
+        }
+      }
+
+      if (comboLikes > 0) {
+        const lMin = likeService?.minQuantity ?? 1;
+        if (comboLikes < lMin) {
+          return NextResponse.json(
+            { error: `The minimum likes quantity accepted for this service is ${lMin} likes.` },
+            { status: 400 }
+          );
+        }
+      }
+
+      if (comboShares > 0) {
+        const shMin = shareService?.minQuantity ?? 1;
+        if (comboShares < shMin) {
+          return NextResponse.json(
+            { error: `The minimum shares quantity accepted for this service is ${shMin} shares.` },
+            { status: 400 }
+          );
+        }
+      }
+
+      if (comboSaves > 0) {
+        const saMin = saveService?.minQuantity ?? 1;
+        if (comboSaves < saMin) {
+          return NextResponse.json(
+            { error: `The minimum saves quantity accepted for this service is ${saMin} saves.` },
+            { status: 400 }
+          );
+        }
+      }
+
+      if (comboComments > 0) {
+        const cMin = commentService?.minQuantity ?? 1;
+        if (comboComments < cMin) {
+          return NextResponse.json(
+            { error: `The minimum comments quantity accepted for this service is ${cMin} comments.` },
+            { status: 400 }
+          );
+        }
       }
 
       if (dbUser.balance < totalCost) {
@@ -344,48 +453,6 @@ export async function POST(request: NextRequest) {
         status: "PENDING",
         scheduledAt: b.scheduledAt || new Date(nowMs + Math.round((b.timeOffsetMinutes || 0) * 60 * 1000)).toISOString(),
       }));
-
-      // Look up admin configured combo mappings for exact upstream services
-      const settings = await prisma.adminSettings.findUnique({ where: { id: "global" } });
-      let comboDefaults: any = null;
-      if (settings?.comboDefaults) {
-        try { comboDefaults = JSON.parse(settings.comboDefaults); } catch {}
-      }
-      const platKey = String(platform || "INSTAGRAM").toUpperCase();
-      const platConfig = comboDefaults?.[platKey];
-
-      const findMappedSvc = async (idOrSvcId?: string, fallbackKw?: string) => {
-        if (idOrSvcId) {
-          const match = await prisma.adminService.findFirst({
-            where: {
-              OR: [{ id: idOrSvcId }, { serviceId: idOrSvcId }],
-              isActive: true,
-            },
-            select: { serviceId: true, minQuantity: true },
-          });
-          if (match) return match;
-        }
-        if (fallbackKw) {
-          return await prisma.adminService.findFirst({
-            where: {
-              platform: (platform as any) || "INSTAGRAM",
-              OR: [
-                { category: { contains: fallbackKw, mode: "insensitive" } },
-                { name: { contains: fallbackKw, mode: "insensitive" } },
-              ],
-              isActive: true,
-            },
-            select: { serviceId: true, minQuantity: true },
-          });
-        }
-        return null;
-      };
-
-      const viewsService = await findMappedSvc(platConfig?.viewsServiceId, "view");
-      const likeService = await findMappedSvc(platConfig?.likesServiceId, "like");
-      const shareService = await findMappedSvc(platConfig?.sharesServiceId, "share");
-      const saveService = await findMappedSvc(platConfig?.savesServiceId, "save");
-      const commentService = await findMappedSvc(platConfig?.commentsServiceId, "comment");
 
       const comboEnginePayload = {
         ...comboData,
@@ -555,21 +622,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Enforce min and max quantity limits with custom pricing
-    const isViewService = (
-      adminServiceRecord.category?.toLowerCase().includes("view") ||
-      adminServiceRecord.name?.toLowerCase().includes("view") ||
-      String(adminServiceRecord.serviceId) === "5245" ||
-      String(adminServiceRecord.serviceId) === "13578"
-    );
-    const effectiveMin = Math.max(
-      adminServiceRecord.minQuantity || 1,
-      isViewService ? 100 : 1
-    );
+    // Platform check for standard services
+    if (adminServiceRecord.platform && String(adminServiceRecord.platform).toUpperCase() !== "INSTAGRAM" && dbUser.role !== "ADMIN") {
+      return NextResponse.json(
+        { error: "Only Instagram services are currently live. TikTok, YouTube, and other platforms are rolling out soon!" },
+        { status: 400 }
+      );
+    }
+
+    // Dynamic min and max quantity limits set by admin
+    const effectiveMin = Math.max(1, adminServiceRecord.minQuantity || 1);
 
     if (cleanQuantity < effectiveMin) {
       return NextResponse.json(
-        { error: `The minimum order quantity accepted for this campaign is ${effectiveMin.toLocaleString()}${isViewService ? " views" : ""}. Please enter ${effectiveMin.toLocaleString()} or more to proceed.` },
+        { error: `The minimum order quantity accepted for this service is ${effectiveMin.toLocaleString()}. Please enter ${effectiveMin.toLocaleString()} or more to proceed.` },
         { status: 400 }
       );
     }

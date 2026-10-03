@@ -22,26 +22,38 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // If checkBalance requested or balance is 0, attempt live balance check
-    if (checkLiveBalance) {
+    // Auto-fetch real-time live balance by default so Admin always sees accurate balances to refill on time
+    const shouldCheckBalance = searchParams.get("checkBalance") !== "false";
+    if (shouldCheckBalance) {
       const updatedPanels = await Promise.all(
         panels.map(async (panel) => {
-          if (panel.apiUrl && panel.apiKeyEncrypted && panel.apiKeyEncrypted !== "PLACEHOLDER_KEY") {
+          if (panel.apiUrl && panel.apiKeyEncrypted && panel.apiKeyEncrypted !== "PLACEHOLDER_KEY" && panel.isActive) {
             try {
               const client = new SmmPanelClient(panel.apiUrl, panel.apiKeyEncrypted);
               const balRes = await client.getBalance();
               if (balRes && balRes.balance !== undefined && !balRes.error) {
                 const numericBal = parseFloat(String(balRes.balance)) || 0;
+                const panelStatus = numericBal <= 0.05 ? "LOW_BALANCE" : "ONLINE";
                 const updated = await prisma.panel.update({
                   where: { id: panel.id },
                   data: {
                     balance: numericBal,
                     currency: balRes.currency || panel.currency || "INR",
                     lastCheckedAt: new Date(),
-                    status: "ONLINE",
+                    status: panelStatus,
                   },
                 });
-                return { ...panel, balance: updated.balance, currency: updated.currency, status: updated.status };
+                return { ...panel, balance: updated.balance, currency: updated.currency, status: updated.status, lastCheckedAt: updated.lastCheckedAt };
+              } else if (balRes?.error) {
+                const isAuthErr = /key|disabled|auth/i.test(String(balRes.error));
+                const updated = await prisma.panel.update({
+                  where: { id: panel.id },
+                  data: {
+                    lastCheckedAt: new Date(),
+                    status: isAuthErr ? "AUTH_ERROR" : "LOW_BALANCE",
+                  },
+                });
+                return { ...panel, status: updated.status, lastCheckedAt: updated.lastCheckedAt, lastError: balRes.error };
               }
             } catch (err: any) {
               console.error(`Error checking balance for panel ${panel.id}:`, err.message);

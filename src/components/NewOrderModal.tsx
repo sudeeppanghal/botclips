@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { 
   X, 
   ShoppingCart, 
@@ -22,7 +23,8 @@ import {
   ChevronDown,
   ChevronUp,
   HelpCircle,
-  Play
+  Play,
+  Lock
 } from "lucide-react";
 import { PlatformType } from "@/lib/types";
 import DeliveryGraphSelectorModal from "@/components/DeliveryGraphSelectorModal";
@@ -93,6 +95,8 @@ export default function NewOrderModal({
   const [adminComboConfig, setAdminComboConfig] = useState<any>(null);
   const [comboPresetMode, setComboPresetMode] = useState<"FULL_COMBO" | "ENGAGEMENT_ONLY" | "VIEWS_ONLY" | "CUSTOM">("FULL_COMBO");
   const [autoSyncRatios, setAutoSyncRatios] = useState(true);
+  const [showOverheatedModal, setShowOverheatedModal] = useState(false);
+  const [comingSoonPlatform, setComingSoonPlatform] = useState<string | null>(null);
 
   // Dynamic Combo Settings & Catalog loading
   useEffect(() => {
@@ -150,6 +154,13 @@ export default function NewOrderModal({
         return { viewsRate: 15.0, likesRate: 45.0, sharesRate: 36.0, savesRate: 36.0, commentsRate: 360.0 };
     }
   }, [platform, dynamicComboRates]);
+
+  // Dynamic minimum quantities configured by Admin for this platform's services
+  const viewsMin = comboRates.viewsService?.minQuantity != null ? Math.max(1, Number(comboRates.viewsService.minQuantity)) : 100;
+  const likesMin = comboRates.likesService?.minQuantity != null ? Math.max(1, Number(comboRates.likesService.minQuantity)) : 1;
+  const sharesMin = comboRates.sharesService?.minQuantity != null ? Math.max(1, Number(comboRates.sharesService.minQuantity)) : 1;
+  const savesMin = comboRates.savesService?.minQuantity != null ? Math.max(1, Number(comboRates.savesService.minQuantity)) : 1;
+  const commentsMin = comboRates.commentsService?.minQuantity != null ? Math.max(1, Number(comboRates.commentsService.minQuantity)) : 1;
 
   // Total calculation for Combo based on live admin configured rates
   const totalComboCost = useMemo(() => {
@@ -352,24 +363,24 @@ export default function NewOrderModal({
     }
 
     if (orderMode === "COMBO") {
-      if (includeViews && viewsCount < 100) {
-        setError("The minimum views quantity accepted for multi-signal campaigns is 100 views.");
+      if (includeViews && viewsCount < viewsMin) {
+        setError(`The minimum views quantity accepted for this service is ${viewsMin} views.`);
         return;
       }
-      if (includeLikes && likesCount < 10) {
-        setError("The minimum likes quantity accepted is 10 likes.");
+      if (includeLikes && likesCount < likesMin) {
+        setError(`The minimum likes quantity accepted for this service is ${likesMin} likes.`);
         return;
       }
-      if (includeShares && sharesCount < 10) {
-        setError("The minimum shares quantity accepted is 10 shares.");
+      if (includeShares && sharesCount < sharesMin) {
+        setError(`The minimum shares quantity accepted for this service is ${sharesMin} shares.`);
         return;
       }
-      if (includeSaves && savesCount < 10) {
-        setError("The minimum saves quantity accepted is 10 saves.");
+      if (includeSaves && savesCount < savesMin) {
+        setError(`The minimum saves quantity accepted for this service is ${savesMin} saves.`);
         return;
       }
-      if (includeComments && commentsCount < 10) {
-        setError("The minimum comments quantity accepted is 10 comments.");
+      if (includeComments && commentsCount < commentsMin) {
+        setError(`The minimum comments quantity accepted for this service is ${commentsMin} comments.`);
         return;
       }
       if (!includeViews && !includeLikes && !includeShares && !includeSaves && !includeComments) {
@@ -378,10 +389,9 @@ export default function NewOrderModal({
       }
     } else {
       const activeServiceObj = availableServices.find(s => s.name === service);
-      const isView = activeServiceObj?.name?.toLowerCase().includes("view") || activeServiceObj?.cat?.toLowerCase().includes("view");
-      const serviceMin = Math.max(activeServiceObj?.min || (isView ? 100 : 50), isView ? 100 : 10);
+      const serviceMin = activeServiceObj?.minQuantity ?? activeServiceObj?.min ?? 1;
       if (quantity < serviceMin) {
-        setError(`The minimum order quantity accepted for this service is ${serviceMin.toLocaleString()}${isView ? " views" : ""}. Please enter ${serviceMin.toLocaleString()} or more to proceed.`);
+        setError(`The minimum order quantity accepted for this service is ${serviceMin.toLocaleString()}. Please enter ${serviceMin.toLocaleString()} or more to proceed.`);
         return;
       }
     }
@@ -450,6 +460,16 @@ export default function NewOrderModal({
       const data = await res.json();
 
       if (!res.ok || data.error) {
+        if (
+          data.error === "SERVER_OVERHEATED" ||
+          (data.message && data.message.toLowerCase().includes("overheated")) ||
+          (data.error && data.error.toLowerCase().includes("overheated")) ||
+          (data.error && /not enough funds|insufficient balance|depleted/i.test(data.error))
+        ) {
+          setShowOverheatedModal(true);
+          setSubmitting(false);
+          return;
+        }
         throw new Error(data.error || "Failed to process order.");
       }
 
@@ -550,24 +570,41 @@ export default function NewOrderModal({
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           {/* Platform Selector Buttons */}
           <div>
-            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-              Target Platform
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Target Platform
+              </label>
+              <span className="text-[10px] font-mono font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                Instagram Active
+              </span>
+            </div>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-              {(["INSTAGRAM", "TIKTOK", "YOUTUBE", "TELEGRAM", "TWITTER"] as PlatformType[]).map((p) => (
-                <button
-                  type="button"
-                  key={p}
-                  onClick={() => handlePlatformChange(p)}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    platform === p
-                      ? "bg-amber-500 text-white shadow-md shadow-amber-500/20"
-                      : "bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-                  }`}
-                >
-                  {p === "TWITTER" ? "Twitter (X)" : p.charAt(0) + p.slice(1).toLowerCase()}
-                </button>
-              ))}
+              {(["INSTAGRAM", "TIKTOK", "YOUTUBE", "TELEGRAM", "TWITTER"] as PlatformType[]).map((p) => {
+                const isLocked = p !== "INSTAGRAM";
+                return (
+                  <button
+                    type="button"
+                    key={p}
+                    onClick={() => {
+                      if (isLocked) {
+                        setComingSoonPlatform(p === "TWITTER" ? "Twitter (X)" : p.charAt(0) + p.slice(1).toLowerCase());
+                        return;
+                      }
+                      handlePlatformChange(p);
+                    }}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer relative flex items-center justify-center gap-1.5 ${
+                      platform === p
+                        ? "bg-amber-500 text-white shadow-md shadow-amber-500/20"
+                        : isLocked
+                        ? "bg-slate-100/60 dark:bg-slate-900/40 text-slate-400 border border-dashed border-slate-300 dark:border-slate-800 hover:border-amber-500/40"
+                        : "bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    }`}
+                  >
+                    <span>{p === "TWITTER" ? "Twitter (X)" : p.charAt(0) + p.slice(1).toLowerCase()}</span>
+                    {isLocked && <Lock className="w-3 h-3 text-slate-400" />}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -579,7 +616,7 @@ export default function NewOrderModal({
             <input
               type="url"
               required
-              placeholder="https://www.tiktok.com/@creator/video/123... or Instagram Reel URL"
+              placeholder="https://www.instagram.com/reel/123... or Instagram Post URL"
               value={link}
               onChange={(e) => setLink(e.target.value)}
               className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-hidden focus:border-amber-500"
@@ -815,11 +852,11 @@ export default function NewOrderModal({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-slate-400">Min 100 • ₹{comboRates.viewsRate}/1k</span>
+                    <span className="text-[11px] text-slate-400">Min {viewsMin} • ₹{comboRates.viewsRate}/1k</span>
                     <input
                       type="number"
-                      min={100}
-                      step={100}
+                      min={viewsMin}
+                      step={Math.max(1, Math.min(100, viewsMin))}
                       disabled={!includeViews}
                       value={viewsCount}
                       onChange={(e) => handleViewsChange(Number(e.target.value))}
@@ -843,11 +880,11 @@ export default function NewOrderModal({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-slate-400">Min 50 • ₹{comboRates.likesRate}/1k</span>
+                    <span className="text-[11px] text-slate-400">Min {likesMin} • ₹{comboRates.likesRate}/1k</span>
                     <input
                       type="number"
-                      min={50}
-                      step={50}
+                      min={likesMin}
+                      step={Math.max(1, Math.min(50, likesMin))}
                       disabled={!includeLikes}
                       value={likesCount}
                       onChange={(e) => handleLikesChange(Number(e.target.value))}
@@ -871,11 +908,11 @@ export default function NewOrderModal({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-slate-400">Min 50 • ₹{comboRates.sharesRate}/1k</span>
+                    <span className="text-[11px] text-slate-400">Min {sharesMin} • ₹{comboRates.sharesRate}/1k</span>
                     <input
                       type="number"
-                      min={50}
-                      step={25}
+                      min={sharesMin}
+                      step={Math.max(1, Math.min(25, sharesMin))}
                       disabled={!includeShares}
                       value={sharesCount}
                       onChange={(e) => setSharesCount(Number(e.target.value))}
@@ -899,11 +936,11 @@ export default function NewOrderModal({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-slate-400">Min 50 • ₹{comboRates.savesRate}/1k</span>
+                    <span className="text-[11px] text-slate-400">Min {savesMin} • ₹{comboRates.savesRate}/1k</span>
                     <input
                       type="number"
-                      min={50}
-                      step={25}
+                      min={savesMin}
+                      step={Math.max(1, Math.min(25, savesMin))}
                       disabled={!includeSaves}
                       value={savesCount}
                       onChange={(e) => setSavesCount(Number(e.target.value))}
@@ -927,11 +964,11 @@ export default function NewOrderModal({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-slate-400">Min 10 • ₹{comboRates.commentsRate}/1k</span>
+                    <span className="text-[11px] text-slate-400">Min {commentsMin} • ₹{comboRates.commentsRate}/1k</span>
                     <input
                       type="number"
-                      min={10}
-                      step={5}
+                      min={commentsMin}
+                      step={Math.max(1, Math.min(5, commentsMin))}
                       disabled={!includeComments}
                       value={commentsCount}
                       onChange={(e) => setCommentsCount(Number(e.target.value))}
@@ -1073,9 +1110,10 @@ export default function NewOrderModal({
               {/* Quantity */}
               {(() => {
                 const activeServiceObj = availableServices.find(s => s.name === service);
-                const isView = activeServiceObj?.name?.toLowerCase().includes("view") || activeServiceObj?.cat?.toLowerCase().includes("view");
-                const currentMinQty = Math.max(activeServiceObj?.min || (isView ? 100 : 50), isView ? 100 : 10);
-                const currentMaxQty = activeServiceObj?.max || 1000000;
+                const rawMin = activeServiceObj?.minQuantity ?? activeServiceObj?.min;
+                const currentMinQty = rawMin != null && !isNaN(Number(rawMin)) && Number(rawMin) > 0 ? Number(rawMin) : 1;
+                const rawMax = activeServiceObj?.maxQuantity ?? activeServiceObj?.max;
+                const currentMaxQty = rawMax != null && !isNaN(Number(rawMax)) && Number(rawMax) >= currentMinQty ? Number(rawMax) : 1000000;
                 return (
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
@@ -1087,7 +1125,8 @@ export default function NewOrderModal({
                     <input
                       type="number"
                       min={currentMinQty}
-                      step={currentMinQty >= 100 ? 50 : 10}
+                      max={currentMaxQty}
+                      step={currentMinQty >= 100 ? 50 : 1}
                       value={quantity}
                       onChange={(e) => setQuantity(Number(e.target.value))}
                       className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-hidden focus:border-blue-500"
@@ -1229,6 +1268,109 @@ export default function NewOrderModal({
             setSelectedGraph(getDeliveryGraphById("whop_clipper_organic_signature"));
           }}
         />
+
+        {/* Server Overheated Modal */}
+        {showOverheatedModal && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-[#0f172a] border border-rose-500/30 rounded-3xl w-full max-w-md shadow-2xl p-6 relative text-slate-900 dark:text-white animate-in zoom-in-95 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 via-orange-500 to-rose-600 flex items-center justify-center text-white mx-auto shadow-xl shadow-orange-500/30 mb-4 animate-bounce">
+                <Flame className="w-8 h-8" />
+              </div>
+
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-500 border border-rose-500/20 mb-3">
+                <span>Node Cluster Overheated</span>
+              </div>
+
+              <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">
+                High Volume Surge Detected 🔥
+              </h3>
+
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+                Our algorithmic dispatch engine is currently experiencing heavy server load due to high-volume orders. To ensure peak delivery quality and avoid algorithm flagging, incoming queue slots are momentarily restricted.
+              </p>
+
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 mb-5 text-left">
+                <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1">
+                  <ShieldCheck className="w-4 h-4 shrink-0" />
+                  <span>Wallet Safe & Untouched</span>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Zero credits were deducted from your wallet balance. Please contact our 24/7 engineers or raise a ticket so we can assign an expedited queue lane.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2.5">
+                <Link
+                  href="/dashboard/tickets"
+                  onClick={() => setShowOverheatedModal(false)}
+                  className="w-full py-3 px-4 rounded-xl font-black text-xs bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Raise Support Ticket</span>
+                </Link>
+
+                <Link
+                  href="/dashboard/chat"
+                  onClick={() => setShowOverheatedModal(false)}
+                  className="w-full py-2.5 px-4 rounded-xl font-bold text-xs bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2 cursor-pointer transition-all border border-slate-200 dark:border-slate-700"
+                >
+                  <Activity className="w-4 h-4 text-emerald-500" />
+                  <span>Open Live Chat Support</span>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => setShowOverheatedModal(false)}
+                  className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 mt-1 cursor-pointer py-1"
+                >
+                  Close & Try Again Later
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Coming Soon Platform Modal */}
+        {comingSoonPlatform && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-[#0f172a] border border-amber-500/30 rounded-3xl w-full max-w-md shadow-2xl p-6 relative text-slate-900 dark:text-white animate-in zoom-in-95 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center text-white mx-auto shadow-xl shadow-amber-500/30 mb-4">
+                <Lock className="w-8 h-8" />
+              </div>
+
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20 mb-3">
+                <span>Private Staging Node</span>
+              </div>
+
+              <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">
+                {comingSoonPlatform} Coming Soon
+              </h3>
+
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mb-5">
+                Our algorithmic pacing engine is currently live exclusively for <strong className="text-amber-500">Instagram</strong> (Reels, Posts & Stories). Dedicated nodes for <strong className="text-slate-900 dark:text-white">{comingSoonPlatform}</strong> are completing algorithm safety calibration and will launch very soon!
+              </p>
+
+              <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/50 mb-5 text-left flex items-start gap-2.5">
+                <Sparkles className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <div className="text-[11px] text-amber-800 dark:text-amber-300">
+                  <span className="font-bold block">100% Ban-Free Instagram Engine Active</span>
+                  Switch to Instagram to launch viral multi-signal combos with non-linear jitter curves right now.
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setComingSoonPlatform(null);
+                  handlePlatformChange("INSTAGRAM");
+                }}
+                className="w-full py-3 px-4 rounded-xl font-black text-xs bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all"
+              >
+                <span>Continue with Instagram</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

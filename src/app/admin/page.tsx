@@ -936,7 +936,7 @@ export default function AdminDashboardPage() {
   async function loadPanels() {
     setLoadingPanels(true);
     try {
-      const res = await fetch("/api/admin/panels");
+      const res = await fetch("/api/admin/panels?checkBalance=true");
       const data = await res.json();
       if (data.success && Array.isArray(data.panels) && data.panels.length > 0) {
         setPanels(data.panels.map((p: any) => ({
@@ -945,8 +945,11 @@ export default function AdminDashboardPage() {
           url: p.apiUrl,
           apiKey: p.apiKeyEncrypted,
           balance: `${p.currency === "INR" ? "₹" : "$"}${Number(p.balance || 0).toFixed(2)}`,
-          status: p.status || "ONLINE",
+          rawBalance: Number(p.balance || 0),
+          currency: p.currency || "USD",
+          status: p.status || (Number(p.balance || 0) <= 0.05 ? "LOW_BALANCE" : "ONLINE"),
           active: p.isActive,
+          lastCheckedAt: p.lastCheckedAt,
           description: p.id.includes("smmsocial") 
             ? "Background upstream provider for Instagram & YouTube"
             : p.id.includes("yoyo") 
@@ -3872,9 +3875,28 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
+            {/* Refill Alert Banner */}
+            {panels.some(p => (p.rawBalance ?? 0) <= 0.05 && p.active) && (
+              <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                <div className="text-xs space-y-1">
+                  <div className="font-bold flex items-center gap-2">
+                    <span>Critical Alert: Upstream Provider Balance Exhausted</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-500/20 text-rose-500 font-mono font-bold">REFILL REQUIRED</span>
+                  </div>
+                  <p className="text-slate-600 dark:text-slate-300">
+                    The following connected upstream SMM panels have zero or depleted balances:{" "}
+                    <strong>{panels.filter(p => (p.rawBalance ?? 0) <= 0.05 && p.active).map(p => p.name).join(", ")}</strong>.
+                    Customer orders attempting to route through these nodes will automatically receive the white-labeled <strong>"Server Overheated"</strong> advisory until funds are replenished.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-4">
               {panels.map((p) => {
                 const isChecking = checkingPanelId === p.id;
+                const isDepleted = (p.rawBalance ?? 0) <= 0.05;
                 return (
                   <div key={p.id} className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -3882,9 +3904,13 @@ export default function AdminDashboardPage() {
                         <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                           <span>{p.name}</span>
                           <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                            p.status === "ONLINE" ? "bg-emerald-50 text-emerald-600 border border-emerald-200" : "bg-rose-50 text-rose-600 border border-rose-200"
+                            isDepleted
+                              ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30"
+                              : p.status === "ONLINE"
+                              ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                              : "bg-amber-50 text-amber-600 border border-amber-200"
                           }`}>
-                            {p.status}
+                            {isDepleted ? "LOW BALANCE - REFILL NEEDED" : p.status}
                           </span>
                         </div>
                         <div className="text-xs font-mono text-slate-500 mt-1">{p.url}</div>
@@ -3892,9 +3918,15 @@ export default function AdminDashboardPage() {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2.5">
-                        <div className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-right">
-                          <span className="text-[10px] uppercase font-bold text-emerald-600 block">Live SMM Balance</span>
-                          <span className="text-sm font-black font-mono text-emerald-600">{p.balance}</span>
+                        <div className={`px-3 py-1.5 rounded-xl text-right border ${
+                          isDepleted
+                            ? "bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400"
+                            : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600"
+                        }`}>
+                          <span className="text-[10px] uppercase font-bold block">
+                            {isDepleted ? "⚠️ Depleted Balance" : "Live SMM Balance"}
+                          </span>
+                          <span className="text-sm font-black font-mono">{p.balance}</span>
                         </div>
                         <button
                           onClick={() => handleCheckPanelBalance(p.id, p.url, p.apiKey)}

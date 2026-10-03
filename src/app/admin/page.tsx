@@ -4284,6 +4284,307 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
+                {/* ──────────────── ALGORITHMIC JITTER RATIOS (FYP CALIBRATION) ──────────────── */}
+                {(() => {
+                  const platCfg = comboConfig?.[comboPlatform] || {};
+                  const ratios = platCfg.defaultRatios || {
+                    views: comboPlatform === "YOUTUBE" ? 5000 : 10000,
+                    likes: comboPlatform === "YOUTUBE" ? 450 : comboPlatform === "TIKTOK" ? 850 : 950,
+                    shares: comboPlatform === "YOUTUBE" ? 100 : comboPlatform === "TIKTOK" ? 200 : 180,
+                    saves: comboPlatform === "YOUTUBE" ? 50 : comboPlatform === "TIKTOK" ? 110 : 90,
+                    comments: comboPlatform === "YOUTUBE" ? 25 : comboPlatform === "TIKTOK" ? 30 : 35
+                  };
+                  const baseViews = Number(ratios.views) || 10000;
+                  const likePct = baseViews > 0 ? ((Number(ratios.likes || 0) / baseViews) * 100).toFixed(2) : "0.00";
+                  const sharePct = baseViews > 0 ? ((Number(ratios.shares || 0) / baseViews) * 100).toFixed(2) : "0.00";
+                  const savePct = baseViews > 0 ? ((Number(ratios.saves || 0) / baseViews) * 100).toFixed(2) : "0.00";
+                  const commentPct = baseViews > 0 ? ((Number(ratios.comments || 0) / baseViews) * 100).toFixed(2) : "0.00";
+
+                  const updateRatio = (key: string, val: number) => {
+                    setComboConfig((prev: any) => ({
+                      ...prev,
+                      [comboPlatform]: {
+                        ...prev?.[comboPlatform],
+                        defaultRatios: {
+                          ...ratios,
+                          [key]: Math.max(0, val)
+                        }
+                      }
+                    }));
+                  };
+
+                  const jitterCfg = platCfg.jitterConfig || {
+                    defaultCurve: comboPlatform === "YOUTUBE" ? "YOUTUBE_SHORTS_DRIP" : "TIKTOK_REELS_S_CURVE",
+                    minBatches: 8,
+                    maxBatches: 36,
+                    humanVariancePercent: 15,
+                    allowEngagementOnly: true,
+                    allowViewsOnly: true,
+                    avgIntervalMinutes: comboPlatform === "YOUTUBE" ? 20 : comboPlatform === "TIKTOK" ? 12 : 15
+                  };
+
+                  const updateJitter = (key: string, val: any) => {
+                    setComboConfig((prev: any) => ({
+                      ...prev,
+                      [comboPlatform]: {
+                        ...prev?.[comboPlatform],
+                        jitterConfig: {
+                          ...jitterCfg,
+                          [key]: val
+                        }
+                      }
+                    }));
+                  };
+
+                  return (
+                    <div className="space-y-4 pt-2">
+                      {/* Section 1: Algorithmic Engagement Ratios */}
+                      <div className="p-4 rounded-2xl bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-amber-500" />
+                            <h3 className="font-bold text-slate-800 dark:text-slate-100 text-xs uppercase tracking-wider">
+                              Algorithmic FYP Engagement Ratios ({comboPlatform})
+                            </h3>
+                          </div>
+                          <span className="text-[11px] font-mono font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20">
+                            Auto-sync baseline for all customer orders
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Set the natural ratio of likes, shares, saves, and comments relative to views. When a customer orders or uses auto-sync, their delivery amounts will follow these exact proportions.
+                        </p>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                          {/* Views Baseline */}
+                          <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                <Eye className="w-3 h-3 text-cyan-400" /> Views Base
+                              </span>
+                              <span className="text-[9px] font-mono px-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">100%</span>
+                            </div>
+                            <input
+                              type="number"
+                              min={100}
+                              step={500}
+                              value={ratios.views ?? 10000}
+                              onChange={(e) => updateRatio("views", Number(e.target.value))}
+                              className="w-full px-2 py-1 text-xs font-black bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-hidden focus:border-amber-500"
+                            />
+                            <div className="text-[10px] text-slate-400">Anchor Volume</div>
+                          </div>
+
+                          {/* Likes */}
+                          <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                <Heart className="w-3 h-3 text-pink-400" /> Likes
+                              </span>
+                              <span className="text-[9px] font-mono px-1 rounded bg-pink-500/10 text-pink-500 font-bold">{likePct}%</span>
+                            </div>
+                            <input
+                              type="number"
+                              min={0}
+                              step={25}
+                              value={ratios.likes ?? 950}
+                              onChange={(e) => updateRatio("likes", Number(e.target.value))}
+                              className="w-full px-2 py-1 text-xs font-black bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-hidden focus:border-amber-500"
+                            />
+                            <div className="text-[10px] text-slate-400">per {baseViews.toLocaleString()} views</div>
+                          </div>
+
+                          {/* Shares */}
+                          <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                <Share2 className="w-3 h-3 text-amber-400" /> Shares
+                              </span>
+                              <span className="text-[9px] font-mono px-1 rounded bg-amber-500/10 text-amber-500 font-bold">{sharePct}%</span>
+                            </div>
+                            <input
+                              type="number"
+                              min={0}
+                              step={10}
+                              value={ratios.shares ?? 180}
+                              onChange={(e) => updateRatio("shares", Number(e.target.value))}
+                              className="w-full px-2 py-1 text-xs font-black bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-hidden focus:border-amber-500"
+                            />
+                            <div className="text-[10px] text-slate-400">per {baseViews.toLocaleString()} views</div>
+                          </div>
+
+                          {/* Saves */}
+                          <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                <Bookmark className="w-3 h-3 text-purple-400" /> Saves
+                              </span>
+                              <span className="text-[9px] font-mono px-1 rounded bg-purple-500/10 text-purple-500 font-bold">{savePct}%</span>
+                            </div>
+                            <input
+                              type="number"
+                              min={0}
+                              step={10}
+                              value={ratios.saves ?? 90}
+                              onChange={(e) => updateRatio("saves", Number(e.target.value))}
+                              className="w-full px-2 py-1 text-xs font-black bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-hidden focus:border-amber-500"
+                            />
+                            <div className="text-[10px] text-slate-400">per {baseViews.toLocaleString()} views</div>
+                          </div>
+
+                          {/* Comments */}
+                          <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                <MessageSquare className="w-3 h-3 text-emerald-400" /> Comments
+                              </span>
+                              <span className="text-[9px] font-mono px-1 rounded bg-emerald-500/10 text-emerald-500 font-bold">{commentPct}%</span>
+                            </div>
+                            <input
+                              type="number"
+                              min={0}
+                              step={5}
+                              value={ratios.comments ?? 35}
+                              onChange={(e) => updateRatio("comments", Number(e.target.value))}
+                              className="w-full px-2 py-1 text-xs font-black bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-hidden focus:border-amber-500"
+                            />
+                            <div className="text-[10px] text-slate-400">per {baseViews.toLocaleString()} views</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Section 2: Jitter Engine Pacing & Delivery Controls */}
+                      <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-cyan-500" />
+                          <h3 className="font-bold text-slate-800 dark:text-slate-100 text-xs uppercase tracking-wider">
+                            Jitter Engine Pacing & Delivery Controls ({comboPlatform})
+                          </h3>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Controls the mathematical curve, micro-batch count, and human anti-bot variance when splitting orders into gradual real-time pulses.
+                        </p>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                          {/* Curve Type */}
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                              Default Curve Profile
+                            </label>
+                            <select
+                              value={jitterCfg.defaultCurve || "TIKTOK_REELS_S_CURVE"}
+                              onChange={(e) => updateJitter("defaultCurve", e.target.value)}
+                              className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-medium outline-hidden text-xs"
+                            >
+                              <option value="TIKTOK_REELS_S_CURVE">⚡ Viral S-Curve (Sigmoidal Spike)</option>
+                              <option value="YOUTUBE_SHORTS_DRIP">🌊 Multi-Peak Waves (Shorts/Drip)</option>
+                              <option value="NATURAL_BURST">🔥 Frontloaded Burst + Tail</option>
+                              <option value="STEADY_DRIP">⏱ Steady Constant Drip</option>
+                            </select>
+                          </div>
+
+                          {/* Min & Max Batches */}
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                              Pulse Batches (Min / Max)
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input
+                                type="number"
+                                min={2}
+                                max={48}
+                                value={jitterCfg.minBatches ?? 8}
+                                onChange={(e) => updateJitter("minBatches", Number(e.target.value))}
+                                placeholder="Min"
+                                className="w-full px-2 py-1.5 text-xs font-bold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-center outline-hidden"
+                              />
+                              <input
+                                type="number"
+                                min={4}
+                                max={96}
+                                value={jitterCfg.maxBatches ?? 36}
+                                onChange={(e) => updateJitter("maxBatches", Number(e.target.value))}
+                                placeholder="Max"
+                                className="w-full px-2 py-1.5 text-xs font-bold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-center outline-hidden"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Human Variance % */}
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                              Human Variance (±%)
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                min={0}
+                                max={50}
+                                value={jitterCfg.humanVariancePercent ?? 15}
+                                onChange={(e) => updateJitter("humanVariancePercent", Number(e.target.value))}
+                                className="w-full px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-hidden"
+                              />
+                              <span className="text-xs font-bold text-slate-400">%</span>
+                            </div>
+                          </div>
+
+                          {/* Avg Interval */}
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                              Avg Interval (Minutes)
+                            </label>
+                            <input
+                              type="number"
+                              min={1}
+                              max={180}
+                              value={jitterCfg.avgIntervalMinutes ?? 15}
+                              onChange={(e) => updateJitter("avgIntervalMinutes", Number(e.target.value))}
+                              className="w-full px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl outline-hidden"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Allowed Modes Toggles */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                          <label className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={jitterCfg.allowEngagementOnly !== false}
+                              onChange={(e) => updateJitter("allowEngagementOnly", e.target.checked)}
+                              className="w-4 h-4 rounded text-amber-500 focus:ring-amber-500"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                Allow Engagement-Only Orders (No Views)
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                Users can order Likes, Saves, Shares, Comments without views with synchronized Jitter
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={jitterCfg.allowViewsOnly !== false}
+                              onChange={(e) => updateJitter("allowViewsOnly", e.target.checked)}
+                              className="w-4 h-4 rounded text-amber-500 focus:ring-amber-500"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                Allow Views-Only Jitter Campaigns
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                Users can order pure Views delivered in non-linear anti-detection micro-pulses
+                              </span>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                   <div className="flex items-center gap-2 text-slate-400 text-xs">
                     <ShieldCheck className="w-4 h-4 text-emerald-500" />

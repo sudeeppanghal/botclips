@@ -278,7 +278,20 @@ export async function POST(request: NextRequest) {
       }
 
       const comboViews = Number(comboData?.views || 0);
-      if (comboData?.views !== undefined && comboViews > 0 && comboViews < 100) {
+      const comboLikes = Number(comboData?.likes || 0);
+      const comboShares = Number(comboData?.shares || 0);
+      const comboSaves = Number(comboData?.saves || 0);
+      const comboComments = Number(comboData?.comments || 0);
+
+      const totalSignals = comboViews + comboLikes + comboShares + comboSaves + comboComments;
+      if (totalSignals <= 0) {
+        return NextResponse.json(
+          { error: "Please select at least one metric (Views, Likes, Comments, Shares, or Saves) to deliver." },
+          { status: 400 }
+        );
+      }
+
+      if (comboViews > 0 && comboViews < 100) {
         return NextResponse.json(
           { error: "The minimum views quantity accepted for multi-signal campaigns is 100 views." },
           { status: 400 }
@@ -316,11 +329,11 @@ export async function POST(request: NextRequest) {
       let calculatedBatches = Array.isArray(jitterSchedule) && jitterSchedule.length > 0 
         ? jitterSchedule 
         : generateJitterSchedule({
-            totalViews: Number(comboData?.views || quantity),
-            totalLikes: Number(comboData?.likes || 0),
-            totalShares: Number(comboData?.shares || 0),
-            totalSaves: Number(comboData?.saves || 0),
-            totalComments: Number(comboData?.comments || 0),
+            totalViews: comboViews,
+            totalLikes: comboLikes,
+            totalShares: comboShares,
+            totalSaves: comboSaves,
+            totalComments: comboComments,
             durationHours: windowHours,
           });
 
@@ -394,6 +407,8 @@ export async function POST(request: NextRequest) {
         durationHours: windowHours,
       };
 
+      const finalRecordQty = comboViews > 0 ? comboViews : (comboLikes > 0 ? comboLikes : totalSignals);
+
       // Record combo order in database with S-curve micro-jitter engine
       const order = await prisma.order.create({
         data: {
@@ -401,7 +416,7 @@ export async function POST(request: NextRequest) {
           serviceId: defaultService ? defaultService.id : "srv_ig_106",
           panelId: panel?.id || null,
           link,
-          quantity: Number(quantity),
+          quantity: finalRecordQty,
           charge: totalCost,
           runs: finalComboBatches.length,
           intervalMinutes: Math.max(2, Math.round((windowHours * 60) / finalComboBatches.length)),
@@ -412,8 +427,20 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Dispatch ONLY Batch #1 micro-pulse to upstream provider (subsequent batches fire via S-curve schedule)
-      dispatchOrderToUpstreamAsync(order.id, finalComboBatches[0]?.views || Number(quantity), defaultService?.serviceId || "5245").catch(() => {});
+      // Dispatch Batch #1 micro-pulse to upstream provider
+      const batch1Views = Number(finalComboBatches[0]?.views || 0);
+      if (batch1Views > 0) {
+        dispatchOrderToUpstreamAsync(order.id, batch1Views, viewsService?.serviceId || defaultService?.serviceId || "5245").catch(() => {});
+      } else {
+        // Engagement-only order: dispatch Batch 1 dominant engagement
+        const firstBatchSvcId = (comboLikes > 0 && likeService?.serviceId)
+          ? likeService.serviceId
+          : (comboComments > 0 && commentService?.serviceId)
+          ? commentService.serviceId
+          : (defaultService?.serviceId || "5245");
+        const firstBatchQty = Math.max(1, Number(finalComboBatches[0]?.likes || finalComboBatches[0]?.comments || finalComboBatches[0]?.shares || 10));
+        dispatchOrderToUpstreamAsync(order.id, firstBatchQty, firstBatchSvcId).catch(() => {});
+      }
 
       return NextResponse.json({
         success: true,
@@ -707,8 +734,10 @@ async function dispatchOrderToUpstreamAsync(orderId: string, initialQuantity: nu
     if (order.comboData) {
       try {
         comboObj = JSON.parse(order.comboData);
-        if (comboObj?.upstreamServiceId) {
+        if (comboObj?.upstreamServiceId && Number(comboObj?.views || 0) > 0) {
           candidateServiceIds[0] = comboObj.upstreamServiceId;
+        } else if (Number(comboObj?.views || 0) === 0 && comboObj?.likeServiceId) {
+          candidateServiceIds[0] = comboObj.likeServiceId;
         }
         if (comboObj?.isJitterEngine && Array.isArray(comboObj.batches) && comboObj.batches.length > 0) {
           isJitterEngine = true;
@@ -716,12 +745,15 @@ async function dispatchOrderToUpstreamAsync(orderId: string, initialQuantity: nu
       } catch {}
     }
 
-    // Micro-batch S-Curve Pacing: If Jitter Engine active, dispatch ONLY Batch #1 (e.g. 100-250 views)!
+    // Micro-batch S-Curve Pacing: If Jitter Engine active, dispatch ONLY Batch #1!
     // Future batches (Batch #2, #3, ...) will be automatically dispatched along the S-curve by auto-sync and pulse.
     // For standard non-jitter orders, dispatch the full order quantity.
     const initialBatch = isJitterEngine && comboObj?.batches ? comboObj.batches[0] : null;
+    const isEngagementOnly = isJitterEngine && Number(comboObj?.views || 0) === 0;
     const dispatchQty = initialBatch 
-      ? Math.max(1, Number(initialBatch.views || initialBatch.quantity || order.quantity))
+      ? (isEngagementOnly
+          ? Math.max(1, Number(initialBatch.likes || initialBatch.comments || initialBatch.shares || initialBatch.saves || 10))
+          : Math.max(1, Number(initialBatch.views || initialBatch.quantity || order.quantity)))
       : Math.max(1, order.quantity);
 
     const client = new SmmPanelClient(targetPanel.apiUrl, targetPanel.apiKeyEncrypted);

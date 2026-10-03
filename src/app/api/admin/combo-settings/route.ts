@@ -17,6 +17,15 @@ const DEFAULT_COMBO_MAPPINGS = {
       shares: 180,
       saves: 90,
       comments: 35
+    },
+    jitterConfig: {
+      defaultCurve: "TIKTOK_REELS_S_CURVE",
+      minBatches: 8,
+      maxBatches: 36,
+      humanVariancePercent: 15,
+      allowEngagementOnly: true,
+      allowViewsOnly: true,
+      avgIntervalMinutes: 15
     }
   },
   TIKTOK: {
@@ -31,6 +40,15 @@ const DEFAULT_COMBO_MAPPINGS = {
       shares: 200,
       saves: 110,
       comments: 30
+    },
+    jitterConfig: {
+      defaultCurve: "TIKTOK_REELS_S_CURVE",
+      minBatches: 8,
+      maxBatches: 36,
+      humanVariancePercent: 15,
+      allowEngagementOnly: true,
+      allowViewsOnly: true,
+      avgIntervalMinutes: 12
     }
   },
   YOUTUBE: {
@@ -45,6 +63,15 @@ const DEFAULT_COMBO_MAPPINGS = {
       shares: 100,
       saves: 50,
       comments: 25
+    },
+    jitterConfig: {
+      defaultCurve: "YOUTUBE_SHORTS_DRIP",
+      minBatches: 6,
+      maxBatches: 24,
+      humanVariancePercent: 15,
+      allowEngagementOnly: true,
+      allowViewsOnly: true,
+      avgIntervalMinutes: 20
     }
   }
 };
@@ -55,10 +82,30 @@ export async function GET() {
       where: { id: "global" }
     });
 
-    let comboSettings = DEFAULT_COMBO_MAPPINGS;
+    let comboSettings: any = DEFAULT_COMBO_MAPPINGS;
     if (settings?.comboDefaults) {
       try {
-        comboSettings = JSON.parse(settings.comboDefaults);
+        const parsed = JSON.parse(settings.comboDefaults);
+        comboSettings = {
+          INSTAGRAM: {
+            ...DEFAULT_COMBO_MAPPINGS.INSTAGRAM,
+            ...parsed.INSTAGRAM,
+            defaultRatios: { ...DEFAULT_COMBO_MAPPINGS.INSTAGRAM.defaultRatios, ...parsed.INSTAGRAM?.defaultRatios },
+            jitterConfig: { ...DEFAULT_COMBO_MAPPINGS.INSTAGRAM.jitterConfig, ...parsed.INSTAGRAM?.jitterConfig }
+          },
+          TIKTOK: {
+            ...DEFAULT_COMBO_MAPPINGS.TIKTOK,
+            ...parsed.TIKTOK,
+            defaultRatios: { ...DEFAULT_COMBO_MAPPINGS.TIKTOK.defaultRatios, ...parsed.TIKTOK?.defaultRatios },
+            jitterConfig: { ...DEFAULT_COMBO_MAPPINGS.TIKTOK.jitterConfig, ...parsed.TIKTOK?.jitterConfig }
+          },
+          YOUTUBE: {
+            ...DEFAULT_COMBO_MAPPINGS.YOUTUBE,
+            ...parsed.YOUTUBE,
+            defaultRatios: { ...DEFAULT_COMBO_MAPPINGS.YOUTUBE.defaultRatios, ...parsed.YOUTUBE?.defaultRatios },
+            jitterConfig: { ...DEFAULT_COMBO_MAPPINGS.YOUTUBE.jitterConfig, ...parsed.YOUTUBE?.jitterConfig }
+          },
+        };
       } catch {}
     }
 

@@ -90,6 +90,9 @@ export default function NewOrderModal({
   const [durationHours, setDurationHours] = useState(24);
   const [showJitterDrawer, setShowJitterDrawer] = useState(false);
   const [dynamicComboRates, setDynamicComboRates] = useState<Record<string, any>>({});
+  const [adminComboConfig, setAdminComboConfig] = useState<any>(null);
+  const [comboPresetMode, setComboPresetMode] = useState<"FULL_COMBO" | "ENGAGEMENT_ONLY" | "VIEWS_ONLY" | "CUSTOM">("FULL_COMBO");
+  const [autoSyncRatios, setAutoSyncRatios] = useState(true);
 
   // Dynamic Combo Settings & Catalog loading
   useEffect(() => {
@@ -108,8 +111,9 @@ export default function NewOrderModal({
           if (first.cat) setCategory(first.cat);
         }
 
-        if (comboRes.success && comboRes.resolvedRates) {
-          setDynamicComboRates(comboRes.resolvedRates);
+        if (comboRes.success) {
+          if (comboRes.resolvedRates) setDynamicComboRates(comboRes.resolvedRates);
+          if (comboRes.comboSettings) setAdminComboConfig(comboRes.comboSettings);
         }
       } catch (e) {
         console.error("Failed to load services or combo rates", e);
@@ -178,32 +182,159 @@ export default function NewOrderModal({
   const activeTotalCost = orderMode === "COMBO" ? totalComboCost : totalSingleCost;
   const hasSufficientBalance = walletBalance >= activeTotalCost;
 
+  // Sync admin defaults when platform or admin config changes
+  useEffect(() => {
+    if (!adminComboConfig) return;
+    const platCfg = adminComboConfig[platform];
+    if (!platCfg) return;
+
+    if (platCfg.jitterConfig?.defaultCurve) {
+      setPlatformCurve(platCfg.jitterConfig.defaultCurve);
+    }
+
+    const ratios = platCfg.defaultRatios;
+    if (ratios && autoSyncRatios && comboPresetMode === "FULL_COMBO") {
+      const baseV = Number(ratios.views) || 10000;
+      setViewsCount(baseV);
+      setLikesCount(Number(ratios.likes) || 950);
+      setSharesCount(Number(ratios.shares) || 180);
+      setSavesCount(Number(ratios.saves) || 90);
+      setCommentsCount(Number(ratios.comments) || 35);
+    }
+  }, [platform, adminComboConfig]);
+
+  const handleViewsChange = (newV: number) => {
+    setViewsCount(newV);
+    if (autoSyncRatios && adminComboConfig?.[platform]?.defaultRatios) {
+      const ratios = adminComboConfig[platform].defaultRatios;
+      const baseV = Number(ratios.views) || 10000;
+      if (baseV > 0 && newV > 0) {
+        const factor = newV / baseV;
+        setLikesCount(Math.max(10, Math.round(Number(ratios.likes || 0) * factor)));
+        setSharesCount(Math.max(10, Math.round(Number(ratios.shares || 0) * factor)));
+        setSavesCount(Math.max(10, Math.round(Number(ratios.saves || 0) * factor)));
+        setCommentsCount(Math.max(5, Math.round(Number(ratios.comments || 0) * factor)));
+      }
+    }
+  };
+
+  const handleLikesChange = (newL: number) => {
+    setLikesCount(newL);
+    if (comboPresetMode === "ENGAGEMENT_ONLY" && autoSyncRatios && adminComboConfig?.[platform]?.defaultRatios) {
+      const ratios = adminComboConfig[platform].defaultRatios;
+      const baseL = Number(ratios.likes) || 950;
+      if (baseL > 0 && newL > 0) {
+        const factor = newL / baseL;
+        setSharesCount(Math.max(10, Math.round(Number(ratios.shares || 0) * factor)));
+        setSavesCount(Math.max(10, Math.round(Number(ratios.saves || 0) * factor)));
+        setCommentsCount(Math.max(5, Math.round(Number(ratios.comments || 0) * factor)));
+      }
+    }
+  };
+
+  const handlePresetModeChange = (mode: "FULL_COMBO" | "ENGAGEMENT_ONLY" | "VIEWS_ONLY" | "CUSTOM") => {
+    setComboPresetMode(mode);
+    const platCfg = adminComboConfig?.[platform];
+    const ratios = platCfg?.defaultRatios || {
+      views: platform === "YOUTUBE" ? 5000 : 10000,
+      likes: platform === "YOUTUBE" ? 450 : platform === "TIKTOK" ? 850 : 950,
+      shares: platform === "YOUTUBE" ? 100 : platform === "TIKTOK" ? 200 : 180,
+      saves: platform === "YOUTUBE" ? 50 : platform === "TIKTOK" ? 110 : 90,
+      comments: platform === "YOUTUBE" ? 25 : platform === "TIKTOK" ? 30 : 35
+    };
+
+    if (mode === "FULL_COMBO") {
+      setIncludeViews(true);
+      setIncludeLikes(true);
+      setIncludeShares(true);
+      setIncludeSaves(true);
+      setIncludeComments(true);
+      setViewsCount(Number(ratios.views) || 10000);
+      setLikesCount(Number(ratios.likes) || 950);
+      setSharesCount(Number(ratios.shares) || 180);
+      setSavesCount(Number(ratios.saves) || 90);
+      setCommentsCount(Number(ratios.comments) || 35);
+    } else if (mode === "ENGAGEMENT_ONLY") {
+      setIncludeViews(false);
+      setViewsCount(0);
+      setIncludeLikes(true);
+      setIncludeShares(true);
+      setIncludeSaves(true);
+      setIncludeComments(true);
+      setLikesCount(Number(ratios.likes) || 500);
+      setSharesCount(Number(ratios.shares) || 100);
+      setSavesCount(Number(ratios.saves) || 50);
+      setCommentsCount(Number(ratios.comments) || 20);
+    } else if (mode === "VIEWS_ONLY") {
+      setIncludeViews(true);
+      setViewsCount(Number(ratios.views) || 10000);
+      setIncludeLikes(false);
+      setIncludeShares(false);
+      setIncludeSaves(false);
+      setIncludeComments(false);
+    }
+  };
+
   // Presets for quick combo filling (Engineered for authentic 4-signal FYP virality)
   const applyPreset = (preset: "MICRO" | "VIRAL" | "MEGA") => {
+    setComboPresetMode("FULL_COMBO");
+    setIncludeViews(true);
+    setIncludeLikes(true);
+    setIncludeShares(true);
+    setIncludeSaves(true);
+    setIncludeComments(true);
+
+    const platCfg = adminComboConfig?.[platform];
+    const ratios = platCfg?.defaultRatios;
+
     if (preset === "MICRO") {
-      setViewsCount(5000);
-      setLikesCount(190); // 3.8%
-      setSharesCount(40);  // 0.8%
-      setSavesCount(60);   // 1.2%
-      setCommentsCount(12);
+      const v = 5000;
+      setViewsCount(v);
+      if (ratios && ratios.views) {
+        const factor = v / Number(ratios.views);
+        setLikesCount(Math.max(10, Math.round(Number(ratios.likes || 0) * factor)));
+        setSharesCount(Math.max(10, Math.round(Number(ratios.shares || 0) * factor)));
+        setSavesCount(Math.max(10, Math.round(Number(ratios.saves || 0) * factor)));
+        setCommentsCount(Math.max(5, Math.round(Number(ratios.comments || 0) * factor)));
+      } else {
+        setLikesCount(190);
+        setSharesCount(40);
+        setSavesCount(60);
+        setCommentsCount(12);
+      }
       setDurationHours(12);
-      setPlatformCurve("TIKTOK_REELS_S_CURVE");
     } else if (preset === "VIRAL") {
-      setViewsCount(10000);
-      setLikesCount(380);  // 3.8%
-      setSharesCount(80);   // 0.8%
-      setSavesCount(120);  // 1.2%
-      setCommentsCount(25);
+      const v = 10000;
+      setViewsCount(v);
+      if (ratios && ratios.views) {
+        const factor = v / Number(ratios.views);
+        setLikesCount(Math.max(10, Math.round(Number(ratios.likes || 0) * factor)));
+        setSharesCount(Math.max(10, Math.round(Number(ratios.shares || 0) * factor)));
+        setSavesCount(Math.max(10, Math.round(Number(ratios.saves || 0) * factor)));
+        setCommentsCount(Math.max(5, Math.round(Number(ratios.comments || 0) * factor)));
+      } else {
+        setLikesCount(380);
+        setSharesCount(80);
+        setSavesCount(120);
+        setCommentsCount(25);
+      }
       setDurationHours(24);
-      setPlatformCurve("TIKTOK_REELS_S_CURVE");
     } else {
-      setViewsCount(50000);
-      setLikesCount(1900); // 3.8%
-      setSharesCount(400);  // 0.8%
-      setSavesCount(600);   // 1.2%
-      setCommentsCount(120);
+      const v = 50000;
+      setViewsCount(v);
+      if (ratios && ratios.views) {
+        const factor = v / Number(ratios.views);
+        setLikesCount(Math.max(10, Math.round(Number(ratios.likes || 0) * factor)));
+        setSharesCount(Math.max(10, Math.round(Number(ratios.shares || 0) * factor)));
+        setSavesCount(Math.max(10, Math.round(Number(ratios.saves || 0) * factor)));
+        setCommentsCount(Math.max(5, Math.round(Number(ratios.comments || 0) * factor)));
+      } else {
+        setLikesCount(1900);
+        setSharesCount(400);
+        setSavesCount(600);
+        setCommentsCount(120);
+      }
       setDurationHours(48);
-      setPlatformCurve("TIKTOK_REELS_S_CURVE");
     }
   };
 
@@ -263,12 +394,20 @@ export default function NewOrderModal({
     setSubmitting(true);
 
     try {
+      const finalComboQty = includeViews && viewsCount > 0 
+        ? viewsCount 
+        : (includeLikes && likesCount > 0 
+            ? likesCount 
+            : (includeComments && commentsCount > 0 
+                ? commentsCount 
+                : (includeShares && sharesCount > 0 ? sharesCount : savesCount)));
+
       const payload = orderMode === "COMBO" 
         ? {
             isCombo: true,
             platform,
             link,
-            quantity: (includeViews ? viewsCount : 0) + (includeLikes ? likesCount : 0),
+            quantity: finalComboQty || 100,
             charge: totalComboCost,
             durationHours,
             deliveryGraphId: selectedGraph.id,
@@ -473,32 +612,87 @@ export default function NewOrderModal({
                 </button>
               </div>
 
-              {/* Quick Presets */}
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Quick Preset Blueprint:
-                </span>
-                <div className="flex items-center gap-1.5">
+              {/* Campaign Blueprint & Auto-Sync Selector */}
+              <div className="space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">
+                    Campaign Blueprint:
+                  </span>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-amber-600 dark:text-amber-400">
+                    <input
+                      type="checkbox"
+                      checked={autoSyncRatios}
+                      onChange={(e) => setAutoSyncRatios(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded text-amber-500 focus:ring-amber-500"
+                    />
+                    <span>Auto-Sync Proportions with Admin FYP Baseline</span>
+                  </label>
+                </div>
+
+                {/* Mode Selector Buttons */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <button
                     type="button"
-                    onClick={() => applyPreset("MICRO")}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-amber-500/20 text-slate-700 dark:text-slate-300 font-bold text-[11px] transition-all cursor-pointer"
+                    onClick={() => handlePresetModeChange("FULL_COMBO")}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      comboPresetMode === "FULL_COMBO"
+                        ? "border-amber-500 bg-amber-500/10 text-amber-500 font-black shadow-xs ring-1 ring-amber-500/20"
+                        : "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 hover:bg-slate-100"
+                    }`}
                   >
-                    Micro (5k Views)
+                    <div className="text-xs font-bold flex items-center gap-1">
+                      <Flame className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Full Viral Combo</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">Views + All Engagements</div>
                   </button>
+
                   <button
                     type="button"
-                    onClick={() => applyPreset("VIRAL")}
-                    className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold text-[11px] transition-all cursor-pointer"
+                    onClick={() => handlePresetModeChange("ENGAGEMENT_ONLY")}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      comboPresetMode === "ENGAGEMENT_ONLY"
+                        ? "border-pink-500 bg-pink-500/10 text-pink-500 font-black shadow-xs ring-1 ring-pink-500/20"
+                        : "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 hover:bg-slate-100"
+                    }`}
                   >
-                    Viral (10k Views)
+                    <div className="text-xs font-bold flex items-center gap-1">
+                      <Heart className="w-3.5 h-3.5 text-pink-500" />
+                      <span>Engagement Only</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">0 Views • Jitter Synced</div>
                   </button>
+
                   <button
                     type="button"
-                    onClick={() => applyPreset("MEGA")}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-amber-500/20 text-slate-700 dark:text-slate-300 font-bold text-[11px] transition-all cursor-pointer"
+                    onClick={() => handlePresetModeChange("VIEWS_ONLY")}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      comboPresetMode === "VIEWS_ONLY"
+                        ? "border-cyan-500 bg-cyan-500/10 text-cyan-500 font-black shadow-xs ring-1 ring-cyan-500/20"
+                        : "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 hover:bg-slate-100"
+                    }`}
                   >
-                    Mega (50k Views)
+                    <div className="text-xs font-bold flex items-center gap-1">
+                      <Eye className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Views Only</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">Non-Linear Jitter Pulses</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handlePresetModeChange("CUSTOM")}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      comboPresetMode === "CUSTOM"
+                        ? "border-amber-500 bg-amber-500/10 text-amber-500 font-black shadow-xs ring-1 ring-amber-500/20"
+                        : "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="text-xs font-bold flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                      <span>Custom Mix</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">Individual Signal Choice</div>
                   </button>
                 </div>
               </div>
@@ -570,7 +764,7 @@ export default function NewOrderModal({
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] font-black uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>4-Signal FYP Algorithm Balance</span>
+                    <span>{includeViews ? "4-Signal FYP Algorithm Balance" : "Engagement Pacing & Ratio Balance"}</span>
                   </span>
                   <span className="text-[10px] font-mono font-bold text-emerald-500 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
                     PASS AUDIT (0/100 BOT SCORE)
@@ -578,19 +772,27 @@ export default function NewOrderModal({
                 </div>
                 <div className="grid grid-cols-4 gap-2 text-center text-[11px]">
                   <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80">
-                    <div className="text-[10px] text-slate-400 font-bold">Views (100%)</div>
-                    <div className="text-xs font-black text-cyan-500 mt-0.5">{includeViews ? viewsCount.toLocaleString() : 0}</div>
+                    <div className="text-[10px] text-slate-400 font-bold">{includeViews ? "Views (100%)" : "Views"}</div>
+                    <div className="text-xs font-black text-cyan-500 mt-0.5">
+                      {includeViews ? viewsCount.toLocaleString() : "0 (Bypassed)"}
+                    </div>
                   </div>
                   <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80">
-                    <div className="text-[10px] text-slate-400 font-bold">Likes (~{includeViews && viewsCount > 0 ? ((likesCount / viewsCount) * 100).toFixed(1) : 0}%)</div>
+                    <div className="text-[10px] text-slate-400 font-bold">
+                      Likes ({includeViews && viewsCount > 0 ? `~${((likesCount / viewsCount) * 100).toFixed(1)}%` : "Target"})
+                    </div>
                     <div className="text-xs font-black text-pink-500 mt-0.5">{includeLikes ? likesCount.toLocaleString() : 0}</div>
                   </div>
                   <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80">
-                    <div className="text-[10px] text-slate-400 font-bold">Saves (~{includeViews && viewsCount > 0 ? ((savesCount / viewsCount) * 100).toFixed(1) : 0}%)</div>
+                    <div className="text-[10px] text-slate-400 font-bold">
+                      Saves ({includeViews && viewsCount > 0 ? `~${((savesCount / viewsCount) * 100).toFixed(1)}%` : `~${includeLikes && likesCount > 0 ? ((savesCount / likesCount) * 100).toFixed(1) + "%" : "Target"}`})
+                    </div>
                     <div className="text-xs font-black text-purple-500 mt-0.5">{includeSaves ? savesCount.toLocaleString() : 0}</div>
                   </div>
                   <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80">
-                    <div className="text-[10px] text-slate-400 font-bold">Shares (~{includeViews && viewsCount > 0 ? ((sharesCount / viewsCount) * 100).toFixed(1) : 0}%)</div>
+                    <div className="text-[10px] text-slate-400 font-bold">
+                      Shares ({includeViews && viewsCount > 0 ? `~${((sharesCount / viewsCount) * 100).toFixed(1)}%` : `~${includeLikes && likesCount > 0 ? ((sharesCount / likesCount) * 100).toFixed(1) + "%" : "Target"}`})
+                    </div>
                     <div className="text-xs font-black text-amber-500 mt-0.5">{includeShares ? sharesCount.toLocaleString() : 0}</div>
                   </div>
                 </div>
@@ -620,7 +822,7 @@ export default function NewOrderModal({
                       step={100}
                       disabled={!includeViews}
                       value={viewsCount}
-                      onChange={(e) => setViewsCount(Number(e.target.value))}
+                      onChange={(e) => handleViewsChange(Number(e.target.value))}
                       className="w-24 px-2.5 py-1 text-xs font-bold rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-right outline-hidden focus:border-amber-500"
                     />
                   </div>
@@ -648,7 +850,7 @@ export default function NewOrderModal({
                       step={50}
                       disabled={!includeLikes}
                       value={likesCount}
-                      onChange={(e) => setLikesCount(Number(e.target.value))}
+                      onChange={(e) => handleLikesChange(Number(e.target.value))}
                       className="w-24 px-2.5 py-1 text-xs font-bold rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-right outline-hidden focus:border-amber-500"
                     />
                   </div>
@@ -790,7 +992,9 @@ export default function NewOrderModal({
                 {showJitterDrawer && (
                   <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800 space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar">
                     <p className="text-[10px] text-slate-400 mb-2">
-                      Quantities and delay intervals are pseudo-randomized (e.g. 72, 63, 99, 101) to completely eliminate bot patterns.
+                      {viewsCount === 0 || !includeViews
+                        ? "Engagement-Only Jitter Active: Likes, Shares, Saves & Comments delivered in synchronized non-linear pulses without views."
+                        : "Quantities and delay intervals are pseudo-randomized (e.g. 72, 63, 99, 101) to completely eliminate bot patterns."}
                     </p>
                     <div className="grid grid-cols-6 gap-2 text-[10px] font-mono text-slate-400 font-bold px-2 py-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-lg">
                       <span>Time</span>

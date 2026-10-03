@@ -9,6 +9,7 @@ export interface OrderProgressResult {
   remains: number;
   progressPct: number;
   batchInfo: string | null;
+  metricUnit: string;
   totalBatches: number;
   completedBatches: number;
   runningBatchNum: number | null;
@@ -24,6 +25,7 @@ export function computeOrderProgress(order: any): OrderProgressResult {
   const statusUpper = String(order.status || "PENDING").toUpperCase();
   let delivered = 0;
   let batchInfo: string | null = null;
+  let metricUnit = "views";
   let totalBatches = 0;
   let completedBatches = 0;
   let runningBatchNum: number | null = null;
@@ -40,9 +42,20 @@ export function computeOrderProgress(order: any): OrderProgressResult {
         if (combo.isPaused) isPaused = true;
         if (combo.isCancelled) isCancelled = true;
 
+        const hasViews = Number(combo.views || 0) > 0;
+        if (!hasViews) {
+          if (Number(combo.likes || 0) > 0) metricUnit = "likes";
+          else if (Number(combo.comments || 0) > 0) metricUnit = "comments";
+          else if (Number(combo.shares || 0) > 0) metricUnit = "shares";
+          else if (Number(combo.saves || 0) > 0) metricUnit = "saves";
+          else metricUnit = "signals";
+        }
+
         let batchDelivered = 0;
         combo.batches.forEach((b: any, index: number) => {
-          const bQty = Number(b.views || b.quantity || 0);
+          const bQty = hasViews 
+            ? Number(b.views || b.quantity || 0)
+            : Number(b[metricUnit] || b.likes || b.comments || b.shares || b.saves || b.quantity || 0);
           const bStatus = String(b.status || "").toUpperCase();
 
           if (bStatus === "COMPLETED") {
@@ -97,6 +110,7 @@ export function computeOrderProgress(order: any): OrderProgressResult {
     remains: Math.max(0, total - delivered),
     progressPct,
     batchInfo,
+    metricUnit,
     totalBatches,
     completedBatches,
     runningBatchNum,

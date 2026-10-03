@@ -484,15 +484,23 @@ export async function GET(request: NextRequest) {
             if (targetPanel && targetPanel.apiUrl && targetPanel.apiKeyEncrypted && targetPanel.apiKeyEncrypted !== "PLACEHOLDER_KEY") {
               try {
                 const client = new SmmPanelClient(targetPanel.apiUrl, targetPanel.apiKeyEncrypted);
-                const result = await client.addOrder({
-                  serviceId: data.upstreamServiceId || "5245",
-                  link: jOrder.link,
-                  quantity: batch.views || batch.quantity,
-                });
+                const hasViews = batch.views && Number(batch.views) > 0;
+                let viewResult: any = null;
 
-                if (result && result.order) {
+                if (hasViews) {
+                  viewResult = await client.addOrder({
+                    serviceId: data.upstreamServiceId || "5245",
+                    link: jOrder.link,
+                    quantity: Number(batch.views),
+                  });
+                  if (viewResult && viewResult.order) {
+                    batch.upstreamOrderId = String(viewResult.order);
+                  }
+                }
+
+                // If views succeeded OR this is an engagement-only pulse (views == 0):
+                if (!hasViews || (viewResult && viewResult.order)) {
                   batch.status = "DISPATCHED";
-                  batch.upstreamOrderId = String(result.order);
                   batch.dispatchedAt = new Date().toISOString();
                   data.lastDispatchedBatch = batch.batchNumber;
                   jitterBatchesFired++;
@@ -588,20 +596,22 @@ export async function GET(request: NextRequest) {
                     data.allBatchesDispatched = true;
                   }
 
+                  const primaryOrderId = batch.upstreamOrderId || batch.likeOrderId || batch.commentOrderId || batch.shareOrderId;
+
                   await prisma.order.update({
                     where: { id: jOrder.id },
                     data: {
                       status: "IN_PROGRESS",
                       comboData: JSON.stringify(data),
-                      providerOrderId: String(result.order),
+                      providerOrderId: primaryOrderId ? String(primaryOrderId) : undefined,
                     },
                   });
-                } else if (result && result.error) {
+                } else if (viewResult && viewResult.error) {
                   // If provider reports active order on this link, wait 90-150s for it to finish delivering
-                  const isLinkBusy = /active order with this link|wait until order/i.test(result.error);
+                  const isLinkBusy = /active order with this link|wait until order/i.test(viewResult.error);
                   const retryJitterSeconds = isLinkBusy ? (90 + Math.floor(Math.random() * 60)) : (60 + Math.floor(Math.random() * 60));
                   batch.scheduledAt = new Date(Date.now() + retryJitterSeconds * 1000).toISOString();
-                  batch.lastError = result.error;
+                  batch.lastError = viewResult.error;
                   await prisma.order.update({
                     where: { id: jOrder.id },
                     data: {

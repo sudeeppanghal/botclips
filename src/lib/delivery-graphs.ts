@@ -1302,16 +1302,25 @@ export function generateJitterSchedule(params: {
   } = params;
 
   // Determine organic micro-batch count:
-  // For algorithmic discovery (e.g. 10,000 views), avoid large 1,000-view drops.
-  // Instead, break into realistic micro-pulses (100 to 300 views each) to mimic FYP explore pacing.
+  // For algorithmic discovery (e.g. 10,000 views or 1,000 likes), break into realistic micro-pulses
   let numBatches = params.batchesCount;
   if (!numBatches) {
     if (totalViews >= 2000) {
       const targetMicroAvg = Math.min(280, Math.max(130, Math.round(Math.sqrt(totalViews) * 2.2)));
       const calculated = Math.round(totalViews / targetMicroAvg);
       numBatches = Math.min(60, Math.max(12, calculated));
-    } else {
+    } else if (totalViews > 0) {
       numBatches = Math.min(16, Math.max(8, Math.round(durationHours * 0.75)));
+    } else {
+      // Engagement-Only Mode (e.g. Likes, Comments, Shares, Saves only with 0 views)
+      const dominantEngagement = Math.max(totalLikes, totalShares, totalSaves, totalComments);
+      if (dominantEngagement >= 500) {
+        numBatches = Math.min(36, Math.max(10, Math.round(Math.sqrt(dominantEngagement) * 1.2)));
+      } else if (dominantEngagement >= 50) {
+        numBatches = Math.min(18, Math.max(8, Math.round(durationHours * 0.6)));
+      } else {
+        numBatches = Math.min(10, Math.max(5, Math.round(durationHours * 0.4)));
+      }
     }
   }
 
@@ -1352,18 +1361,35 @@ export function generateJitterSchedule(params: {
     const progress = i / Math.max(1, numBatches - 1);
 
     // Calculate micro-quantities with non-linear realistic counts
-    let v = isLast ? Math.max(0, totalViews - allocatedViews) : Math.max(1, Math.round(totalViews * w));
+    let v = totalViews > 0 
+      ? (isLast ? Math.max(0, totalViews - allocatedViews) : Math.max(0, Math.round(totalViews * w)))
+      : 0;
     
-    // Add odd-number human variance to prevent artificial round numbers (e.g., 203 instead of 200)
-    if (!isLast && v > 20) {
+    // Add odd-number human variance to prevent artificial round numbers
+    if (v > 20 && !isLast) {
       const oddOffset = [-7, -5, -3, -1, 1, 3, 5, 7][Math.floor(Math.random() * 8)];
       v = Math.max(10, v + oddOffset);
     }
 
-    const l = isLast ? Math.max(0, totalLikes - allocatedLikes) : (totalLikes > 0 ? Math.max(0, Math.round(totalLikes * w)) : 0);
-    const s = isLast ? Math.max(0, totalShares - allocatedShares) : (totalShares > 0 ? Math.max(0, Math.round(totalShares * w)) : 0);
-    const sv = isLast ? Math.max(0, totalSaves - allocatedSaves) : (totalSaves > 0 ? Math.max(0, Math.round(totalSaves * w)) : 0);
-    const c = isLast ? Math.max(0, totalComments - allocatedComments) : (totalComments > 0 ? Math.max(0, Math.round(totalComments * w)) : 0);
+    let l = totalLikes > 0 
+      ? (isLast ? Math.max(0, totalLikes - allocatedLikes) : Math.max(0, Math.round(totalLikes * w)))
+      : 0;
+    if (l > 15 && !isLast) {
+      const oddOffset = [-3, -1, 1, 3][Math.floor(Math.random() * 4)];
+      l = Math.max(1, l + oddOffset);
+    }
+
+    let s = totalShares > 0 
+      ? (isLast ? Math.max(0, totalShares - allocatedShares) : Math.max(0, Math.round(totalShares * w)))
+      : 0;
+
+    let sv = totalSaves > 0 
+      ? (isLast ? Math.max(0, totalSaves - allocatedSaves) : Math.max(0, Math.round(totalSaves * w)))
+      : 0;
+
+    let c = totalComments > 0 
+      ? (isLast ? Math.max(0, totalComments - allocatedComments) : Math.max(0, Math.round(totalComments * w)))
+      : 0;
 
     allocatedViews += v;
     allocatedLikes += l;
@@ -1372,7 +1398,6 @@ export function generateJitterSchedule(params: {
     allocatedComments += c;
 
     // S-Curve Time Jitter Pacing:
-    // Slower intervals during seed phase -> tighter intervals during viral breakout -> relaxed intervals in tail
     let speedFactor = 1.0;
     if (progress < 0.20) {
       speedFactor = 1.35; // Seed phase: slightly longer gaps between micro-drops

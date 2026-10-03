@@ -61,6 +61,7 @@ model User {
   orders          Order[]
   upiPayments     UpiPayment[]
   cryptoPayments  CryptoPayment[]
+  walletLedger    WalletLedger[]
   supportTickets  SupportTicket[]
   ticketMessages  TicketMessage[]
   chatMessages    ChatMessage[]
@@ -208,19 +209,27 @@ enum OrderStatus {
 
 // ──────────────── UPI PAYMENTS ────────────────
 model UpiPayment {
-  id              String        @id @default(cuid())
-  userId          String        @map("user_id")
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  utr             String        @unique
-  amount          Float
-  screenshot1     String?       @map("screenshot_1")
-  screenshot2     String?       @map("screenshot_2")
-  status          PaymentStatus @default(PENDING)
-  rejectReason    String?       @map("reject_reason")
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
+  id                 String                  @id @default(cuid())
+  userId             String                  @map("user_id")
+  user               User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  utr                String                  @unique
+  amount             Float
+  screenshot1        String?                 @map("screenshot_1")
+  screenshot2        String?                 @map("screenshot_2")
+  status             PaymentStatus           @default(PENDING)
+  rejectReason       String?                 @map("reject_reason")
+  verificationReason String?                 @map("verification_reason")
+  verifiedAt         DateTime?               @map("verified_at")
+  matchedPaymentId   String?                 @unique @map("matched_payment_id")
+  matchedPayment     ReceivedPayment?        @relation("UpiToReceivedPayment", fields: [matchedPaymentId], references: [id], onDelete: SetNull)
+  createdAt          DateTime                @default(now()) @map("created_at")
+  updatedAt          DateTime                @updatedAt @map("updated_at")
+
+  events             PaymentProcessingEvent[]
 
   @@index([userId])
+  @@index([status])
+  @@index([utr])
   @@map("upi_payments")
 }
 
@@ -252,6 +261,72 @@ enum PaymentStatus {
   VERIFYING
   CONFIRMED
   REJECTED
+  MANUAL_REVIEW
+  EXPIRED
+}
+
+// ──────────────── RECEIVED INCOMING PAYMENTS (FAMPAY / GMAIL) ────────────────
+model ReceivedPayment {
+  id               String                  @id @default(cuid())
+  utr              String                  @unique // Normalized 12-digit UPI reference
+  amountPaise      Int                     @map("amount_paise") // Integer paise (e.g. 50000 = ₹500.00)
+  amountInr        Float                   @map("amount_inr") // Float INR representation
+  currency         String                  @default("INR")
+  paidAt           DateTime                @map("paid_at")
+  source           String                  @default("fampay")
+  sourceMessageId  String                  @unique @map("source_message_id") // Gmail message ID for idempotency
+  senderInfo       String?                 @map("sender_info") // Sender name / UPI handle if available
+  rawSubject       String?                 @map("raw_subject")
+  status           String                  @default("received") // "received" | "matched" | "flagged"
+  matchedDeposit   UpiPayment?             @relation("UpiToReceivedPayment")
+  createdAt        DateTime                @default(now()) @map("created_at")
+  updatedAt        DateTime                @updatedAt @map("updated_at")
+
+  events           PaymentProcessingEvent[]
+
+  @@index([utr])
+  @@index([status])
+  @@index([sourceMessageId])
+  @@map("received_payments")
+}
+
+// ──────────────── WALLET LEDGER ────────────────
+model WalletLedger {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount        Float    // Positive for credit, negative for debit
+  balanceBefore Float    @map("balance_before")
+  balanceAfter  Float    @map("balance_after")
+  type          String   // "DEPOSIT_UPI" | "DEPOSIT_CRYPTO" | "ORDER_DEBIT" | "REFUND" | "ADMIN_ADJUSTMENT"
+  referenceId   String?  @map("reference_id") // e.g. UpiPayment.id or Order.id
+  description   String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([type])
+  @@index([referenceId])
+  @@map("wallet_ledger")
+}
+
+// ──────────────── PAYMENT PROCESSING EVENTS AUDIT ────────────────
+model PaymentProcessingEvent {
+  id                String           @id @default(cuid())
+  eventType         String           @map("event_type") // "INGESTION" | "MATCH_ATTEMPT" | "MATCH_SUCCESS" | "MATCH_FAILED" | "AUTO_CREDIT" | "MANUAL_REVIEW" | "ADMIN_ACTION"
+  utr               String?
+  amount            Float?
+  receivedPaymentId String?          @map("received_payment_id")
+  receivedPayment   ReceivedPayment? @relation(fields: [receivedPaymentId], references: [id], onDelete: SetNull)
+  upiPaymentId      String?          @map("upi_payment_id")
+  upiPayment        UpiPayment?      @relation(fields: [upiPaymentId], references: [id], onDelete: SetNull)
+  result            String           // "SUCCESS" | "FAILED" | "PENDING"
+  details           String?          @db.Text
+  createdAt         DateTime         @default(now()) @map("created_at")
+
+  @@index([eventType])
+  @@index([utr])
+  @@index([createdAt])
+  @@map("payment_processing_events")
 }
 
 // ──────────────── SUPPORT TICKETS ────────────────
@@ -323,6 +398,11 @@ model AdminSettings {
   hybridMinDelay             Int     @default(2) @map("hybrid_min_delay")
   hybridMaxDelay             Int     @default(6) @map("hybrid_max_delay")
   hybridHumanMode            Boolean @default(true) @map("hybrid_human_mode")
+
+  // FamPay Automated UTR Verification Settings
+  fampayWebhookSecret         String?  @map("fampay_webhook_secret")
+  fampayAutoApprove           Boolean  @default(false) @map("fampay_auto_approve")
+  fampayVerificationWindowHours Int    @default(72) @map("fampay_verification_window_hours")
 
   updatedAt       DateTime      @updatedAt @map("updated_at")
 

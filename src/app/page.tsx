@@ -41,7 +41,8 @@ import {
   Bookmark,
   Bell,
   Globe,
-  Menu
+  Menu,
+  Send
 } from "lucide-react";
 import BotClipsLogo from "@/components/BotClipsLogo";
 
@@ -387,12 +388,21 @@ export default function HomePage() {
         <div className="max-w-[1180px] mx-auto px-4 sm:px-6 h-full flex items-center justify-between">
           <BotClipsLogo size="md" href="/" />
 
-          <div className="hidden md:flex items-center gap-8 text-[14px] font-semibold text-[#62666e]">
+          <div className="hidden md:flex items-center gap-7 text-[14px] font-semibold text-[#62666e]">
             <a href="#admin-pov" className="hover:text-[#111214] transition-colors">Admin POV vs Bypass</a>
             <a href="#bot-score" className="hover:text-[#111214] transition-colors">Whop Bot Score</a>
             <a href="#video-demos" className="hover:text-[#111214] transition-colors">Live Videos</a>
             <a href="#analytics" className="hover:text-[#111214] transition-colors">Real Payout Proofs</a>
             <a href="#faq" className="hover:text-[#111214] transition-colors">FAQ</a>
+            <a
+              href="https://t.me/botclipssmm"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#24A1DE] hover:text-[#1d82b3] flex items-center gap-1.5 font-bold transition-colors px-2.5 py-1 rounded-full bg-[#24A1DE]/10 border border-[#24A1DE]/20"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Telegram</span>
+            </a>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
@@ -424,6 +434,16 @@ export default function HomePage() {
         {mobileMenuOpen && (
           <div className="md:hidden bg-white border-b border-neutral-200 shadow-xl px-5 py-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-150">
             <div className="space-y-1 font-semibold text-sm text-neutral-700">
+              <a
+                href="https://t.me/botclipssmm"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 py-2.5 px-3 rounded-xl bg-[#24A1DE]/10 text-[#24A1DE] font-bold hover:bg-[#24A1DE]/20 transition-colors mb-2"
+              >
+                <Send className="w-4 h-4" />
+                <span>24/7 Telegram Support (@botclipssmm)</span>
+              </a>
               <a
                 href="#admin-pov"
                 onClick={() => setMobileMenuOpen(false)}
@@ -512,6 +532,19 @@ export default function HomePage() {
             >
               <span>Inspect Real Admin Screenshots</span>
               <Eye className="w-4 h-4 text-neutral-500" />
+            </a>
+          </div>
+
+          <div className="mt-4 flex items-center justify-center gap-2 text-xs text-neutral-500 font-medium">
+            <span>Need bulk onboarding or custom setup?</span>
+            <a
+              href="https://t.me/botclipssmm"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-bold text-[#24A1DE] hover:underline"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>24/7 Telegram Support: @botclipssmm</span>
             </a>
           </div>
 
@@ -1444,6 +1477,15 @@ export default function HomePage() {
           </div>
           <div className="flex flex-wrap items-center gap-6">
             <span className="font-semibold text-neutral-700">Founders: Jack & Daniel 🍾🍷</span>
+            <a
+              href="https://t.me/botclipssmm"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#24A1DE] hover:text-[#1b82b5] font-bold flex items-center gap-1 transition-colors"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Telegram: @botclipssmm</span>
+            </a>
             <Link href="/login" className="hover:text-neutral-900 transition-colors">Sign In</Link>
             <Link href="/signup" className="hover:text-neutral-900 transition-colors">Register</Link>
             <span>© {new Date().getFullYear()} BotClips. All rights reserved.</span>
@@ -1572,6 +1614,19 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* ── FLOATING 24/7 TELEGRAM SUPPORT BUTTON ── */}
+      <a
+        href="https://t.me/botclipssmm"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-16 md:bottom-6 right-6 z-40 bg-[#24A1DE] hover:bg-[#208bbf] text-white px-4 py-2.5 rounded-full shadow-2xl flex items-center gap-2 font-bold text-xs hover:scale-105 active:scale-95 transition-all duration-200 border border-white/20"
+        title="Direct Telegram Support @botclipssmm"
+      >
+        <Send className="w-4 h-4 fill-white/20" />
+        <span className="hidden sm:inline">Telegram Support</span>
+        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+      </a>
 
       {/* ── STICKY MOBILE BOTTOM ACTION BANNER ── */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-xl border-t border-neutral-200 px-4 py-2.5 flex items-center justify-between gap-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">

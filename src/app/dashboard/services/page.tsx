@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, ShoppingCart, Filter, ArrowUpRight, Sparkles, Lock, ShieldCheck } from "lucide-react";
+import { Search, ShoppingCart, Filter, ArrowUpRight, Sparkles, Lock, ShieldCheck, Send } from "lucide-react";
 import NewOrderModal from "@/components/NewOrderModal";
 import { PlatformType } from "@/lib/types";
 
@@ -255,6 +255,18 @@ export default function ServicesPage() {
                 <span className="font-bold block">100% Ban-Free Instagram Engine Active</span>
                 Switch to Instagram to launch viral multi-signal combos with non-linear jitter curves right now.
               </div>
+            </div>
+
+            <div className="mb-4">
+              <a
+                href="https://t.me/botclipssmm"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#24A1DE] hover:underline"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Need custom {comingSoonModal} setup? Chat on Telegram @botclipssmm</span>
+              </a>
             </div>
 
             <button

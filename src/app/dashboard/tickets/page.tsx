@@ -156,7 +156,16 @@ export default function TicketsPage() {
             Live 24/7 assistance for order refills, custom API setups, and payment verifications.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <a
+            href="https://t.me/botclipssmm"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2.5 rounded-xl bg-[#24A1DE] hover:bg-[#208bbf] text-white font-black text-xs shadow-md shadow-sky-500/25 flex items-center gap-2 cursor-pointer transition-all"
+          >
+            <Send className="w-4 h-4 fill-white/20" />
+            <span>Telegram Support (@botclipssmm)</span>
+          </a>
           <button
             onClick={loadTickets}
             disabled={loading}
@@ -173,6 +182,35 @@ export default function TicketsPage() {
             <span>New Support Ticket</span>
           </button>
         </div>
+      </div>
+
+      {/* 24/7 Live Telegram Direct Support Banner */}
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-[#24A1DE]/15 via-blue-500/10 to-transparent border border-[#24A1DE]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#24A1DE] text-white flex items-center justify-center shadow-md shadow-sky-500/25 shrink-0">
+            <Send className="w-5 h-5 fill-white/20" />
+          </div>
+          <div>
+            <div className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <span>Direct Telegram VIP Desk</span>
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-mono bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30">
+                ACTIVE • 24/7 LIVE
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5">
+              Need immediate order speedup, balance reload verification, or custom bot setup? Chat directly with our engineering team: <strong className="text-[#24A1DE]">@botclipssmm</strong>
+            </p>
+          </div>
+        </div>
+        <a
+          href="https://t.me/botclipssmm"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-4 py-2.5 rounded-xl bg-[#24A1DE] hover:bg-[#208bbf] text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-xs shrink-0 cursor-pointer"
+        >
+          <Send className="w-3.5 h-3.5" />
+          <span>Open Telegram</span>
+        </a>
       </div>
 
       {/* Filters & Search */}
@@ -404,6 +442,19 @@ export default function TicketsPage() {
                   placeholder="Describe your issue, refill requirements, or payment details in detail..."
                   className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white"
                 />
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#24A1DE]/10 border border-[#24A1DE]/25 flex items-center justify-between text-xs">
+                <span className="text-slate-600 dark:text-slate-300 font-medium">⚡ Need faster response?</span>
+                <a
+                  href="https://t.me/botclipssmm"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-bold text-[#24A1DE] hover:underline flex items-center gap-1"
+                >
+                  <Send className="w-3 h-3" />
+                  <span>Chat on Telegram @botclipssmm</span>
+                </a>
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">

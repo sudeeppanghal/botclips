@@ -779,6 +779,17 @@ export default function ChatBoxWinsPage() {
                   <span>VIP Pass</span>
                   <ExternalLink className="w-3 h-3 text-slate-400" />
                 </Link>
+
+                <a
+                  href="https://t.me/botclipssmm"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-2.5 rounded-xl bg-[#24A1DE] hover:bg-[#208bbf] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center"
+                  title="Contact Support on Telegram"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Support</span>
+                </a>
               </div>
             </div>
           )}

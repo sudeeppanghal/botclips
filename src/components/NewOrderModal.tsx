@@ -24,7 +24,8 @@ import {
   ChevronUp,
   HelpCircle,
   Play,
-  Lock
+  Lock,
+  Send
 } from "lucide-react";
 import { PlatformType } from "@/lib/types";
 import DeliveryGraphSelectorModal from "@/components/DeliveryGraphSelectorModal";
@@ -1300,10 +1301,20 @@ export default function NewOrderModal({
               </div>
 
               <div className="flex flex-col gap-2.5">
+                <a
+                  href="https://t.me/botclipssmm"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-3 px-4 rounded-xl font-black text-xs bg-[#24A1DE] hover:bg-[#208bbf] text-white shadow-lg shadow-sky-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all"
+                >
+                  <Send className="w-4 h-4 fill-white/20" />
+                  <span>Instant Telegram Support (@botclipssmm)</span>
+                </a>
+
                 <Link
                   href="/dashboard/tickets"
                   onClick={() => setShowOverheatedModal(false)}
-                  className="w-full py-3 px-4 rounded-xl font-black text-xs bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all"
+                  className="w-full py-2.5 px-4 rounded-xl font-bold text-xs bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-md shadow-orange-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all"
                 >
                   <MessageSquare className="w-4 h-4" />
                   <span>Raise Support Ticket</span>
@@ -1350,12 +1361,24 @@ export default function NewOrderModal({
                 Our algorithmic pacing engine is currently live exclusively for <strong className="text-amber-500">Instagram</strong> (Reels, Posts & Stories). Dedicated nodes for <strong className="text-slate-900 dark:text-white">{comingSoonPlatform}</strong> are completing algorithm safety calibration and will launch very soon!
               </p>
 
-              <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/50 mb-5 text-left flex items-start gap-2.5">
+              <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/50 mb-4 text-left flex items-start gap-2.5">
                 <Sparkles className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                 <div className="text-[11px] text-amber-800 dark:text-amber-300">
                   <span className="font-bold block">100% Ban-Free Instagram Engine Active</span>
                   Switch to Instagram to launch viral multi-signal combos with non-linear jitter curves right now.
                 </div>
+              </div>
+
+              <div className="mb-4">
+                <a
+                  href="https://t.me/botclipssmm"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#24A1DE] hover:underline"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Need custom {comingSoonPlatform} setup? Chat on Telegram @botclipssmm</span>
+                </a>
               </div>
 
               <button

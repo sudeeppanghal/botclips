@@ -449,6 +449,7 @@ export async function GET(request: NextRequest) {
           if (!jOrder.comboData) continue;
           try {
             const data = JSON.parse(jOrder.comboData);
+            if (data.isPaused || data.isCancelled) continue;
             if (!data.batches || !Array.isArray(data.batches)) continue;
 
             const firstPendingIndex = data.batches.findIndex((b: any) => b.status === "PENDING");

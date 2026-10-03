@@ -44,9 +44,13 @@ import {
   BadgePercent,
   Wine,
   LogIn,
-  ImageIcon
+  ImageIcon,
+  Pause,
+  Play,
+  XCircle
 } from "lucide-react";
 import BotClipsLogo from "@/components/BotClipsLogo";
+import { computeOrderProgress } from "@/lib/order-progress";
 
 type AdminTab = "OVERVIEW" | "ORDERS" | "USERS" | "PANELS" | "SERVICES" | "COMBOS" | "PAYMENTS" | "SETTINGS" | "TICKETS" | "SPLITS";
 
@@ -133,6 +137,8 @@ export default function AdminDashboardPage() {
   const [orderActionReason, setOrderActionReason] = useState("");
   const [processingOrderAction, setProcessingOrderAction] = useState(false);
   const [redispatchingOrderId, setRedispatchingOrderId] = useState<string | null>(null);
+  const [inspectingUserOrders, setInspectingUserOrders] = useState<any | null>(null);
+  const [selectedUserFilterId, setSelectedUserFilterId] = useState<string | null>(null);
 
   // ── State for Users ──
   const [users, setUsers] = useState<any[]>([]);
@@ -525,6 +531,7 @@ export default function AdminDashboardPage() {
             intervalMinutes: o.intervalMinutes,
             failReason: o.failReason,
             isCombo: o.isCombo,
+            comboData: o.comboData,
           };
         }));
       }
@@ -641,7 +648,32 @@ export default function AdminDashboardPage() {
     }
   }
 
-  
+  async function handleQuickOrderAction(orderId: string, action: "PAUSE" | "RESUME" | "CANCEL_PARTIAL") {
+    const actionLabel = action === "PAUSE" ? "Pause" : action === "RESUME" ? "Resume" : "Cancel Remaining Batches";
+    if (action === "CANCEL_PARTIAL") {
+      if (!window.confirm(`⚠️ Are you sure you want to CANCEL remaining batches for order #${orderId.slice(-8)}?\n\n• Running batch currently in flight will finish safely.\n• All unscheduled batches will be cancelled.\n• Proportional refund for unsent views will be added back to user's wallet immediately.`)) {
+        return;
+      }
+    }
+    try {
+      const res = await fetch("/api/admin/orders/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, orderId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(data.message || `${actionLabel} successful!`, "success");
+        loadOrders();
+        loadUsers();
+      } else {
+        notify(data.error || `Failed to ${actionLabel}`, "error");
+      }
+    } catch {
+      notify(`Failed to ${actionLabel}`, "error");
+    }
+  }
+
   async function loadAdminTickets() {
     setLoadingTickets(true);
     try {
@@ -2137,7 +2169,12 @@ export default function AdminDashboardPage() {
             String(o.service).toLowerCase().includes(query) ||
             String(o.link).toLowerCase().includes(query);
 
-          return matchProvider && matchStatus && matchSearch;
+          const matchUserFilter = 
+            !selectedUserFilterId || 
+            String(o.userId) === selectedUserFilterId || 
+            String(o.user).toLowerCase() === selectedUserFilterId.toLowerCase();
+
+          return matchProvider && matchStatus && matchSearch && matchUserFilter;
         });
 
         const countS1 = orders.filter(o => o.providerCode === "S1").length;
@@ -2147,6 +2184,7 @@ export default function AdminDashboardPage() {
           const st = (o.status || "").toUpperCase();
           return st === "IN_PROGRESS" || st === "PROCESSING" || st === "PENDING";
         }).length;
+        const countPaused = orders.filter(o => (o.status || "").toUpperCase() === "PAUSED").length;
 
         const totalOrdersRevenue = orders.reduce((sum, o) => sum + (Number(o.charge) || 0), 0);
         const totalOrdersWholesale = orders.reduce((sum, o) => sum + (Number(o.estimatedCost) || 0), 0);
@@ -2220,6 +2258,26 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
+            {/* Active User Filter Notification Banner */}
+            {selectedUserFilterId && (
+              <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 px-4 py-2.5 rounded-xl text-xs text-blue-700 dark:text-blue-300 shadow-xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold">Filtering orders for:</span>
+                  <span className="font-mono bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-100 px-2 py-0.5 rounded font-bold">
+                    {selectedUserFilterId}
+                  </span>
+                  <span>({filteredOrders.length} order{filteredOrders.length === 1 ? "" : "s"} shown)</span>
+                </div>
+                <button
+                  onClick={() => setSelectedUserFilterId(null)}
+                  className="font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                  <span>Clear Filter</span>
+                </button>
+              </div>
+            )}
+
             {/* Filter Toolbars: Status Tabs & Provider Tabs & Search */}
             <div className="space-y-2.5">
               {/* Status Tabs */}
@@ -2247,7 +2305,7 @@ export default function AdminDashboardPage() {
                   <span>⚡ Running ({countRunning})</span>
                 </button>
 
-                {["IN_PROGRESS", "PROCESSING", "PENDING", "COMPLETED", "PARTIAL", "CANCELLED"].map((st) => {
+                {["IN_PROGRESS", "PROCESSING", "PENDING", "PAUSED", "COMPLETED", "PARTIAL", "CANCELLED"].map((st) => {
                   const count = orders.filter(o => (o.status || "").toUpperCase() === st).length;
                   return (
                     <button
@@ -2357,12 +2415,13 @@ export default function AdminDashboardPage() {
                     </tr>
                   ) : (
                     filteredOrders.map((o) => {
+                      const progress = computeOrderProgress(o);
                       const statusUpper = (o.status || "PENDING").toUpperCase();
                       const isRunning = statusUpper === "IN_PROGRESS" || statusUpper === "PROCESSING" || statusUpper === "PENDING";
-                      const qty = Number(o.quantity || 1);
-                      const remains = o.remains !== undefined && o.remains !== null ? Number(o.remains) : (statusUpper === "COMPLETED" ? 0 : qty);
-                      const delivered = Math.max(0, qty - remains);
-                      const progressPct = statusUpper === "COMPLETED" ? 100 : Math.max(0, Math.min(100, Math.round((delivered / qty) * 100)));
+                      const qty = progress.total;
+                      const delivered = progress.delivered;
+                      const remains = progress.remains;
+                      const progressPct = progress.progressPct;
                       const isSyncingThis = syncingOrderId === o.id;
                       const isRedispatchingThis = redispatchingOrderId === o.id;
 
@@ -2376,11 +2435,22 @@ export default function AdminDashboardPage() {
                             <div className="text-[10px] text-slate-400 whitespace-nowrap">{o.date}</div>
                           </td>
 
-                          {/* Client */}
+                          {/* Client with 1-Click Orders Inspection */}
                           <td className="py-3.5 px-2">
-                            <div className="font-semibold text-slate-900 dark:text-white max-w-[150px] truncate" title={o.user}>
-                              {o.user}
-                            </div>
+                            <button
+                              onClick={() => setInspectingUserOrders({
+                                userId: o.userId,
+                                email: o.user,
+                                name: o.userName || o.user,
+                                balance: o.userBalance,
+                                phone: o.userPhone,
+                                role: o.userRole,
+                              })}
+                              className="font-semibold text-slate-900 dark:text-white max-w-[150px] truncate text-left hover:text-blue-600 dark:hover:text-blue-400 transition-colors block cursor-pointer group"
+                              title={`Click to view all orders for ${o.user}`}
+                            >
+                              <span className="group-hover:underline">{o.user}</span>
+                            </button>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
                                 Bal: ₹{Number(o.userBalance || 0).toFixed(2)}
@@ -2394,6 +2464,20 @@ export default function AdminDashboardPage() {
                                   Login ↗
                                 </button>
                               )}
+                              <button
+                                onClick={() => setInspectingUserOrders({
+                                  userId: o.userId,
+                                  email: o.user,
+                                  name: o.userName || o.user,
+                                  balance: o.userBalance,
+                                  phone: o.userPhone,
+                                  role: o.userRole,
+                                })}
+                                className="text-[9px] font-medium text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 cursor-pointer"
+                                title="Orders Portfolio"
+                              >
+                                • Orders
+                              </button>
                             </div>
                           </td>
 
@@ -2443,29 +2527,36 @@ export default function AdminDashboardPage() {
                             </a>
                           </td>
 
-                          {/* Progress & Counts */}
+                          {/* Progress & Live Counts */}
                           <td className="py-3.5 px-2">
                             <div className="space-y-1">
                               <div className="flex items-center justify-between text-[10px] font-bold">
-                                <span>{delivered.toLocaleString()} / {qty.toLocaleString()}</span>
-                                <span className={statusUpper === "COMPLETED" ? "text-emerald-600" : "text-blue-600"}>
+                                <span className="text-slate-800 dark:text-slate-200">
+                                  {delivered.toLocaleString()} / {qty.toLocaleString()}
+                                </span>
+                                <span className={progress.isCompleted ? "text-emerald-600 dark:text-emerald-400 font-extrabold" : "text-blue-600 dark:text-blue-400"}>
                                   {progressPct}%
                                 </span>
                               </div>
-                              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden shadow-inner">
                                 <div 
                                   className={`h-full rounded-full transition-all duration-300 ${
-                                    statusUpper === "COMPLETED"
-                                      ? "bg-emerald-500"
-                                      : statusUpper === "CANCELLED"
-                                      ? "bg-rose-500"
-                                      : "bg-blue-500"
+                                    progress.isCompleted
+                                      ? "bg-gradient-to-r from-emerald-500 to-green-400"
+                                      : progress.isPaused
+                                      ? "bg-gradient-to-r from-amber-400 to-amber-500"
+                                      : progress.isCancelled
+                                      ? "bg-gradient-to-r from-rose-500 to-red-400"
+                                      : "bg-gradient-to-r from-blue-500 to-indigo-500"
                                   }`}
                                   style={{ width: `${progressPct}%` }}
                                 />
                               </div>
-                              <div className="text-[9px] text-slate-400">
-                                Start: {o.startCount ?? 0} • Remains: {remains}
+                              <div className="flex items-center justify-between text-[9px] text-slate-400">
+                                <span>{progress.batchInfo || `Start: ${o.startCount ?? 0} • Remains: ${remains}`}</span>
+                                {progress.isCompleted && (
+                                  <span className="text-emerald-500 font-semibold">Done ✓</span>
+                                )}
                               </div>
                             </div>
                           </td>
@@ -2488,6 +2579,8 @@ export default function AdminDashboardPage() {
                             <span className={`px-2 py-1 rounded-md text-[10px] font-bold inline-flex items-center gap-1 ${
                               statusUpper === "COMPLETED"
                                 ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 border border-emerald-200 dark:border-emerald-800"
+                                : statusUpper === "PAUSED"
+                                ? "bg-amber-50 dark:bg-amber-950/50 text-amber-600 border border-amber-200 dark:border-amber-800"
                                 : isRunning
                                 ? "bg-blue-50 dark:bg-blue-950/50 text-blue-600 border border-blue-200 dark:border-blue-800 animate-pulse"
                                 : statusUpper === "FAILED" || statusUpper === "CANCELLED"
@@ -2495,6 +2588,7 @@ export default function AdminDashboardPage() {
                                 : "bg-amber-50 dark:bg-amber-950/50 text-amber-600 border border-amber-200 dark:border-amber-800"
                             }`}>
                               {isRunning && <Zap className="w-2.5 h-2.5" />}
+                              {statusUpper === "PAUSED" && <Pause className="w-2.5 h-2.5" />}
                               <span>{statusUpper.replace("_", " ")}</span>
                             </span>
                           </td>
@@ -2502,6 +2596,39 @@ export default function AdminDashboardPage() {
                           {/* Quick Actions */}
                           <td className="py-3.5 px-2 text-right">
                             <div className="flex items-center justify-end gap-1">
+                              {/* Quick Pause for running batch orders */}
+                              {isRunning && (
+                                <button
+                                  onClick={() => handleQuickOrderAction(o.id, "PAUSE")}
+                                  title="Pause remaining scheduled batches"
+                                  className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 text-amber-600 border border-amber-500/20 cursor-pointer transition-colors"
+                                >
+                                  <Pause className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+
+                              {/* Quick Resume for paused orders */}
+                              {statusUpper === "PAUSED" && (
+                                <button
+                                  onClick={() => handleQuickOrderAction(o.id, "RESUME")}
+                                  title="Resume remaining pulses"
+                                  className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 border border-emerald-500/20 cursor-pointer transition-colors"
+                                >
+                                  <Play className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+
+                              {/* Cancel unsent batches with proportional refund */}
+                              {(isRunning || statusUpper === "PAUSED") && (
+                                <button
+                                  onClick={() => handleQuickOrderAction(o.id, "CANCEL_PARTIAL")}
+                                  title="Cancel unsent batches & refund user"
+                                  className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 text-rose-600 border border-rose-500/20 cursor-pointer transition-colors"
+                                >
+                                  <XCircle className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+
                               {/* Sync Upstream Status */}
                               <button
                                 onClick={() => handleSyncSingleOrderStatus(o.id)}
@@ -2552,6 +2679,293 @@ export default function AdminDashboardPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ──────────────── USER ORDERS PORTFOLIO DRAWER / MODAL ──────────────── */}
+      {inspectingUserOrders && (() => {
+        const userOrdersList = orders.filter(
+          (o) => o.userId === inspectingUserOrders.userId || o.user === inspectingUserOrders.email
+        );
+        const totalOrdered = userOrdersList.reduce((sum, o) => sum + (Number(o.quantity) || 0), 0);
+        const totalDelivered = userOrdersList.reduce((sum, o) => {
+          const p = computeOrderProgress(o);
+          return sum + p.delivered;
+        }, 0);
+        const totalSpent = userOrdersList.reduce((sum, o) => sum + (Number(o.charge) || 0), 0);
+        const runningOrders = userOrdersList.filter((o) => {
+          const st = (o.status || "").toUpperCase();
+          return st === "IN_PROGRESS" || st === "PROCESSING" || st === "PENDING";
+        });
+        const pausedOrders = userOrdersList.filter((o) => (o.status || "").toUpperCase() === "PAUSED");
+        const completedOrders = userOrdersList.filter((o) => (o.status || "").toUpperCase() === "COMPLETED");
+
+        return (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50 animate-fade-in">
+            <div className="bg-white dark:bg-[#111726] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 max-w-4xl w-full shadow-2xl space-y-4 animate-scale-up max-h-[92vh] flex flex-col">
+              
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-md">
+                    {String(inspectingUserOrders.name || inspectingUserOrders.email || "U").slice(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                        {inspectingUserOrders.name || inspectingUserOrders.email}
+                      </h3>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+                        {inspectingUserOrders.role || "USER"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-400 font-mono mt-0.5 flex items-center gap-2">
+                      <span>{inspectingUserOrders.email}</span>
+                      {inspectingUserOrders.phone && <span>• {inspectingUserOrders.phone}</span>}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl text-left">
+                    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">Wallet Balance</span>
+                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                      ₹{Number(inspectingUserOrders.balance || 0).toFixed(2)}
+                    </span>
+                  </div>
+
+                  {inspectingUserOrders.userId && (
+                    <button
+                      onClick={() => handleImpersonate(inspectingUserOrders.userId, inspectingUserOrders.email)}
+                      title="1-Click Login into user account"
+                      className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                    >
+                      <LogIn className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">1-Click Login</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      setSelectedUserFilterId(inspectingUserOrders.userId || inspectingUserOrders.email);
+                      setActiveTab("ORDERS");
+                      setInspectingUserOrders(null);
+                    }}
+                    title="Filter main orders table by this user"
+                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <span>Filter Table</span>
+                  </button>
+
+                  <button
+                    onClick={() => setInspectingUserOrders(null)}
+                    className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  >
+                    <XCircle className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Metric Stats Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 shrink-0">
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Orders</span>
+                  <div className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{userOrdersList.length}</div>
+                  <span className="text-[10px] text-slate-400">All-time placed</span>
+                </div>
+                <div className="p-3 bg-blue-50/60 dark:bg-blue-950/30 rounded-2xl border border-blue-100 dark:border-blue-900/50">
+                  <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">In Flight / Running</span>
+                  <div className="text-lg font-black text-blue-600 dark:text-blue-400 mt-0.5 flex items-center gap-1">
+                    <span>{runningOrders.length}</span>
+                    {pausedOrders.length > 0 && (
+                      <span className="text-[10px] text-amber-500 font-bold">({pausedOrders.length} paused)</span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-blue-500 font-medium">Jitter delivery active</span>
+                </div>
+                <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-2xl border border-emerald-100 dark:border-emerald-900/50">
+                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Delivered Views</span>
+                  <div className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                    {totalDelivered.toLocaleString()} <span className="text-xs font-normal text-slate-400">/ {totalOrdered.toLocaleString()}</span>
+                  </div>
+                  <span className="text-[10px] text-emerald-600 font-bold">{completedOrders.length} completed</span>
+                </div>
+                <div className="p-3 bg-purple-50/60 dark:bg-purple-950/30 rounded-2xl border border-purple-100 dark:border-purple-900/50">
+                  <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">Total Spent</span>
+                  <div className="text-lg font-black text-purple-600 dark:text-purple-400 mt-0.5">
+                    ₹{totalSpent.toFixed(2)}
+                  </div>
+                  <span className="text-[10px] text-purple-600 font-medium">Delivered spend</span>
+                </div>
+              </div>
+
+              {/* Scrollable Orders Portfolio List */}
+              <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                {userOrdersList.length === 0 ? (
+                  <div className="py-16 text-center text-slate-400">
+                    <p className="font-semibold text-sm">No orders found for this user.</p>
+                    <p className="text-xs mt-1">When this client orders views or combos, they will appear here with live pulse tracking.</p>
+                  </div>
+                ) : (
+                  userOrdersList.map((o) => {
+                    const p = computeOrderProgress(o);
+                    const statusUpper = (o.status || "PENDING").toUpperCase();
+                    const isRunning = statusUpper === "IN_PROGRESS" || statusUpper === "PROCESSING" || statusUpper === "PENDING";
+
+                    return (
+                      <div
+                        key={o.id}
+                        className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-blue-500/30 transition-all space-y-2.5"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono font-bold text-xs text-blue-600 dark:text-blue-400">
+                              #{String(o.id).slice(-8)}
+                            </span>
+                            <span className="text-xs font-bold text-slate-900 dark:text-white">
+                              {o.service}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-black border ${o.providerBadgeClass}`}>
+                              {o.providerCode}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold inline-flex items-center gap-1 ${
+                              p.isCompleted
+                                ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 border border-emerald-200 dark:border-emerald-800"
+                                : p.isPaused
+                                ? "bg-amber-50 dark:bg-amber-950/50 text-amber-600 border border-amber-200 dark:border-amber-800"
+                                : isRunning
+                                ? "bg-blue-50 dark:bg-blue-950/50 text-blue-600 border border-blue-200 dark:border-blue-800"
+                                : "bg-rose-50 dark:bg-rose-950/50 text-rose-600 border border-rose-200 dark:border-rose-800"
+                            }`}>
+                              {isRunning && <Zap className="w-2.5 h-2.5 animate-pulse" />}
+                              {p.isPaused && <Pause className="w-2.5 h-2.5" />}
+                              <span>{statusUpper.replace("_", " ")}</span>
+                            </span>
+                            <span className="text-xs font-black text-slate-900 dark:text-white">
+                              ₹{Number(o.charge).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Link & Date */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px]">
+                          <a
+                            href={o.link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-500 hover:text-blue-600 underline font-mono truncate max-w-md flex items-center gap-1"
+                          >
+                            <span className="truncate">{o.link}</span>
+                            <ExternalLink className="w-3 h-3 shrink-0" />
+                          </a>
+                          <span className="text-slate-400 shrink-0">{o.date}</span>
+                        </div>
+
+                        {/* Live Delivery Progress Bar */}
+                        <div className="space-y-1 bg-white dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                          <div className="flex items-center justify-between text-xs font-bold">
+                            <span className="text-slate-800 dark:text-slate-200">
+                              {p.delivered.toLocaleString()} / {p.total.toLocaleString()} views delivered
+                            </span>
+                            <span className={p.isCompleted ? "text-emerald-600 dark:text-emerald-400 font-extrabold" : "text-blue-600 dark:text-blue-400"}>
+                              {p.progressPct}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden shadow-inner">
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                p.isCompleted
+                                  ? "bg-gradient-to-r from-emerald-500 to-green-400"
+                                  : p.isPaused
+                                  ? "bg-gradient-to-r from-amber-400 to-amber-500"
+                                  : p.isCancelled
+                                  ? "bg-gradient-to-r from-rose-500 to-red-400"
+                                  : "bg-gradient-to-r from-blue-500 to-indigo-500"
+                              }`}
+                              style={{ width: `${p.progressPct}%` }}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-[10px] text-slate-400">
+                            <span>{p.batchInfo || `Start: ${o.startCount ?? 0} • Remains: ${p.remains}`}</span>
+                            {p.isCompleted && (
+                              <span className="text-emerald-500 font-bold">Success • Completed</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Order Controls */}
+                        <div className="flex items-center justify-end gap-1.5 pt-1">
+                          {isRunning && (
+                            <button
+                              onClick={() => handleQuickOrderAction(o.id, "PAUSE")}
+                              className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 text-amber-600 border border-amber-500/20 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                            >
+                              <Pause className="w-3 h-3" />
+                              <span>Pause</span>
+                            </button>
+                          )}
+
+                          {statusUpper === "PAUSED" && (
+                            <button
+                              onClick={() => handleQuickOrderAction(o.id, "RESUME")}
+                              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 border border-emerald-500/20 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                            >
+                              <Play className="w-3 h-3" />
+                              <span>Resume</span>
+                            </button>
+                          )}
+
+                          {(isRunning || statusUpper === "PAUSED") && (
+                            <button
+                              onClick={() => handleQuickOrderAction(o.id, "CANCEL_PARTIAL")}
+                              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 text-rose-600 border border-rose-500/20 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                            >
+                              <XCircle className="w-3 h-3" />
+                              <span>Cancel & Refund Unsent</span>
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => handleSyncSingleOrderStatus(o.id)}
+                            disabled={syncingOrderId === o.id || !o.providerOrderId}
+                            className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${syncingOrderId === o.id ? "animate-spin text-blue-600" : ""}`} />
+                            <span>Sync</span>
+                          </button>
+
+                          <button
+                            onClick={() => setInspectingAdminOrder(o)}
+                            className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <Eye className="w-3 h-3" />
+                            <span>Details</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+                <span className="text-xs text-slate-400">
+                  Showing all active, running, paused, and completed orders for this account.
+                </span>
+                <button
+                  onClick={() => setInspectingUserOrders(null)}
+                  className="px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-xs font-bold hover:opacity-90 transition-opacity cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+
             </div>
           </div>
         );
@@ -3367,6 +3781,25 @@ export default function AdminDashboardPage() {
                               >
                                 <LogIn className="w-3.5 h-3.5" />
                                 <span>Login</span>
+                              </button>
+
+                              {/* View All User Orders */}
+                              <button
+                                onClick={() => {
+                                  setInspectingUserOrders({
+                                    userId: u.id,
+                                    email: u.email,
+                                    name: u.name || u.email,
+                                    balance: u.balance,
+                                    phone: u.phone,
+                                    role: u.role,
+                                  });
+                                }}
+                                className="px-2.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                                title={`Inspect all orders of ${u.email}`}
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>Orders ({u.orderCount || 0})</span>
                               </button>
 
                               {/* Edit Balance & Info Modal Trigger */}

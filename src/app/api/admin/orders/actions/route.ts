@@ -293,6 +293,201 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // ──────────────── 5. PAUSE ORDER ────────────────
+    if (action === "PAUSE") {
+      if (!orderId) return NextResponse.json({ error: "Order ID required" }, { status: 400 });
+      const order = await prisma.order.findUnique({ where: { id: orderId } });
+      if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+
+      let updatedComboData = order.comboData;
+      if (order.comboData) {
+        try {
+          const combo = JSON.parse(order.comboData);
+          combo.isPaused = true;
+          combo.pausedAt = new Date().toISOString();
+          if (Array.isArray(combo.batches)) {
+            combo.batches = combo.batches.map((b: any) => {
+              if (b.status === "PENDING") return { ...b, status: "PAUSED" };
+              return b; // Running/DISPATCHED and COMPLETED batches remain untouched!
+            });
+          }
+          updatedComboData = JSON.stringify(combo);
+        } catch {}
+      }
+
+      const updated = await prisma.order.update({
+        where: { id: order.id },
+        data: { status: "PAUSED", comboData: updatedComboData },
+        include: { user: true, service: true, panel: true },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Order #${orderId.slice(-6)} paused. Active batch will complete safely; remaining pulses held.`,
+        order: updated,
+      });
+    }
+
+    // ──────────────── 6. RESUME ORDER ────────────────
+    if (action === "RESUME") {
+      if (!orderId) return NextResponse.json({ error: "Order ID required" }, { status: 400 });
+      const order = await prisma.order.findUnique({ where: { id: orderId } });
+      if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+
+      let updatedComboData = order.comboData;
+      if (order.comboData) {
+        try {
+          const combo = JSON.parse(order.comboData);
+          combo.isPaused = false;
+          combo.resumedAt = new Date().toISOString();
+
+          const intervalMins = Math.max(2, order.intervalMinutes || 5);
+          const nowMs = Date.now();
+          let offset = 0;
+          if (Array.isArray(combo.batches)) {
+            combo.batches = combo.batches.map((b: any) => {
+              if (b.status === "PAUSED") {
+                offset++;
+                const newScheduledTime = new Date(nowMs + offset * intervalMins * 60 * 1000).toISOString();
+                return { ...b, status: "PENDING", scheduledAt: newScheduledTime };
+              }
+              return b;
+            });
+          }
+          updatedComboData = JSON.stringify(combo);
+        } catch {}
+      }
+
+      const updated = await prisma.order.update({
+        where: { id: order.id },
+        data: { status: "IN_PROGRESS", comboData: updatedComboData },
+        include: { user: true, service: true, panel: true },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Order #${orderId.slice(-6)} resumed! Remaining pulses rescheduled.`,
+        order: updated,
+      });
+    }
+
+    // ──────────────── 7. CANCEL REMAINING BATCHES & PARTIAL REFUND ────────────────
+    if (action === "CANCEL_PARTIAL") {
+      if (!orderId) return NextResponse.json({ error: "Order ID required" }, { status: 400 });
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: { user: true, service: true },
+      });
+      if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+
+      const totalQuantity = Number(order.quantity || 1);
+      const totalCharge = Number(order.charge || 0);
+      let cancelledQuantity = 0;
+      let dispatchedQuantity = 0;
+      let updatedComboData = order.comboData;
+
+      if (order.comboData) {
+        try {
+          const combo = JSON.parse(order.comboData);
+          combo.isCancelled = true;
+          combo.cancelledAt = new Date().toISOString();
+
+          if (Array.isArray(combo.batches)) {
+            combo.batches = combo.batches.map((b: any) => {
+              const bQty = Number(b.views || b.quantity || 0);
+              if (b.status === "DISPATCHED" || b.status === "COMPLETED" || b.upstreamOrderId) {
+                dispatchedQuantity += bQty;
+                return b;
+              } else {
+                cancelledQuantity += bQty;
+                return { ...b, status: "CANCELLED" };
+              }
+            });
+          }
+          updatedComboData = JSON.stringify(combo);
+        } catch {}
+      } else {
+        if (!order.providerOrderId) {
+          cancelledQuantity = totalQuantity;
+          dispatchedQuantity = 0;
+        } else {
+          const remains = order.remains !== null && order.remains !== undefined ? Number(order.remains) : 0;
+          cancelledQuantity = Math.max(0, Math.min(totalQuantity, remains));
+          dispatchedQuantity = totalQuantity - cancelledQuantity;
+        }
+      }
+
+      let refundAmount = 0;
+      if (totalQuantity > 0 && totalCharge > 0 && cancelledQuantity > 0) {
+        refundAmount = Number(((cancelledQuantity / totalQuantity) * totalCharge).toFixed(2));
+        refundAmount = Math.max(0, Math.min(totalCharge, refundAmount));
+      }
+
+      const finalStatus = dispatchedQuantity > 0 ? "PARTIAL" : "CANCELLED";
+      const reasonMsg = dispatchedQuantity > 0
+        ? `Cancelled by admin. Dispatched: ${dispatchedQuantity.toLocaleString()} views. Refunded: ₹${refundAmount.toFixed(2)} for ${cancelledQuantity.toLocaleString()} unsent views.`
+        : `Cancelled before dispatch by admin. 100% refunded (₹${refundAmount.toFixed(2)}).`;
+
+      const [updatedUser, updatedOrder] = await prisma.$transaction([
+        prisma.user.update({
+          where: { id: order.userId },
+          data: {
+            balance: { increment: refundAmount },
+            totalSpent: { decrement: Math.min(order.user.totalSpent, refundAmount) },
+          },
+          select: { id: true, balance: true },
+        }),
+        prisma.order.update({
+          where: { id: order.id },
+          data: {
+            status: finalStatus,
+            remains: cancelledQuantity,
+            failReason: reasonMsg,
+            comboData: updatedComboData,
+          },
+          include: { user: true, service: true, panel: true },
+        }),
+      ]);
+
+      return NextResponse.json({
+        success: true,
+        message: `Order #${orderId.slice(-6)} cancelled. ₹${refundAmount.toFixed(2)} refunded to ${order.user.email} for unsent pulses.`,
+        refundAmount,
+        order: updatedOrder,
+      });
+    }
+
+    // ──────────────── 8. MODIFY TARGET LINK ────────────────
+    if (action === "MODIFY_LINK") {
+      const { newLink } = body;
+      if (!orderId || !newLink) return NextResponse.json({ error: "Order ID and newLink required" }, { status: 400 });
+      const order = await prisma.order.findUnique({ where: { id: orderId } });
+      if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+
+      const cleanLink = String(newLink).trim();
+      let updatedComboData = order.comboData;
+      if (order.comboData) {
+        try {
+          const combo = JSON.parse(order.comboData);
+          combo.targetLink = cleanLink;
+          combo.linkModifiedAt = new Date().toISOString();
+          updatedComboData = JSON.stringify(combo);
+        } catch {}
+      }
+
+      const updated = await prisma.order.update({
+        where: { id: order.id },
+        data: { link: cleanLink, comboData: updatedComboData },
+        include: { user: true, service: true, panel: true },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Target link updated to: ${cleanLink}`,
+        order: updated,
+      });
+    }
+
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (error: any) {
     console.error("POST /api/admin/orders/actions error:", error);

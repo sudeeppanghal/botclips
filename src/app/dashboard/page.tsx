@@ -22,6 +22,7 @@ import {
 import NewOrderModal from "@/components/NewOrderModal";
 import AddFundsModal from "@/components/AddFundsModal";
 import UpgradePlanModal from "@/components/UpgradePlanModal";
+import PromotionBannerCard from "@/components/PromotionBannerCard";
 import { PlatformType } from "@/lib/types";
 
 export default function DashboardPage() {
@@ -35,6 +36,7 @@ export default function DashboardPage() {
   // Real orders & loading state
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
+  const [hasPromotionBanner, setHasPromotionBanner] = useState(true);
 
   // Plan info
   const [planActive, setPlanActive] = useState(false);
@@ -383,114 +385,17 @@ export default function DashboardPage() {
       </div>
 
       {/* ──────────────── 3. Popular Services & Quick Actions ──────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className={`grid grid-cols-1 ${hasPromotionBanner ? "lg:grid-cols-12" : "lg:grid-cols-1"} gap-6`}>
         
-        {/* Popular Services (Left 8 Cols) */}
-        <div className="lg:col-span-8 bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800/80 rounded-2xl p-6 shadow-xs">
-          <div className="flex items-center justify-between pb-4">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">Popular Services</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Quick access to our most used services.
-              </p>
-            </div>
-            <Link
-              href="/dashboard/services"
-              className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center gap-1 group"
-            >
-              <span>View All</span>
-              <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-            </Link>
+        {/* Promotion Banner (Left 8 Cols) */}
+        {hasPromotionBanner && (
+          <div className="lg:col-span-8">
+            <PromotionBannerCard onBannerLoaded={setHasPromotionBanner} />
           </div>
+        )}
 
-          {/* 5 Service Tiles */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
-            
-            {/* Instagram */}
-            <div
-              onClick={() => openNewOrderWithPlatform("INSTAGRAM")}
-              className="group p-4 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900 hover:shadow-xs transition-all flex flex-col items-center text-center cursor-pointer bg-slate-50/50 dark:bg-slate-800/30"
-            >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 flex items-center justify-center text-white text-lg shadow-xs group-hover:scale-105 transition-transform">
-                📸
-              </div>
-              <div className="mt-3 font-bold text-xs text-slate-900 dark:text-white">
-                Instagram
-              </div>
-              <div className="text-[10px] text-slate-400 mt-1 line-clamp-1">
-                Followers, Likes, Views
-              </div>
-            </div>
-
-            {/* YouTube */}
-            <div
-              onClick={() => openNewOrderWithPlatform("YOUTUBE")}
-              className="group p-4 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900 hover:shadow-xs transition-all flex flex-col items-center text-center cursor-pointer bg-slate-50/50 dark:bg-slate-800/30"
-            >
-              <div className="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center text-white text-lg shadow-xs group-hover:scale-105 transition-transform">
-                ▶
-              </div>
-              <div className="mt-3 font-bold text-xs text-slate-900 dark:text-white">
-                YouTube
-              </div>
-              <div className="text-[10px] text-slate-400 mt-1 line-clamp-1">
-                Subscribers, Views
-              </div>
-            </div>
-
-            {/* TikTok */}
-            <div
-              onClick={() => openNewOrderWithPlatform("TIKTOK")}
-              className="group p-4 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900 hover:shadow-xs transition-all flex flex-col items-center text-center cursor-pointer bg-slate-50/50 dark:bg-slate-800/30"
-            >
-              <div className="w-10 h-10 rounded-xl bg-black dark:bg-slate-900 flex items-center justify-center text-cyan-400 text-lg shadow-xs group-hover:scale-105 transition-transform">
-                🎵
-              </div>
-              <div className="mt-3 font-bold text-xs text-slate-900 dark:text-white">
-                TikTok
-              </div>
-              <div className="text-[10px] text-slate-400 mt-1 line-clamp-1">
-                Followers, Likes
-              </div>
-            </div>
-
-            {/* Telegram */}
-            <div
-              onClick={() => openNewOrderWithPlatform("TELEGRAM")}
-              className="group p-4 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900 hover:shadow-xs transition-all flex flex-col items-center text-center cursor-pointer bg-slate-50/50 dark:bg-slate-800/30"
-            >
-              <div className="w-10 h-10 rounded-xl bg-sky-500 flex items-center justify-center text-white text-lg shadow-xs group-hover:scale-105 transition-transform">
-                ✈
-              </div>
-              <div className="mt-3 font-bold text-xs text-slate-900 dark:text-white">
-                Telegram
-              </div>
-              <div className="text-[10px] text-slate-400 mt-1 line-clamp-1">
-                Members, Views
-              </div>
-            </div>
-
-            {/* Twitter (X) */}
-            <div
-              onClick={() => openNewOrderWithPlatform("TWITTER")}
-              className="group p-4 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900 hover:shadow-xs transition-all flex flex-col items-center text-center cursor-pointer bg-slate-50/50 dark:bg-slate-800/30"
-            >
-              <div className="w-10 h-10 rounded-xl bg-black dark:bg-slate-800 flex items-center justify-center text-white font-black text-base shadow-xs group-hover:scale-105 transition-transform">
-                𝕏
-              </div>
-              <div className="mt-3 font-bold text-xs text-slate-900 dark:text-white">
-                Twitter (X)
-              </div>
-              <div className="text-[10px] text-slate-400 mt-1 line-clamp-1">
-                Followers, Likes
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-        {/* Quick Actions (Right 4 Cols) */}
-        <div className="lg:col-span-4 bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800/80 rounded-2xl p-6 shadow-xs flex flex-col justify-between">
+        {/* Quick Actions (Right 4 Cols when banner exists, or clean full/adaptive when hidden) */}
+        <div className={`${hasPromotionBanner ? "lg:col-span-4" : "w-full"} bg-white dark:bg-[#131b2e] border border-slate-100 dark:border-slate-800/80 rounded-2xl p-6 shadow-xs flex flex-col justify-between`}>
           <h2 className="text-base font-bold text-slate-900 dark:text-white mb-4">
             Quick Actions
           </h2>

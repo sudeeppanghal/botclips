@@ -47,7 +47,8 @@ import {
   ImageIcon,
   Pause,
   Play,
-  XCircle
+  XCircle,
+  Megaphone
 } from "lucide-react";
 import BotClipsLogo from "@/components/BotClipsLogo";
 import { computeOrderProgress } from "@/lib/order-progress";
@@ -1667,6 +1668,14 @@ export default function AdminDashboardPage() {
             </button>
           );
         })}
+
+        <Link
+          href="/admin/banners"
+          className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 border border-purple-500/20"
+        >
+          <Megaphone className="w-3.5 h-3.5 text-purple-500" />
+          <span>Promotion Banner</span>
+        </Link>
       </div>
 
       {/* ──────────────── TAB 1: OVERVIEW ──────────────── */}

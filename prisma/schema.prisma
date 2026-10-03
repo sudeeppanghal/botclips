@@ -538,3 +538,33 @@ model HybridSlot {
   @@map("hybrid_slots")
 }
 
+// ──────────────── PROMOTION BANNER ────────────────
+model PromotionBanner {
+  id                  String    @id @default(cuid())
+  name                String    @default("16:9 Views Promotion")
+  imageUrl            String    @map("image_url") @db.Text
+  badge               String?   @default("PROMOTION") @map("badge_text")
+  title               String    @default("PROMOTION BANNED")
+  description         String    @default("Get real views for your 16:9 videos without any risk") @db.Text
+  primaryButtonText   String    @default("Go Now") @map("primary_button_text")
+  primaryButtonUrl    String    @default("/dashboard/services") @map("primary_button_url")
+  secondaryButtonText String?   @default("Click Here") @map("secondary_button_text")
+  secondaryButtonUrl  String?   @default("https://t.me/botclipssmm") @map("secondary_button_url")
+  openLinksNewTab     Boolean   @default(true) @map("open_links_new_tab")
+  status              String    @default("ACTIVE") // "ACTIVE" | "INACTIVE"
+  showOnDashboard     Boolean   @default(true) @map("show_on_dashboard")
+  startDate           DateTime? @map("start_at")
+  endDate             DateTime? @map("end_at")
+  priority            Int       @default(1)
+  impressions         Int       @default(0)
+  primaryClicks       Int       @default(0) @map("primary_clicks")
+  secondaryClicks     Int       @default(0) @map("secondary_clicks")
+  clicks              Int       @default(0) // total clicks
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@index([status, showOnDashboard])
+  @@index([priority])
+  @@map("promotion_banners")
+}
+

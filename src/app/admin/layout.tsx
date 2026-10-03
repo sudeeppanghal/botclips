@@ -12,7 +12,8 @@ import {
   CreditCard, 
   ArrowLeft, 
   Settings,
-  Sparkles
+  Sparkles,
+  Megaphone
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -52,6 +53,7 @@ export default function AdminLayout({
   const navItems = [
     { label: "Overview", href: "/admin", icon: ShieldCheck },
     { label: "Hybrid Engine", href: "/admin/hybrid", icon: Sparkles },
+    { label: "Promotion Banner", href: "/admin/banners", icon: Megaphone },
     { label: "Affiliates & Promoters", href: "/admin/affiliates", icon: Users },
     { label: "Services & Catalog", href: "/admin/services", icon: Layers },
     { label: "SMM Providers", href: "/admin/panels", icon: Server },

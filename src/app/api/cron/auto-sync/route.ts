@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SmmPanelClient } from "@/lib/delivery/panel-client";
+import { reconcileIncomingPayment, reconcileDepositRequest } from "@/lib/payments/verification";
 
 export const dynamic = "force-dynamic";
 
@@ -113,6 +114,57 @@ export async function GET(request: NextRequest) {
         automationMode: "MANAGED",
       },
     });
+
+    // ── STAGE: FAMPAY AUTOMATED UTR RECONCILIATION (HIGHEST PRIORITY) ──
+    let fampayReconciledCount = 0;
+    try {
+      // 1. Reconcile unconsumed received payments against pending/verifying deposits
+      const unconsumedPayments = await prisma.receivedPayment.findMany({
+        where: { status: "received" },
+        take: 10,
+        orderBy: { createdAt: "asc" }
+      });
+
+      for (const payment of unconsumedPayments) {
+        const res = await reconcileIncomingPayment(payment.id);
+        if (res.status === "MATCHED_AND_CREDITED" || res.status === "MATCHED_PENDING_APPROVAL") {
+          fampayReconciledCount++;
+        }
+      }
+
+      // 2. Also check any VERIFYING/PENDING deposits that have matching received payments
+      const verifyingDeposits = await prisma.upiPayment.findMany({
+        where: {
+          status: { in: ["VERIFYING", "PENDING"] },
+          matchedPaymentId: null,
+        },
+        take: 10,
+        orderBy: { createdAt: "asc" }
+      });
+
+      for (const dep of verifyingDeposits) {
+        const res = await reconcileDepositRequest(dep.id);
+        if (res.status === "MATCHED_AND_CREDITED" || res.status === "MATCHED_PENDING_APPROVAL") {
+          fampayReconciledCount++;
+        }
+      }
+
+      // 3. Timeout check: If user submitted UTR > 30 minutes ago and no Gmail notification arrived, mark MANUAL_REVIEW
+      const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
+      await prisma.upiPayment.updateMany({
+        where: {
+          status: "VERIFYING",
+          matchedPaymentId: null,
+          createdAt: { lt: thirtyMinsAgo }
+        },
+        data: {
+          status: "MANUAL_REVIEW",
+          verificationReason: "FamPay notification pending: No matching Gmail notification received within 30 minutes."
+        }
+      });
+    } catch (fampayErr) {
+      console.error("FamPay background reconciliation error:", fampayErr);
+    }
 
     // ── STAGE 0: TOKEN-BUCKET QUEUE DISPATCHER FOR UNPLACED ORDERS ──
     let queuedOrdersDispatched = 0;
@@ -773,44 +825,6 @@ export async function GET(request: NextRequest) {
         }
       } catch (hybridErr) {
         console.error("Hybrid dispersion engine execution error:", hybridErr);
-      }
-    }
-
-    // ── STAGE 4: FAMPAY AUTOMATED UTR RECONCILIATION ──
-    let fampayReconciledCount = 0;
-    if (!isBudgetExhausted()) {
-      try {
-        // 1. Reconcile eligible unconsumed received payments against pending/verifying deposits
-        const unconsumedPayments = await prisma.receivedPayment.findMany({
-          where: { status: "received" },
-          take: 5,
-          orderBy: { createdAt: "asc" }
-        });
-
-        for (const payment of unconsumedPayments) {
-          if (isBudgetExhausted()) break;
-          const { reconcileIncomingPayment } = await import("@/lib/payments/verification");
-          const res = await reconcileIncomingPayment(payment.id);
-          if (res.status === "MATCHED_AND_CREDITED" || res.status === "MATCHED_PENDING_APPROVAL") {
-            fampayReconciledCount++;
-          }
-        }
-
-        // 2. Timeout check: If user submitted UTR > 30 minutes ago and no Gmail notification arrived, mark MANUAL_REVIEW
-        const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
-        await prisma.upiPayment.updateMany({
-          where: {
-            status: "VERIFYING",
-            matchedPaymentId: null,
-            createdAt: { lt: thirtyMinsAgo }
-          },
-          data: {
-            status: "MANUAL_REVIEW",
-            verificationReason: "FamPay notification pending: No matching Gmail notification received within 30 minutes."
-          }
-        });
-      } catch (fampayErr) {
-        console.error("FamPay background reconciliation error:", fampayErr);
       }
     }
 

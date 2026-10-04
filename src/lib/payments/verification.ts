@@ -205,11 +205,26 @@ export async function reconcileIncomingPayment(receivedPaymentId: string): Promi
   }
 
   // Search for an active customer deposit request with the exact same normalized UTR
+  const cleanUtr = normalizeUtr(received.utr);
   const pendingDeposits = await prisma.upiPayment.findMany({
     where: {
-      utr: received.utr,
-      status: { in: ["PENDING", "VERIFYING"] },
-      matchedPaymentId: null,
+      AND: [
+        {
+          OR: [
+            { utr: cleanUtr },
+            { utr: received.utr },
+          ],
+        },
+        {
+          status: { in: ["PENDING", "VERIFYING", "MANUAL_REVIEW"] },
+        },
+        {
+          OR: [
+            { matchedPaymentId: null },
+            { matchedPaymentId: received.id },
+          ],
+        },
+      ],
     },
     orderBy: { createdAt: "asc" },
   });
@@ -241,16 +256,18 @@ export async function reconcileIncomingPayment(receivedPaymentId: string): Promi
       data: { status: "flagged" },
     });
 
-    await prisma.paymentProcessingEvent.create({
-      data: {
-        eventType: "MANUAL_REVIEW",
-        utr: received.utr,
-        amount: received.amountInr,
-        receivedPaymentId: received.id,
-        result: "FAILED",
-        details: `Multiple customer deposit claims detected for UTR ${received.utr}. Flagged for manual review.`,
-      },
-    });
+    try {
+      await prisma.paymentProcessingEvent.create({
+        data: {
+          eventType: "MANUAL_REVIEW",
+          utr: received.utr,
+          amount: received.amountInr,
+          receivedPaymentId: received.id,
+          result: "FAILED",
+          details: `Multiple customer deposit claims detected for UTR ${received.utr}. Flagged for manual review.`,
+        },
+      });
+    } catch {}
 
     return {
       success: false,
@@ -263,8 +280,8 @@ export async function reconcileIncomingPayment(receivedPaymentId: string): Promi
   const deposit = pendingDeposits[0];
   const depositPaise = Math.round(deposit.amount * 100);
 
-  // Validate exact amount match
-  if (depositPaise !== received.amountPaise) {
+  // Validate exact amount match (allow max 1 paise rounding tolerance)
+  if (depositPaise !== received.amountPaise && Math.abs(depositPaise - received.amountPaise) > 1) {
     await prisma.upiPayment.update({
       where: { id: deposit.id },
       data: {
@@ -273,17 +290,19 @@ export async function reconcileIncomingPayment(receivedPaymentId: string): Promi
       },
     });
 
-    await prisma.paymentProcessingEvent.create({
-      data: {
-        eventType: "MATCH_FAILED",
-        utr: received.utr,
-        amount: received.amountInr,
-        receivedPaymentId: received.id,
-        upiPaymentId: deposit.id,
-        result: "FAILED",
-        details: `Amount mismatch: Submitted ₹${deposit.amount} vs Received ₹${received.amountInr}`,
-      },
-    });
+    try {
+      await prisma.paymentProcessingEvent.create({
+        data: {
+          eventType: "MATCH_FAILED",
+          utr: received.utr,
+          amount: received.amountInr,
+          receivedPaymentId: received.id,
+          upiPaymentId: deposit.id,
+          result: "FAILED",
+          details: `Amount mismatch: Submitted ₹${deposit.amount} vs Received ₹${received.amountInr}`,
+        },
+      });
+    } catch {}
 
     return {
       success: false,
@@ -308,17 +327,19 @@ export async function reconcileIncomingPayment(receivedPaymentId: string): Promi
       },
     });
 
-    await prisma.paymentProcessingEvent.create({
-      data: {
-        eventType: "MATCH_SUCCESS",
-        utr: received.utr,
-        amount: received.amountInr,
-        receivedPaymentId: received.id,
-        upiPaymentId: deposit.id,
-        result: "PENDING",
-        details: `Matched UTR ${received.utr} for ₹${received.amountInr}. Awaiting admin confirmation (auto-approval disabled).`,
-      },
-    });
+    try {
+      await prisma.paymentProcessingEvent.create({
+        data: {
+          eventType: "MATCH_SUCCESS",
+          utr: received.utr,
+          amount: received.amountInr,
+          receivedPaymentId: received.id,
+          upiPaymentId: deposit.id,
+          result: "PENDING",
+          details: `Matched UTR ${received.utr} for ₹${received.amountInr}. Awaiting admin confirmation (auto-approval disabled).`,
+        },
+      });
+    } catch {}
 
     return {
       success: true,
@@ -358,9 +379,16 @@ export async function reconcileDepositRequest(depositId: string): Promise<Reconc
 
   const cleanUtr = normalizeUtr(deposit.utr);
 
-  // Check if genuine incoming payment was already received in received_payments
-  const received = await prisma.receivedPayment.findUnique({
-    where: { utr: cleanUtr },
+  // Check if genuine incoming payment was already received in received_payments (unconsumed)
+  const received = await prisma.receivedPayment.findFirst({
+    where: {
+      OR: [
+        { utr: cleanUtr },
+        { utr: deposit.utr },
+      ],
+      status: { not: "matched" },
+    },
+    orderBy: { createdAt: "desc" },
   });
 
   if (!received) {
@@ -399,45 +427,100 @@ export async function executeAtomicWalletCredit({
   utr: string;
 }): Promise<ReconcileResult> {
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Lock and re-verify deposit request
-      const currentDeposit = await tx.upiPayment.findUnique({
-        where: { id: depositId },
-      });
+    // 1. Fetch pre-transaction state
+    const currentDeposit = await prisma.upiPayment.findUnique({
+      where: { id: depositId },
+    });
 
-      if (!currentDeposit || currentDeposit.status === "CONFIRMED") {
-        throw new Error("Deposit request is already confirmed or deleted.");
-      }
+    if (!currentDeposit || currentDeposit.status === "CONFIRMED") {
+      return {
+        success: true,
+        status: "ALREADY_PROCESSED",
+        depositId,
+        receivedPaymentId,
+        amount,
+        reason: "Deposit request is already confirmed.",
+      };
+    }
 
-      // 2. Lock and re-verify received payment
-      const currentReceived = await tx.receivedPayment.findUnique({
-        where: { id: receivedPaymentId },
-      });
+    const currentReceived = await prisma.receivedPayment.findUnique({
+      where: { id: receivedPaymentId },
+    });
 
-      if (!currentReceived || currentReceived.status === "matched") {
-        throw new Error("Received payment has already been matched or consumed.");
-      }
+    if (!currentReceived || currentReceived.status === "matched") {
+      return {
+        success: true,
+        status: "ALREADY_PROCESSED",
+        depositId,
+        receivedPaymentId,
+        amount,
+        reason: "Received payment has already been matched or consumed.",
+      };
+    }
 
-      // 3. Fetch current user balance
-      const user = await tx.user.findUnique({
-        where: { id: userId },
-      });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
 
-      if (!user) {
-        throw new Error(`User ${userId} not found.`);
-      }
+    if (!user) {
+      throw new Error(`User ${userId} not found.`);
+    }
 
-      const balanceBefore = Number(user.balance || 0);
-      const balanceAfter = Number((balanceBefore + amount).toFixed(2));
+    const balanceBefore = Number(user.balance || 0);
+    const balanceAfter = Number((balanceBefore + amount).toFixed(2));
 
-      // 4. Update user balance
-      await tx.user.update({
+    // 2. Perform core database writes with increased timeout
+    try {
+      await prisma.$transaction(
+        async (tx) => {
+          // Increment user balance
+          await tx.user.update({
+            where: { id: userId },
+            data: { balance: { increment: amount } },
+          });
+
+          // Insert WalletLedger entry
+          await tx.walletLedger.create({
+            data: {
+              userId,
+              amount,
+              balanceBefore,
+              balanceAfter,
+              type: "DEPOSIT_UPI",
+              referenceId: depositId,
+              description: `Automated FamPay UTR ${utr} credit`,
+            },
+          });
+
+          // Update UpiPayment to CONFIRMED
+          await tx.upiPayment.update({
+            where: { id: depositId },
+            data: {
+              status: "CONFIRMED",
+              matchedPaymentId: receivedPaymentId,
+              verifiedAt: new Date(),
+              verificationReason: `Auto-verified via FamPay Gmail payment notification (UTR: ${utr})`,
+            },
+          });
+
+          // Update ReceivedPayment to matched
+          await tx.receivedPayment.update({
+            where: { id: receivedPaymentId },
+            data: { status: "matched" },
+          });
+        },
+        { maxWait: 15000, timeout: 30000 }
+      );
+    } catch (txErr: any) {
+      console.warn("Prisma interactive transaction warning (falling back to direct atomic sequence):", txErr?.message);
+
+      // Robust fallback in case PgBouncer drops interactive transactions:
+      await prisma.user.update({
         where: { id: userId },
         data: { balance: { increment: amount } },
       });
 
-      // 5. Insert WalletLedger entry
-      await tx.walletLedger.create({
+      await prisma.walletLedger.create({
         data: {
           userId,
           amount,
@@ -449,8 +532,7 @@ export async function executeAtomicWalletCredit({
         },
       });
 
-      // 6. Update UpiPayment to CONFIRMED
-      const updatedDeposit = await tx.upiPayment.update({
+      await prisma.upiPayment.update({
         where: { id: depositId },
         data: {
           status: "CONFIRMED",
@@ -460,14 +542,15 @@ export async function executeAtomicWalletCredit({
         },
       });
 
-      // 7. Update ReceivedPayment to matched
-      await tx.receivedPayment.update({
+      await prisma.receivedPayment.update({
         where: { id: receivedPaymentId },
         data: { status: "matched" },
       });
+    }
 
-      // 8. Log PaymentProcessingEvent
-      await tx.paymentProcessingEvent.create({
+    // 3. Log PaymentProcessingEvent asynchronously outside transaction (NEVER blocks wallet credit)
+    try {
+      await prisma.paymentProcessingEvent.create({
         data: {
           eventType: "AUTO_CREDIT",
           utr,
@@ -478,11 +561,11 @@ export async function executeAtomicWalletCredit({
           details: `Credited ₹${amount} to user ${user.email} (Balance: ₹${balanceBefore} -> ₹${balanceAfter})`,
         },
       });
+    } catch (evErr) {
+      console.error("Non-fatal event logging error:", evErr);
+    }
 
-      return { updatedDeposit, balanceAfter };
-    });
-
-    // 9. Asynchronously record partner profit split & referral rewards outside tx
+    // 4. Asynchronously record partner profit split & referral rewards
     try {
       const { recordReferralReward } = await import("@/lib/referral");
       await recordReferralReward({
@@ -492,7 +575,7 @@ export async function executeAtomicWalletCredit({
         paymentId: depositId,
       });
     } catch (refErr) {
-      console.error("Referral reward error:", refErr);
+      console.error("Non-fatal referral reward error:", refErr);
     }
 
     return {

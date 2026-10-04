@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { sendUpiDepositAlert } from "@/lib/telegram";
-import { normalizeUtr } from "@/lib/payments/verification";
+import { normalizeUtr, reconcileDepositRequest } from "@/lib/payments/verification";
 
 // GET /api/billing/upi - Fetch all UPI payments (Admin only or user's own)
 export async function GET(request: NextRequest) {
@@ -153,7 +153,6 @@ export async function POST(request: NextRequest) {
     let finalStatus: any = "VERIFYING";
 
     try {
-      const { reconcileDepositRequest } = await import("@/lib/payments/verification");
       const recResult = await reconcileDepositRequest(payment.id);
       if (recResult.status === "MATCHED_AND_CREDITED") {
         reconcileMessage = `Payment verified instantly! ₹${depositAmount} has been credited to your wallet balance.`;

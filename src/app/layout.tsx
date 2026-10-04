@@ -20,17 +20,22 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://botclips.online"),
+  manifest: "/site.webmanifest",
   icons: {
     icon: [
-      { url: "/favicon.ico?v=3" },
-      { url: "/favicon-32x32.png?v=3", sizes: "32x32", type: "image/png" },
-      { url: "/favicon-16x16.png?v=3", sizes: "16x16", type: "image/png" },
-      { url: "/logo-icon.png?v=3", sizes: "512x512", type: "image/png" },
+      { url: "/favicon.ico?v=4" },
+      { url: "/favicon-48x48.png?v=4", sizes: "48x48", type: "image/png" },
+      { url: "/favicon-96x96.png?v=4", sizes: "96x96", type: "image/png" },
+      { url: "/favicon-144x144.png?v=4", sizes: "144x144", type: "image/png" },
+      { url: "/favicon-192x192.png?v=4", sizes: "192x192", type: "image/png" },
+      { url: "/favicon-32x32.png?v=4", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png?v=4", sizes: "16x16", type: "image/png" },
+      { url: "/logo-square.png?v=4", sizes: "512x512", type: "image/png" },
     ],
-    shortcut: "/favicon.ico?v=3",
+    shortcut: "/favicon.ico?v=4",
     apple: [
-      { url: "/apple-icon.png?v=3", sizes: "180x180", type: "image/png" },
-      { url: "/logo-icon.png?v=3", sizes: "512x512", type: "image/png" },
+      { url: "/apple-icon.png?v=4", sizes: "180x180", type: "image/png" },
+      { url: "/logo-square.png?v=4", sizes: "512x512", type: "image/png" },
     ],
   },
   title: {
@@ -73,7 +78,13 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "https://botclips.online/logo.png?v=3",
+        url: "https://botclips.online/logo-square.png?v=4",
+        width: 512,
+        height: 512,
+        alt: "BotClips - AI-Powered SMM Panel & Whop Clippers Automation",
+      },
+      {
+        url: "https://botclips.online/logo.png?v=4",
         width: 1200,
         height: 630,
         alt: "BotClips - Social Media Marketing Automation & Whop Clippers Engine",
@@ -84,7 +95,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "BotClips - #1 AI-Powered SMM Panel & Whop Clippers Automation",
     description: "Organic non-linear jitter delivery, Whop clippers multi-signal combos, 0% fee TRC20 USDT & UPI deposits.",
-    images: ["https://botclips.online/logo.png?v=3"],
+    images: ["https://botclips.online/logo-square.png?v=4", "https://botclips.online/logo.png?v=4"],
     creator: "@botclips_online",
   },
   robots: {
@@ -109,7 +120,8 @@ const organizationJsonLd = {
   "name": "BotClips",
   "alternateName": "BotClips Automation",
   "url": "https://botclips.online",
-  "logo": "https://botclips.online/logo.png?v=3",
+  "logo": "https://botclips.online/logo-square.png?v=4",
+  "image": "https://botclips.online/logo-square.png?v=4",
   "description": "BotClips is the premier AI-powered social media marketing and algorithmic growth platform, engineered specifically for Whop clippers, digital creators, and growth agencies.",
   "foundingDate": "2026-01-01",
   "founders": [
@@ -131,7 +143,7 @@ const organizationJsonLd = {
     "availableLanguage": ["English", "Hindi"]
   },
   "sameAs": [
-    "https://t.me/dhillionsmm_support"
+    "https://t.me/botclipssmm"
   ]
 };
 
@@ -152,6 +164,7 @@ const softwareApplicationJsonLd = {
   "@type": "SoftwareApplication",
   "@id": "https://botclips.online/#software",
   "name": "BotClips SMM Automation Engine",
+  "image": "https://botclips.online/logo-square.png?v=4",
   "applicationCategory": "BusinessApplication",
   "operatingSystem": "All (Web-based Cloud Platform)",
   "url": "https://botclips.online",
@@ -235,6 +248,17 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Favicons & App Icons */}
+        <link rel="icon" type="image/x-icon" href="/favicon.ico?v=4" sizes="32x32" />
+        <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png?v=4" />
+        <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png?v=4" />
+        <link rel="icon" type="image/png" sizes="144x144" href="/favicon-144x144.png?v=4" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png?v=4" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-icon.png?v=4" />
+        <link rel="manifest" href="/site.webmanifest" />
+        <link rel="image_src" href="https://botclips.online/logo-square.png?v=4" />
+        <meta name="thumbnail" content="https://botclips.online/logo-square.png?v=4" />
+
         {/* Schema.org Structured Data */}
         <script
           type="application/ld+json"

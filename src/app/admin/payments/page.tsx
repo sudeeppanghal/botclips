@@ -111,7 +111,7 @@ export default function AdminPaymentsPage() {
   const [manualAmount, setManualAmount] = useState("");
   const [manualLoading, setManualLoading] = useState(false);
   const [currentUpiId, setCurrentUpiId] = useState("Jaatdhillon@fam");
-  const [fampayAutoApprove, setFampayAutoApprove] = useState(false);
+  const [fampayAutoApprove, setFampayAutoApprove] = useState(true);
   const [togglingAutoApprove, setTogglingAutoApprove] = useState(false);
 
   const fetchPayments = useCallback(async () => {
@@ -357,10 +357,10 @@ export default function AdminPaymentsPage() {
       )}
 
       {/* FamPay Automated Verification Control Banner */}
-      <div className="p-5 rounded-2xl bg-gradient-to-r from-purple-950/40 via-[#131b2e] to-slate-900 border border-purple-500/30 shadow-lg relative overflow-hidden">
+      <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-900/30 via-[#131b2e] to-slate-900 border border-blue-500/30 shadow-lg relative overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 text-purple-400 flex items-center justify-center font-bold shrink-0 mt-0.5">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-500/40 text-blue-400 flex items-center justify-center font-bold shrink-0 mt-0.5">
               <Zap className="w-5 h-5" />
             </div>
             <div>
@@ -382,7 +382,7 @@ export default function AdminPaymentsPage() {
                   : "Payments sent from Google Apps Script are ingested and matched with user UTRs, then placed in queue for quick 1-click admin approval."}
               </p>
               <div className="flex items-center gap-3 mt-2 flex-wrap text-[11px] text-slate-400 font-mono">
-                <span>Webhook: <code className="text-purple-300 select-all">/api/payments/fampay/webhook</code></span>
+                <span>Webhook: <code className="text-blue-300 select-all">/api/payments/fampay/webhook</code></span>
                 <span>•</span>
                 <span>UPI: <code className="text-emerald-400 font-bold select-all">{currentUpiId}</code></span>
               </div>
@@ -396,7 +396,7 @@ export default function AdminPaymentsPage() {
               className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-md cursor-pointer disabled:opacity-50 ${
                 fampayAutoApprove
                   ? "bg-amber-600 hover:bg-amber-500 text-white"
-                  : "bg-purple-600 hover:bg-purple-500 text-white"
+                  : "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/25"
               }`}
             >
               {togglingAutoApprove ? (
@@ -730,8 +730,8 @@ export default function AdminPaymentsPage() {
                           </span>
 
                           {p.matchedPayment && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[9px] font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">
-                              <Zap className="w-2.5 h-2.5 text-purple-400" />
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[9px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                              <Zap className="w-2.5 h-2.5 text-blue-400" />
                               Auto-Matched ₹{(p.matchedPayment.amountPaise / 100).toFixed(0)}
                             </span>
                           )}

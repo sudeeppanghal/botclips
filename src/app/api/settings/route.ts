@@ -41,7 +41,9 @@ export async function GET() {
           : (settings.supportTelegram || "@botclipscn_bot"),
         supportWhatsapp: settings.supportWhatsapp || "+919999999999",
         maintenanceMode: settings.maintenanceMode || false,
-        maintenanceMessage: settings.maintenanceMessage || ""
+        maintenanceMessage: settings.maintenanceMessage || "",
+        fampayAutoApprove: settings.fampayAutoApprove !== undefined ? Boolean(settings.fampayAutoApprove) : true,
+        fampayVerificationWindowHours: settings.fampayVerificationWindowHours || 72
       }
     });
   } catch (err: any) {
@@ -59,7 +61,9 @@ export async function GET() {
         supportEmail: "support@botclips.online",
         supportTelegram: "@botclipscn_bot",
         supportWhatsapp: "+919999999999",
-        maintenanceMode: false
+        maintenanceMode: false,
+        fampayAutoApprove: true,
+        fampayVerificationWindowHours: 72
       }
     });
   }

@@ -522,10 +522,10 @@ export default function AdminSettingsPage() {
       {/* ─────────────────────────────────────────────────────────────────── */}
       {/* 3. FAMPAY GMAIL AUTOMATION & WEBHOOK SETTINGS                       */}
       {/* ─────────────────────────────────────────────────────────────────── */}
-      <form onSubmit={handleSaveFampay} className="bg-white dark:bg-[#131b2e] border border-purple-500/30 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+      <form onSubmit={handleSaveFampay} className="bg-white dark:bg-[#131b2e] border border-blue-500/30 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold">
               <Zap className="w-5 h-5" />
             </div>
             <div>
@@ -559,7 +559,7 @@ export default function AdminSettingsPage() {
                 type="text"
                 readOnly
                 value="https://botclips.online/api/payments/fampay/webhook"
-                className="w-full px-4 py-3 text-xs font-mono font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-purple-400 outline-none select-all pr-24"
+                className="w-full px-4 py-3 text-xs font-mono font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-blue-400 outline-none select-all pr-24"
               />
               <button
                 type="button"
@@ -568,14 +568,14 @@ export default function AdminSettingsPage() {
                   setCopiedWebhook(true);
                   setTimeout(() => setCopiedWebhook(false), 2000);
                 }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 {copiedWebhook ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copiedWebhook ? "Copied" : "Copy"}</span>
               </button>
             </div>
             <span className="text-[11px] text-slate-400 mt-1.5 block">
-              Configure this exact URL as the <code className="text-purple-300">WEBHOOK_URL</code> in your Google Apps Script project.
+              Configure this exact URL as the <code className="text-blue-300">WEBHOOK_URL</code> in your Google Apps Script project.
             </span>
           </div>
 
@@ -590,7 +590,7 @@ export default function AdminSettingsPage() {
                 value={fampayWebhookSecret}
                 onChange={(e) => setFampayWebhookSecret(e.target.value)}
                 placeholder="Enter or generate a strong shared secret token"
-                className="w-full px-4 py-3 text-xs font-mono bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-900 dark:text-white outline-none focus:border-purple-500 transition-colors pr-44"
+                className="w-full px-4 py-3 text-xs font-mono bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-900 dark:text-white outline-none focus:border-blue-500 transition-colors pr-44"
               />
               <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
                 <button
@@ -621,7 +621,7 @@ export default function AdminSettingsPage() {
               </div>
             </div>
             <span className="text-[11px] text-slate-400 mt-1.5 block">
-              Set the same token as <code className="text-purple-300">WEBHOOK_SECRET</code> in Google Apps Script Script Properties.
+              Set the same token as <code className="text-blue-300">WEBHOOK_SECRET</code> in Google Apps Script Script Properties.
             </span>
           </div>
 
@@ -674,7 +674,7 @@ export default function AdminSettingsPage() {
           <button
             type="submit"
             disabled={savingFampay}
-            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-500/20 transition-all cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
+            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
           >
             <Zap className="w-4 h-4" />
             <span>{savingFampay ? "Saving..." : "Save FamPay Automation Settings"}</span>

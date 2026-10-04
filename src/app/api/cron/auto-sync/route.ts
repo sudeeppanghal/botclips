@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
       // 1. Reconcile unconsumed received payments against pending/verifying deposits
       const unconsumedPayments = await prisma.receivedPayment.findMany({
         where: { status: "received" },
-        take: 10,
+        take: 50,
         orderBy: { createdAt: "asc" }
       });
 
@@ -132,13 +132,13 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // 2. Also check any VERIFYING/PENDING deposits that have matching received payments
+      // 2. Also check any VERIFYING/PENDING/MANUAL_REVIEW deposits that have matching received payments
       const verifyingDeposits = await prisma.upiPayment.findMany({
         where: {
-          status: { in: ["VERIFYING", "PENDING"] },
+          status: { in: ["VERIFYING", "PENDING", "MANUAL_REVIEW"] },
           matchedPaymentId: null,
         },
-        take: 10,
+        take: 50,
         orderBy: { createdAt: "asc" }
       });
 

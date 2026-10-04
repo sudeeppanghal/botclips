@@ -136,6 +136,96 @@ export async function answerCallbackQuery(callbackQueryId: string, text?: string
   }
 }
 
+export async function sendTelegramPhoto(
+  photoSrc: string,
+  caption: string,
+  options: {
+    chatId?: string;
+    replyMarkup?: any;
+    parseMode?: "HTML" | "MarkdownV2" | "Markdown";
+  } = {}
+): Promise<{ success: boolean; result?: any; error?: string }> {
+  try {
+    const config = await getTelegramConfig();
+    const targetChatId = options.chatId || config?.chatId;
+    const token = config?.botToken;
+
+    if (!token || !targetChatId) {
+      return { success: false, error: "Telegram Bot Token or Chat ID not configured" };
+    }
+
+    const safeCaption = caption.length > 1024 ? caption.slice(0, 1020) + "..." : caption;
+
+    // Case 1: HTTP / HTTPS URL
+    if (photoSrc.startsWith("http://") || photoSrc.startsWith("https://")) {
+      const payload: any = {
+        chat_id: targetChatId,
+        photo: photoSrc,
+        caption: safeCaption,
+        parse_mode: options.parseMode || "HTML"
+      };
+      if (options.replyMarkup) {
+        payload.reply_markup = options.replyMarkup;
+      }
+
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(8000)
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        console.warn("Telegram sendPhoto with URL failed, falling back to text:", data.description);
+        return await sendTelegramMessage(caption, options);
+      }
+      return { success: true, result: data.result };
+    }
+
+    // Case 2: Base64 Data URI (data:image/...;base64,...)
+    if (photoSrc.startsWith("data:image/")) {
+      const commaIdx = photoSrc.indexOf(",");
+      if (commaIdx !== -1) {
+        const mimeMatch = photoSrc.match(/data:([^;]+);/);
+        const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+        const base64Data = photoSrc.substring(commaIdx + 1);
+        const buffer = Buffer.from(base64Data, "base64");
+
+        const ext = mimeType.includes("png") ? "png" : "jpg";
+        const blob = new Blob([buffer], { type: mimeType });
+        const formData = new FormData();
+        formData.append("chat_id", String(targetChatId));
+        formData.append("photo", blob, `receipt_${Date.now()}.${ext}`);
+        formData.append("caption", safeCaption);
+        formData.append("parse_mode", options.parseMode || "HTML");
+        if (options.replyMarkup) {
+          formData.append("reply_markup", JSON.stringify(options.replyMarkup));
+        }
+
+        const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+          method: "POST",
+          body: formData,
+          signal: AbortSignal.timeout(12000)
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          console.warn("Telegram sendPhoto with FormData failed, falling back to text:", data.description);
+          return await sendTelegramMessage(caption, options);
+        }
+        return { success: true, result: data.result };
+      }
+    }
+
+    // Fallback if not recognized as photo
+    return await sendTelegramMessage(caption, options);
+  } catch (err: any) {
+    console.error("sendTelegramPhoto error, falling back to text message:", err);
+    return await sendTelegramMessage(caption, options);
+  }
+}
+
 // ──────────────── 1. SEND UPI DEPOSIT ALERT ────────────────
 export async function sendUpiDepositAlert(deposit: {
   id: string;
@@ -143,21 +233,13 @@ export async function sendUpiDepositAlert(deposit: {
   utr: string;
   userName?: string;
   userEmail: string;
-  screenshot1?: string;
-  screenshot2?: string;
+  screenshot1?: string | null;
+  screenshot2?: string | null;
 }) {
   const timeStr = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
   
-  let proofLinks = "";
-  if (deposit.screenshot1 && deposit.screenshot1.startsWith("http")) {
-    proofLinks += `• <a href="${deposit.screenshot1}">Receipt Proof 1</a>\n`;
-  }
-  if (deposit.screenshot2 && deposit.screenshot2.startsWith("http") && deposit.screenshot2 !== deposit.screenshot1) {
-    proofLinks += `• <a href="${deposit.screenshot2}">Receipt Proof 2</a>\n`;
-  }
-  if (!proofLinks) {
-    proofLinks = "• <i>Attached via app/portal</i>\n";
-  }
+  const hasProof = Boolean(deposit.screenshot1 || deposit.screenshot2);
+  const proofImg = deposit.screenshot1 || deposit.screenshot2;
 
   const safeName = escapeHtml(deposit.userName || "Customer");
   const safeEmail = escapeHtml(deposit.userEmail);
@@ -170,9 +252,8 @@ export async function sendUpiDepositAlert(deposit: {
 💵 <b>Amount:</b> <b>₹${deposit.amount.toLocaleString("en-IN")} INR</b>
 🔢 <b>12-Digit UTR:</b> <code>${safeUtr}</code>
 ⏰ <b>Time:</b> ${timeStr} IST
-
-🖼️ <b>Proof Screenshots:</b>
-${proofLinks}━━━━━━━━━━━━━━━━━━━━━━
+🖼️ <b>Proof Photo:</b> ${hasProof ? "Attached directly below" : "<i>Not attached</i>"}
+━━━━━━━━━━━━━━━━━━━━━━
 <i>Tap below to approve or reject with 1 click:</i>`;
 
   const inlineKeyboard = {
@@ -190,11 +271,15 @@ ${proofLinks}━━━━━━━━━━━━━━━━━━━━━━
       [
         {
           text: `🔍 View in Admin Portal`,
-          url: `https://botclips.online/admin/billing`
+          url: `https://botclips.online/admin/payments`
         }
       ]
     ]
   };
+
+  if (proofImg && (proofImg.startsWith("http://") || proofImg.startsWith("https://") || proofImg.startsWith("data:image/"))) {
+    return sendTelegramPhoto(proofImg, text, { replyMarkup: inlineKeyboard });
+  }
 
   return sendTelegramMessage(text, { replyMarkup: inlineKeyboard });
 }
@@ -209,13 +294,15 @@ export async function sendCryptoDepositAlert(deposit: {
   userName?: string;
   userEmail: string;
   onChainVerified: boolean;
-  screenshot1?: string;
-  screenshot2?: string;
+  screenshot1?: string | null;
+  screenshot2?: string | null;
 }) {
   const timeStr = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
   const explorerUrl = deposit.network === "TRC20" 
     ? `https://tronscan.org/#/transaction/${deposit.txHash}`
     : `https://bscscan.com/tx/${deposit.txHash}`;
+
+  const proofImg = deposit.screenshot1 || deposit.screenshot2;
 
   const text = 
 `💎 <b>NEW USDT CRYPTO DEPOSIT</b>
@@ -249,6 +336,10 @@ export async function sendCryptoDepositAlert(deposit: {
       ]
     ]
   };
+
+  if (proofImg && (proofImg.startsWith("http://") || proofImg.startsWith("https://") || proofImg.startsWith("data:image/"))) {
+    return sendTelegramPhoto(proofImg, text, { replyMarkup: inlineKeyboard });
+  }
 
   return sendTelegramMessage(text, { replyMarkup: inlineKeyboard });
 }
